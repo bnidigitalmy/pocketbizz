@@ -16,6 +16,14 @@ The system handles the complete lifecycle of a dessert business: creating produc
 - A filter toggle button allows users to view only expiring/expired items
 - Expiry dates are color-coded (red for expired, orange for expiring soon) for quick visual identification
 
+**Rejected Products Tracking** - Comprehensive rejection management system integrated into deliveries and financial reporting:
+- Track rejected quantities and reasons for each delivery item using collapsible fields in the delivery form
+- Visual display of rejection information on delivery cards with orange badges showing rejected quantities
+- Rejection reasons displayed in muted text below the rejection count
+- Automatic calculation of rejection losses (rejected quantity × unit price) included in profit/loss reports
+- New "Kerugian Tolakan" (Rejection Loss) metric displayed on Reports page showing total financial impact of rejected products
+- Rejection losses automatically factored into net profit calculations for accurate financial insights
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

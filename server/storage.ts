@@ -265,16 +265,23 @@ export class DatabaseStorage implements IStorage {
       expenses: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
     }).from(productionBatches).fullJoin(expenses, sql`1=1`);
 
+    // Calculate total rejection losses (value of rejected items)
+    const rejectionLossResult = await db.select({
+      total: sql<string>`COALESCE(SUM(${deliveryItems.rejectedQty} * ${deliveryItems.unitPrice}), 0)`,
+    }).from(deliveryItems);
+
     const totalSales = parseFloat(totalSalesResult[0]?.total || "0");
     const productionCost = parseFloat(totalCostsResult[0]?.production || "0");
     const expensesCost = parseFloat(totalCostsResult[0]?.expenses || "0");
-    const totalCosts = productionCost + expensesCost;
+    const rejectionLoss = parseFloat(rejectionLossResult[0]?.total || "0");
+    const totalCosts = productionCost + expensesCost + rejectionLoss;
     const netProfit = totalSales - totalCosts;
     const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0";
 
     return {
       totalSales: totalSales.toFixed(2),
       totalCosts: totalCosts.toFixed(2),
+      rejectionLoss: rejectionLoss.toFixed(2),
       netProfit: netProfit.toFixed(2),
       profitMargin,
     };

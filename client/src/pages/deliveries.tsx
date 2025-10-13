@@ -28,7 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, Truck, Trash2, Download, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,6 +46,8 @@ const deliveryFormSchema = insertDeliverySchema.extend({
     productName: z.string(),
     quantity: z.coerce.number().min(1, "Kuantiti mestilah lebih dari 0"),
     unitPrice: z.string(),
+    rejectedQty: z.coerce.number().min(0).optional().default(0),
+    rejectionReason: z.string().optional().default(""),
   })).min(1, "Sila tambah sekurang-kurangnya satu item"),
 });
 
@@ -51,7 +55,7 @@ type DeliveryFormValues = z.infer<typeof deliveryFormSchema>;
 
 export default function Deliveries() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+  const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
   const { toast } = useToast();
 
   const { data: deliveries, isLoading } = useQuery({
@@ -74,7 +78,7 @@ export default function Deliveries() {
       deliveryDate: new Date().toISOString().split('T')[0],
       status: "delivered",
       totalAmount: "0",
-      items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0" }],
+      items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }],
     },
   });
 
@@ -91,7 +95,7 @@ export default function Deliveries() {
       });
       setDialogOpen(false);
       form.reset();
-      setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+      setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
   });
 
@@ -133,8 +137,8 @@ export default function Deliveries() {
 
   const addItem = () => {
     const current = form.getValues("items");
-    form.setValue("items", [...current, { productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
-    setItems([...items, { productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+    form.setValue("items", [...current, { productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+    setItems([...items, { productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -325,70 +329,122 @@ export default function Deliveries() {
                       Tambah Item
                     </Button>
                   </div>
-                  {form.watch("items")?.map((_, index) => (
-                    <div key={index} className="flex gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.productId`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <Select 
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                handleProductChange(index, value);
-                              }}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger data-testid={`select-product-${index}`}>
-                                  <SelectValue placeholder="Pilih produk" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {products?.map((product: any) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    {product.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.quantity`}
-                        render={({ field }) => (
-                          <FormItem className="w-20">
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="1"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  calculateTotal();
+                  {form.watch("items")?.map((item, index) => (
+                    <Card key={index} className="p-3">
+                      <div className="flex gap-2 mb-2">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.productId`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <Select 
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  handleProductChange(index, value);
                                 }}
-                                data-testid={`input-item-qty-${index}`}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-product-${index}`}>
+                                    <SelectValue placeholder="Pilih produk" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {products?.map((product: any) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem className="w-20">
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="1"
+                                  placeholder="Qty"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    calculateTotal();
+                                  }}
+                                  data-testid={`input-item-qty-${index}`}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {form.watch("items").length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                            data-testid={`button-remove-item-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         )}
-                      />
-                      {form.watch("items").length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(index)}
-                          data-testid={`button-remove-item-${index}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
+                      </div>
+                      
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button type="button" variant="ghost" size="sm" className="w-full justify-start text-xs text-muted-foreground hover:text-foreground">
+                            <ChevronDown className="h-3 w-3 mr-1" />
+                            Rekod Tolakan (Optional)
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-2 mt-2 pt-2 border-t">
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.rejectedQty`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Kuantiti Ditolak</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min="0"
+                                    max={item.quantity || 0}
+                                    placeholder="0"
+                                    {...field}
+                                    data-testid={`input-rejected-qty-${index}`}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.rejectionReason`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Sebab Tolakan</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    placeholder="Cth: Rosak, luput, tidak sesuai..."
+                                    className="resize-none h-16"
+                                    {...field}
+                                    data-testid={`input-rejection-reason-${index}`}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </Card>
                   ))}
                 </div>
 
@@ -478,10 +534,26 @@ export default function Deliveries() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     {delivery.items.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
-                        <span className="flex-1">{item.productName}</span>
-                        <span className="text-muted-foreground">{item.quantity}x</span>
-                        <span className="font-mono ml-2">RM {item.totalPrice}</span>
+                      <div key={index} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                          <span className="flex-1">{item.productName}</span>
+                          <span className="text-muted-foreground">{item.quantity}x</span>
+                          <span className="font-mono ml-2">RM {item.totalPrice}</span>
+                        </div>
+                        {item.rejectedQty > 0 && (
+                          <div className="ml-2 pl-3 border-l-2 border-destructive/50">
+                            <div className="flex items-center gap-2 text-xs">
+                              <Badge variant="destructive" className="h-5">
+                                Ditolak: {item.rejectedQty} unit
+                              </Badge>
+                              {item.rejectionReason && (
+                                <span className="text-muted-foreground italic">
+                                  {item.rejectionReason}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -135,6 +135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           productName: z.string(),
           quantity: z.number(),
           unitPrice: z.string(),
+          rejectedQty: z.number().optional(),
+          rejectionReason: z.string().optional(),
         })),
       });
       
@@ -147,6 +149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: (item.quantity * parseFloat(item.unitPrice)).toFixed(2),
+        rejectedQty: item.rejectedQty || 0,
+        rejectionReason: item.rejectionReason || null,
         deliveryId: "", // Will be set in storage
       }));
       

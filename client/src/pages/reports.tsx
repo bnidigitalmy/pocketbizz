@@ -81,7 +81,7 @@ export default function Reports() {
 
         <TabsContent value="overview" className="space-y-6">
           {/* Profit/Loss Summary */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -112,6 +112,23 @@ export default function Reports() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Produksi & Perbelanjaan
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Kerugian Tolakan
+                </CardTitle>
+                <TrendingDown className="h-4 w-4 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold font-mono text-orange-600 dark:text-orange-400" data-testid="text-rejection-loss">
+                  RM {profitLoss?.rejectionLoss || "0.00"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Produk ditolak vendor
                 </p>
               </CardContent>
             </Card>
