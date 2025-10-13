@@ -7,6 +7,7 @@ import {
   Receipt,
   BarChart3,
   Store,
+  ClipboardCheck,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -56,6 +57,11 @@ const menuItems = [
     title: "Perbelanjaan",
     url: "/expenses",
     icon: Receipt,
+  },
+  {
+    title: "Tuntutan",
+    url: "/claims",
+    icon: ClipboardCheck,
   },
   {
     title: "Laporan",

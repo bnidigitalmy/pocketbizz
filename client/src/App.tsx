@@ -15,6 +15,7 @@ import Vendors from "@/pages/vendors";
 import Deliveries from "@/pages/deliveries";
 import Sales from "@/pages/sales";
 import Expenses from "@/pages/expenses";
+import Claims from "@/pages/claims";
 import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/deliveries" component={Deliveries} />
       <Route path="/sales" component={Sales} />
       <Route path="/expenses" component={Expenses} />
+      <Route path="/claims" component={Claims} />
       <Route path="/reports" component={Reports} />
       <Route component={NotFound} />
     </Switch>

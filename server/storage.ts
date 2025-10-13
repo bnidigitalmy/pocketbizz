@@ -51,6 +51,7 @@ export interface IStorage {
   getDelivery(id: string): Promise<any>;
   createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
   updateDeliveryStatus(id: string, status: string): Promise<void>;
+  updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any>;
   
   // Sales
   getSales(): Promise<Sale[]>;
@@ -67,6 +68,9 @@ export interface IStorage {
   getTopProducts(): Promise<any[]>;
   getTopVendors(): Promise<any[]>;
   getMonthlyData(): Promise<any[]>;
+  
+  // Claims
+  getClaimsSummary(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -176,6 +180,14 @@ export class DatabaseStorage implements IStorage {
     await db.update(deliveries)
       .set({ status: status as any })
       .where(eq(deliveries.id, id));
+  }
+
+  async updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any> {
+    const [updated] = await db.update(deliveries)
+      .set({ paymentStatus: paymentStatus as any })
+      .where(eq(deliveries.id, id))
+      .returning();
+    return updated;
   }
 
   // Sales
@@ -326,6 +338,25 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyData(): Promise<any[]> {
     // This is a simplified version - in production, you'd want proper date grouping
     return [];
+  }
+
+  // Claims
+  async getClaimsSummary(): Promise<any[]> {
+    // Get all deliveries grouped by vendor with payment status summary
+    const claimsSummary = await db.select({
+      vendorId: deliveries.vendorId,
+      vendorName: deliveries.vendorName,
+      totalDeliveries: sql<number>`COUNT(${deliveries.id})`,
+      totalAmount: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
+      pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'pending' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+      settledAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'settled' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+      partialAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'partial' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+    })
+      .from(deliveries)
+      .groupBy(deliveries.vendorId, deliveries.vendorName)
+      .orderBy(sql`COALESCE(SUM(${deliveries.totalAmount}), 0) DESC`);
+
+    return claimsSummary;
   }
 }
 

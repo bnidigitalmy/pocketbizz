@@ -270,6 +270,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Claims
+  app.get("/api/claims", async (req, res) => {
+    try {
+      const claims = await storage.getClaimsSummary();
+      res.json(claims);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch claims summary" });
+    }
+  });
+
+  app.patch("/api/deliveries/:id/payment-status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentStatus } = req.body;
+      const delivery = await storage.updateDeliveryPaymentStatus(id, paymentStatus);
+      res.json(delivery);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update payment status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

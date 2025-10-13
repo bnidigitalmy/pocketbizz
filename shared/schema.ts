@@ -15,6 +15,7 @@ import { z } from "zod";
 
 // Enums
 export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claimed", "pending", "rejected"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 
 // Products Table
@@ -66,6 +67,7 @@ export const deliveries = pgTable("deliveries", {
   vendorName: text("vendor_name").notNull(),
   deliveryDate: date("delivery_date").notNull(),
   status: deliveryStatusEnum("status").notNull().default("delivered"),
+  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
