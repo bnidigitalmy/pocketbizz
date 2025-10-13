@@ -8,6 +8,7 @@ import {
   BarChart3,
   Store,
   ClipboardCheck,
+  Settings,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -67,6 +68,11 @@ const menuItems = [
     title: "Laporan",
     url: "/reports",
     icon: BarChart3,
+  },
+  {
+    title: "Tetapan",
+    url: "/settings",
+    icon: Settings,
   },
 ];
 

@@ -17,6 +17,7 @@ import Sales from "@/pages/sales";
 import Expenses from "@/pages/expenses";
 import Claims from "@/pages/claims";
 import Reports from "@/pages/reports";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/expenses" component={Expenses} />
       <Route path="/claims" component={Claims} />
       <Route path="/reports" component={Reports} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

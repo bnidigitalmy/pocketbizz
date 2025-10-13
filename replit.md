@@ -54,6 +54,34 @@ The system handles the complete lifecycle of a dessert business: creating produc
 - Filename prefix "resit-" to distinguish from standard invoices
 - 3-button grid layout on delivery cards: Invois, Resit A5, Kongsi WhatsApp
 
+**Professional Invoice System with Letterhead (October 13, 2025)** - Complete business invoice system with professional formatting:
+- **Business Profile Management**: New businessProfile table stores company details (name, registration, address, contact, tagline)
+- **API Endpoints**: GET/POST `/api/business-profile` for managing letterhead information
+- **Professional Letterhead Renderer**: Reusable function renders company branding on all PDF documents
+  - Company name, tagline, address, contact details, registration number
+  - Separator line with brand colors
+  - Compact mode for smaller formats (A5 receipts)
+  - Graceful fallback to simple header if no profile exists
+- **Enhanced Invoice PDFs**: Professional A4 invoices with letterhead
+  - "INVOIS PENGHANTARAN" title with professional layout
+  - Two-column design: invoice metadata (left) + vendor details (right)
+  - Payment status indicator (Belum Dibayar/Bayaran Separa/Telah Dibayar)
+  - Enhanced product table with rejection tracking column
+  - Professional total box with gray background
+  - Footer with payment terms (7-day payment period)
+- **Claim Statement PDFs**: Multi-invoice summary statements for vendor claims
+  - Statement metadata: statement number, generated date, period covered
+  - Table of all invoices with payment status
+  - Color-coded summary: Total, Settled (green), Partial (orange), Pending (red), Outstanding (pink)
+  - Accurate financial calculations (outstanding = total - settled only)
+  - Professional formatting with letterhead
+  - Auto-filename: "penyata-{vendor}-{date}.pdf"
+- **Claims Page Integration**: "Penyata" button on each vendor card generates full claim statement
+  - Shows all deliveries for that vendor
+  - Automatic date range detection (earliest to latest delivery)
+  - Toast notifications for user feedback
+  - 2-button layout: Penyata + WhatsApp share
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

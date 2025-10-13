@@ -70,6 +70,10 @@ export default function Deliveries() {
     queryKey: ["/api/products"],
   });
 
+  const { data: businessProfile } = useQuery({
+    queryKey: ["/api/business-profile"],
+  });
+
   const form = useForm<DeliveryFormValues>({
     resolver: zodResolver(deliveryFormSchema),
     defaultValues: {
@@ -591,7 +595,7 @@ export default function Deliveries() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => generateInvoicePDF(delivery)}
+                      onClick={() => generateInvoicePDF(delivery, businessProfile)}
                       data-testid={`button-download-invoice-${delivery.id}`}
                     >
                       <Download className="h-4 w-4 mr-2" />
@@ -600,7 +604,7 @@ export default function Deliveries() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => generateMiniInvoicePDF(delivery)}
+                      onClick={() => generateMiniInvoicePDF(delivery, businessProfile)}
                       data-testid={`button-download-mini-${delivery.id}`}
                     >
                       <Receipt className="h-4 w-4 mr-2" />

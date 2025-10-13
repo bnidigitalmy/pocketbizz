@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2 } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText } from "lucide-react";
+import { generateClaimStatementPDF } from "@/lib/pdf-utils";
 
 interface ClaimSummary {
   vendorId: string;
@@ -43,6 +44,10 @@ export default function Claims() {
 
   const { data: deliveries } = useQuery<DeliveryWithItems[]>({
     queryKey: ["/api/deliveries"],
+  });
+
+  const { data: businessProfile } = useQuery({
+    queryKey: ["/api/business-profile"],
   });
 
   const updatePaymentMutation = useMutation({
@@ -129,6 +134,39 @@ export default function Claims() {
     window.open(whatsappUrl, '_blank');
   };
 
+  const generateClaimStatement = (vendorId: string, vendorName: string) => {
+    // Filter deliveries for this vendor
+    const vendorDeliveries = deliveries?.filter(d => d.vendorId === vendorId) || [];
+    
+    if (vendorDeliveries.length === 0) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada penghantaran untuk vendor ini",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get date range (earliest to latest delivery)
+    const dates = vendorDeliveries.map(d => new Date(d.deliveryDate));
+    const earliestDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+    const latestDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+
+    // Generate PDF
+    generateClaimStatementPDF(
+      vendorName,
+      vendorDeliveries,
+      earliestDate,
+      latestDate,
+      businessProfile
+    );
+
+    toast({
+      title: "Penyata Dijana",
+      description: `Penyata tuntutan untuk ${vendorName} telah dijana`,
+    });
+  };
+
   if (claimsLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -193,16 +231,26 @@ export default function Claims() {
                   </div>
                 </div>
 
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="w-full mt-3"
-                  onClick={() => shareClaimViaWhatsApp(claim)}
-                  data-testid={`button-share-claim-${claim.vendorId}`}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Kongsi via WhatsApp
-                </Button>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => generateClaimStatement(claim.vendorId, claim.vendorName)}
+                    data-testid={`button-generate-statement-${claim.vendorId}`}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Penyata
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => shareClaimViaWhatsApp(claim)}
+                    data-testid={`button-share-claim-${claim.vendorId}`}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
