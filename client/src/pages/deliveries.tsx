@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, Truck, Trash2, Download } from "lucide-react";
+import { Plus, Truck, Trash2, Download, Copy } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -156,6 +156,55 @@ export default function Deliveries() {
     form.setValue("totalAmount", total.toFixed(2));
   };
 
+  const duplicateYesterday = () => {
+    if (!deliveries || deliveries.length === 0) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada data semalam untuk disalin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get yesterday's date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // Find yesterday's delivery
+    const yesterdayDelivery = deliveries.find((delivery: any) => 
+      delivery.deliveryDate === yesterdayStr
+    );
+
+    if (!yesterdayDelivery) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada penghantaran semalam untuk disalin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Populate form with yesterday's data but update date to today
+    // Deep clone the items to avoid mutating cached data
+    const clonedItems = yesterdayDelivery.items ? JSON.parse(JSON.stringify(yesterdayDelivery.items)) : [];
+    
+    form.setValue("vendorId", yesterdayDelivery.vendorId);
+    form.setValue("vendorName", yesterdayDelivery.vendorName);
+    form.setValue("deliveryDate", new Date().toISOString().split('T')[0]);
+    form.setValue("status", yesterdayDelivery.status); // Preserve original status
+    form.setValue("items", clonedItems);
+    setItems(clonedItems);
+    calculateTotal();
+
+    setDialogOpen(true);
+
+    toast({
+      title: "Berjaya!",
+      description: "Data semalam telah disalin. Tarikh telah dikemaskini ke hari ini.",
+    });
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "claimed": return "default";
@@ -187,18 +236,27 @@ export default function Deliveries() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold md:text-3xl">Penghantaran</h1>
           <p className="text-sm text-muted-foreground mt-1">Urus penghantaran ke vendor</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-delivery">
-              <Plus className="h-4 w-4 mr-2" />
-              Tambah Penghantaran
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={duplicateYesterday}
+            data-testid="button-duplicate-yesterday-delivery"
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Salin Semalam
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-delivery">
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Penghantaran
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Rekod Penghantaran Baru</DialogTitle>
@@ -366,6 +424,7 @@ export default function Deliveries() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {!deliveries || deliveries.length === 0 ? (

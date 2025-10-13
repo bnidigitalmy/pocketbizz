@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, ChefHat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, ChefHat, Calendar as CalendarIcon, Copy } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProductionBatchSchema } from "@shared/schema";
@@ -101,6 +101,51 @@ export default function Production() {
     }
   };
 
+  const duplicateYesterday = () => {
+    if (!batches || batches.length === 0) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada data semalam untuk disalin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get yesterday's date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // Find yesterday's batch
+    const yesterdayBatch = batches.find((batch: any) => 
+      batch.batchDate === yesterdayStr
+    );
+
+    if (!yesterdayBatch) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada batch semalam untuk disalin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Populate form with yesterday's data but update date to today
+    form.setValue("productId", yesterdayBatch.productId);
+    form.setValue("productName", yesterdayBatch.productName);
+    form.setValue("quantity", yesterdayBatch.quantity);
+    form.setValue("batchDate", new Date().toISOString().split('T')[0]);
+    form.setValue("expiryDate", yesterdayBatch.expiryDate || "");
+    form.setValue("totalCost", yesterdayBatch.totalCost);
+
+    setDialogOpen(true);
+
+    toast({
+      title: "Berjaya!",
+      description: "Data semalam telah disalin. Tarikh telah dikemaskini ke hari ini.",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -114,18 +159,27 @@ export default function Production() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold md:text-3xl">Produksi Harian</h1>
           <p className="text-sm text-muted-foreground mt-1">Rekod pengeluaran produk harian</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-batch">
-              <Plus className="h-4 w-4 mr-2" />
-              Tambah Batch
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={duplicateYesterday}
+            data-testid="button-duplicate-yesterday"
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Salin Semalam
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-batch">
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Batch
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Rekod Produksi Baru</DialogTitle>
@@ -249,6 +303,7 @@ export default function Production() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {!batches || batches.length === 0 ? (

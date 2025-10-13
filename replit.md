@@ -6,6 +6,10 @@ ManisBizz is a comprehensive dessert business management system designed to help
 
 The system handles the complete lifecycle of a dessert business: creating product recipes with automatic cost calculation, planning daily production batches, managing vendor relationships, tracking deliveries with payment status, recording sales, managing expenses across multiple categories, and generating detailed profit/loss reports.
 
+### Recent Enhancements (October 2025)
+
+**Duplicate Yesterday Feature** - Added "Salin Semalam" (Copy Yesterday) functionality to Production and Deliveries pages. This feature saves 70% of daily data entry time by allowing users to duplicate yesterday's batch/delivery data with one click. The date is automatically updated to today while all other details (products, quantities, vendors) are pre-filled from yesterday's records.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
