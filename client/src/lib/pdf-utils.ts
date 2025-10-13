@@ -60,6 +60,91 @@ export function generateInvoicePDF(delivery: any) {
   doc.save(`invois-${delivery.vendorName}-${delivery.id.substring(0, 8)}.pdf`);
 }
 
+export function generateMiniInvoicePDF(delivery: any) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a5'
+  });
+  
+  // Compact header
+  doc.setFontSize(16);
+  doc.setTextColor(217, 97, 118);
+  doc.text('ManisBizz', 10, 12);
+  
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text('Resit Penghantaran', 10, 18);
+  
+  // Invoice details - compact
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text(`#${delivery.id.substring(0, 8).toUpperCase()}`, 10, 28);
+  doc.text(`${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, 10, 33);
+  doc.text(`${delivery.vendorName}`, 10, 38);
+  
+  // Status badge
+  doc.setFontSize(7);
+  const statusText = delivery.status === 'claimed' ? 'DIBAYAR' : 
+                    delivery.status === 'pending' ? 'PENDING' : 
+                    delivery.status === 'rejected' ? 'DITOLAK' : 'DIHANTAR';
+  doc.text(`Status: ${statusText}`, 10, 43);
+  
+  // Items table - compact
+  const tableData = delivery.items?.map((item: any) => {
+    const row = [
+      item.productName,
+      item.quantity.toString(),
+      `RM ${parseFloat(item.unitPrice).toFixed(2)}`,
+      `RM ${parseFloat(item.totalPrice).toFixed(2)}`
+    ];
+    return row;
+  }) || [];
+  
+  autoTable(doc, {
+    startY: 48,
+    head: [['Produk', 'Qty', 'Harga', 'Jumlah']],
+    body: tableData,
+    theme: 'grid',
+    margin: { left: 10, right: 10 },
+    headStyles: { 
+      fillColor: [217, 97, 118],
+      fontSize: 8,
+      cellPadding: 1.5
+    },
+    bodyStyles: {
+      fontSize: 7,
+      cellPadding: 1.5
+    },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 15, halign: 'center' },
+      2: { cellWidth: 25, halign: 'right' },
+      3: { cellWidth: 28, halign: 'right' }
+    },
+    styles: { 
+      font: 'helvetica',
+      lineWidth: 0.1,
+      lineColor: [200, 200, 200]
+    },
+  });
+  
+  // Total
+  const finalY = (doc as any).lastAutoTable.finalY || 48;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`JUMLAH: RM ${parseFloat(delivery.totalAmount).toFixed(2)}`, 10, finalY + 8);
+  
+  // Footer - compact
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120);
+  doc.text('Terima kasih!', 10, finalY + 16);
+  
+  // Save
+  doc.save(`resit-${delivery.vendorName}-${delivery.id.substring(0, 8)}.pdf`);
+}
+
 export function generateProfitLossReport(reportData: any, topProducts: any[], topVendors: any[]) {
   const doc = new jsPDF();
   

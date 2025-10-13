@@ -30,8 +30,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2 } from "lucide-react";
-import { generateInvoicePDF } from "@/lib/pdf-utils";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt } from "lucide-react";
+import { generateInvoicePDF, generateMiniInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDeliverySchema } from "@shared/schema";
@@ -587,21 +587,29 @@ export default function Deliveries() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-2 mt-4">
+                  <div className="grid grid-cols-2 gap-2 mt-4">
                     <Button 
                       variant="outline" 
-                      size="sm" 
-                      className="flex-1"
+                      size="sm"
                       onClick={() => generateInvoicePDF(delivery)}
                       data-testid={`button-download-invoice-${delivery.id}`}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Muat Turun Invois
+                      Invois
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => generateMiniInvoicePDF(delivery)}
+                      data-testid={`button-download-mini-${delivery.id}`}
+                    >
+                      <Receipt className="h-4 w-4 mr-2" />
+                      Resit A5
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="flex-1"
+                      className="col-span-2"
                       onClick={() => shareDeliveryViaWhatsApp(delivery)}
                       data-testid={`button-share-delivery-${delivery.id}`}
                     >
