@@ -1,0 +1,172 @@
+# ManisBizz - Sistem Pengurusan Bisnes Dessert
+
+## Overview
+
+ManisBizz is a comprehensive dessert business management system designed to help small dessert vendors manage their entire business workflow - from recipe management and production tracking to vendor deliveries, sales recording, and financial reporting. The application provides an intuitive, mobile-first interface with a warm, dessert-themed aesthetic that makes business management approachable and efficient.
+
+The system handles the complete lifecycle of a dessert business: creating product recipes with automatic cost calculation, planning daily production batches, managing vendor relationships, tracking deliveries with payment status, recording sales, managing expenses across multiple categories, and generating detailed profit/loss reports.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+
+**Framework & Build System**
+- React 18 with TypeScript for type-safe component development
+- Vite as the build tool and development server for fast hot module replacement
+- Wouter for lightweight client-side routing (replacing React Router)
+- Mobile-first responsive design approach
+
+**UI Component System**
+- Shadcn/ui component library built on Radix UI primitives
+- Tailwind CSS for utility-first styling with custom design tokens
+- Custom color palette implementing light/dark mode support
+- Typography system using Poppins (headings), Quicksand (body), and JetBrains Mono (numbers)
+- Consistent design language with dessert-themed aesthetics (soft cream, dusty rose, warm browns)
+
+**State Management**
+- TanStack Query (React Query) for server state management and caching
+- React Hook Form with Zod validation for form state and validation
+- Context API for theme management (light/dark mode toggle)
+
+**Key Design Patterns**
+- Component composition with Radix UI primitives wrapped in custom components
+- Custom hooks for reusable logic (useIsMobile, useToast)
+- Centralized API request handling through queryClient utilities
+- Consistent toast notifications for user feedback
+
+### Backend Architecture
+
+**Server Framework**
+- Express.js for REST API implementation
+- TypeScript for type safety across the stack
+- Custom middleware for request logging and error handling
+- Vite integration for development with HMR support
+
+**API Design**
+- RESTful API endpoints organized by resource:
+  - `/api/products` - Product and recipe management
+  - `/api/production` - Production batch tracking
+  - `/api/vendors` - Vendor management
+  - `/api/deliveries` - Delivery tracking with items
+  - `/api/sales` - Sales recording
+  - `/api/expenses` - Expense tracking by category
+  - `/api/reports` - Financial reporting and analytics
+  - `/api/dashboard/stats` - Dashboard statistics
+
+**Data Access Layer**
+- Storage abstraction layer (`storage.ts`) providing interface between routes and database
+- Type-safe data operations using Drizzle ORM types
+- Separation of concerns: routes handle HTTP, storage handles data logic
+
+### Database Architecture
+
+**ORM & Database**
+- Drizzle ORM for type-safe database operations
+- PostgreSQL as the primary database (via Neon serverless)
+- WebSocket connection pooling for serverless environment
+- Schema-first approach with TypeScript type generation
+
+**Database Schema Design**
+
+*Core Entities:*
+- **Products** - Product catalog with auto-generated IDs, cost tracking
+- **Ingredients** - Recipe components linked to products with quantity and pricing
+- **Production Batches** - Daily production records with batch dates and expiry tracking
+- **Vendors** - Vendor contact information and addresses
+- **Deliveries** - Delivery records with status tracking (delivered, claimed, pending, rejected)
+- **Delivery Items** - Line items for each delivery linking products and quantities
+- **Sales** - Sales transactions with optional vendor association
+- **Expenses** - Expense tracking with categorization (bahan, minyak, upah, plastik, lain)
+
+*Relationships:*
+- Products → Ingredients (one-to-many with cascade delete)
+- Products → Production Batches (one-to-many with cascade delete)
+- Deliveries → Delivery Items (one-to-many with cascade delete)
+- Vendors → Deliveries (one-to-many)
+- Products → Delivery Items (many-to-one)
+- Products → Sales (many-to-one)
+
+*Key Design Decisions:*
+- UUID primary keys (gen_random_uuid) for distributed-friendly IDs
+- Decimal types for precise financial calculations (10,2 precision)
+- Enum types for controlled vocabularies (delivery status, expense categories)
+- Denormalization of product names in batches/deliveries for historical accuracy
+- Automatic cost calculation stored at batch/delivery creation time
+
+**Schema Management**
+- Drizzle Kit for migrations with schema file as source of truth
+- Migration files stored in `/migrations` directory
+- Database URL configuration through environment variables
+
+### Key Architectural Decisions
+
+**1. Monolithic Full-Stack Structure**
+- **Decision**: Single repository with client and server code
+- **Rationale**: Simplifies deployment, shared TypeScript types, easier development for small team
+- **Trade-offs**: Less flexibility for independent scaling, but appropriate for this use case
+
+**2. Type-Safe Data Flow**
+- **Decision**: Shared schema types between client and server using Drizzle Zod integration
+- **Rationale**: Eliminates type mismatches, automatic validation, single source of truth
+- **Implementation**: Schema defined in `/shared/schema.ts`, imported by both client and server
+
+**3. Cost Calculation Strategy**
+- **Decision**: Calculate and store costs at creation time rather than dynamically
+- **Rationale**: Preserves historical accuracy when ingredient prices change, improves query performance
+- **Implementation**: Total costs computed from ingredients during product creation and stored in batches/deliveries
+
+**4. Delivery Status Workflow**
+- **Decision**: Four-stage delivery status (delivered → claimed → pending → rejected)
+- **Rationale**: Matches real-world vendor payment workflow, enables payment tracking
+- **Trade-offs**: Requires status management, but provides essential business tracking
+
+**5. Mobile-First Design**
+- **Decision**: Responsive design prioritizing mobile experience
+- **Rationale**: Target users (dessert vendors) primarily work from mobile devices
+- **Implementation**: Tailwind breakpoints, collapsible sidebar, touch-optimized UI
+
+**6. PDF Generation for Invoices**
+- **Decision**: Client-side PDF generation using jsPDF
+- **Rationale**: No server-side processing needed, immediate user feedback, works offline
+- **Implementation**: Utility functions in `/client/src/lib/pdf-utils.ts`
+
+## External Dependencies
+
+### Database & Infrastructure
+- **Neon Serverless PostgreSQL** - Managed PostgreSQL database with WebSocket support for serverless environments
+- **Drizzle ORM** - TypeScript ORM for type-safe database operations and migrations
+
+### UI & Component Libraries
+- **Radix UI** - Unstyled, accessible component primitives (dialogs, dropdowns, forms, etc.)
+- **Tailwind CSS** - Utility-first CSS framework for styling
+- **Shadcn/ui** - Pre-built component library built on Radix UI and Tailwind
+- **Lucide React** - Icon library for consistent iconography
+
+### Form & Validation
+- **React Hook Form** - Performant form state management
+- **Zod** - TypeScript-first schema validation
+- **@hookform/resolvers** - Integration between React Hook Form and Zod
+
+### Data Visualization & Reporting
+- **Recharts** - Composable charting library for reports and analytics
+- **jsPDF & jsPDF-AutoTable** - Client-side PDF generation for invoices and reports
+
+### State Management & Data Fetching
+- **TanStack Query (React Query)** - Server state management, caching, and synchronization
+- **date-fns** - Date manipulation and formatting utilities
+
+### Development Tools
+- **Vite** - Build tool and dev server with HMR
+- **TypeScript** - Type safety across the application
+- **ESBuild** - Fast JavaScript bundler for production builds
+
+### Fonts (External CDN)
+- Google Fonts: Poppins, Quicksand, JetBrains Mono
+
+### Environment Requirements
+- Node.js runtime
+- DATABASE_URL environment variable for PostgreSQL connection

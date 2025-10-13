@@ -1,0 +1,447 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Plus, Truck, Trash2, Download } from "lucide-react";
+import { generateInvoicePDF } from "@/lib/pdf-utils";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertDeliverySchema } from "@shared/schema";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+const deliveryFormSchema = insertDeliverySchema.extend({
+  vendorId: z.string().min(1, "Sila pilih vendor"),
+  items: z.array(z.object({
+    productId: z.string().min(1, "Sila pilih produk"),
+    productName: z.string(),
+    quantity: z.coerce.number().min(1, "Kuantiti mestilah lebih dari 0"),
+    unitPrice: z.string(),
+  })).min(1, "Sila tambah sekurang-kurangnya satu item"),
+});
+
+type DeliveryFormValues = z.infer<typeof deliveryFormSchema>;
+
+export default function Deliveries() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+  const { toast } = useToast();
+
+  const { data: deliveries, isLoading } = useQuery({
+    queryKey: ["/api/deliveries"],
+  });
+
+  const { data: vendors } = useQuery({
+    queryKey: ["/api/vendors"],
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["/api/products"],
+  });
+
+  const form = useForm<DeliveryFormValues>({
+    resolver: zodResolver(deliveryFormSchema),
+    defaultValues: {
+      vendorId: "",
+      vendorName: "",
+      deliveryDate: new Date().toISOString().split('T')[0],
+      status: "delivered",
+      totalAmount: "0",
+      items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0" }],
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: DeliveryFormValues) => {
+      return apiRequest("POST", "/api/deliveries", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Berjaya!",
+        description: "Penghantaran telah direkod.",
+      });
+      setDialogOpen(false);
+      form.reset();
+      setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest("PATCH", `/api/deliveries/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      toast({
+        title: "Berjaya!",
+        description: "Status telah dikemaskini.",
+      });
+    },
+  });
+
+  const handleVendorChange = (vendorId: string) => {
+    const vendor = vendors?.find((v: any) => v.id === vendorId);
+    if (vendor) {
+      form.setValue("vendorId", vendorId);
+      form.setValue("vendorName", vendor.name);
+    }
+  };
+
+  const handleProductChange = (index: number, productId: string) => {
+    const product = products?.find((p: any) => p.id === productId);
+    if (product) {
+      const currentItems = form.getValues("items");
+      currentItems[index] = {
+        ...currentItems[index],
+        productId,
+        productName: product.name,
+        unitPrice: product.suggestedPrice,
+      };
+      form.setValue("items", currentItems);
+      calculateTotal();
+    }
+  };
+
+  const addItem = () => {
+    const current = form.getValues("items");
+    form.setValue("items", [...current, { productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+    setItems([...items, { productId: "", productName: "", quantity: 1, unitPrice: "0" }]);
+  };
+
+  const removeItem = (index: number) => {
+    const current = form.getValues("items");
+    if (current.length > 1) {
+      form.setValue("items", current.filter((_, i) => i !== index));
+      setItems(items.filter((_, i) => i !== index));
+      calculateTotal();
+    }
+  };
+
+  const calculateTotal = () => {
+    const itemsList = form.getValues("items");
+    const total = itemsList.reduce((sum, item) => {
+      const price = parseFloat(item.unitPrice) || 0;
+      const qty = item.quantity || 0;
+      return sum + (price * qty);
+    }, 0);
+    form.setValue("totalAmount", total.toFixed(2));
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "claimed": return "default";
+      case "pending": return "secondary";
+      case "rejected": return "destructive";
+      default: return "outline";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "claimed": return "Dibayar";
+      case "pending": return "Pending";
+      case "rejected": return "Ditolak";
+      default: return "Dihantar";
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Memuat data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold md:text-3xl">Penghantaran</h1>
+          <p className="text-sm text-muted-foreground mt-1">Urus penghantaran ke vendor</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-delivery">
+              <Plus className="h-4 w-4 mr-2" />
+              Tambah Penghantaran
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Rekod Penghantaran Baru</DialogTitle>
+              <DialogDescription>
+                Masukkan maklumat penghantaran
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="vendorId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          handleVendorChange(value);
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-vendor">
+                            <SelectValue placeholder="Pilih vendor" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {vendors?.map((vendor: any) => (
+                            <SelectItem key={vendor.id} value={vendor.id}>
+                              {vendor.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="deliveryDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tarikh Penghantaran</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} data-testid="input-delivery-date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Item Dihantar</FormLabel>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addItem}
+                      data-testid="button-add-item"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Tambah Item
+                    </Button>
+                  </div>
+                  {form.watch("items")?.map((_, index) => (
+                    <div key={index} className="flex gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.productId`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <Select 
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                handleProductChange(index, value);
+                              }}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid={`select-product-${index}`}>
+                                  <SelectValue placeholder="Pilih produk" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {products?.map((product: any) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="w-20">
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  calculateTotal();
+                                }}
+                                data-testid={`input-item-qty-${index}`}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {form.watch("items").length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(index)}
+                          data-testid={`button-remove-item-${index}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="totalAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jumlah (RM)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field}
+                          readOnly
+                          className="font-mono text-lg font-semibold bg-muted"
+                          data-testid="input-total-amount"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending}
+                    data-testid="button-submit-delivery"
+                  >
+                    {createMutation.isPending ? "Menyimpan..." : "Simpan Penghantaran"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {!deliveries || deliveries.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Truck className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="font-medium mb-1">Tiada Penghantaran</h3>
+            <p className="text-sm text-muted-foreground mb-4">Rekod penghantaran pertama anda</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {deliveries.map((delivery: any) => (
+            <Card key={delivery.id} className="hover-elevate" data-testid={`delivery-card-${delivery.id}`}>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="truncate text-base">{delivery.vendorName}</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-mono font-semibold text-lg">RM {delivery.totalAmount}</p>
+                    </div>
+                    <Select
+                      value={delivery.status}
+                      onValueChange={(value) => updateStatusMutation.mutate({ id: delivery.id, status: value })}
+                    >
+                      <SelectTrigger className="w-32" data-testid={`select-status-${delivery.id}`}>
+                        <SelectValue>
+                          <Badge variant={getStatusBadgeVariant(delivery.status)}>
+                            {getStatusLabel(delivery.status)}
+                          </Badge>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="delivered">Dihantar</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="claimed">Dibayar</SelectItem>
+                        <SelectItem value="rejected">Ditolak</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              {delivery.items && delivery.items.length > 0 && (
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    {delivery.items.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                        <span className="flex-1">{item.productName}</span>
+                        <span className="text-muted-foreground">{item.quantity}x</span>
+                        <span className="font-mono ml-2">RM {item.totalPrice}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-4"
+                    onClick={() => generateInvoicePDF(delivery)}
+                    data-testid={`button-download-invoice-${delivery.id}`}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Muat Turun Invois
+                  </Button>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
