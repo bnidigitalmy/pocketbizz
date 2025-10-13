@@ -10,7 +10,10 @@ import {
   Plus,
   Truck,
   Receipt,
-  BarChart3
+  BarChart3,
+  Wallet,
+  TrendingDown,
+  AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -50,14 +53,29 @@ export default function Dashboard() {
       testId: "stat-sales-today"
     },
     {
-      title: "Jualan Minggu Ini",
-      value: `RM ${stats?.weekSales || "0.00"}`,
-      icon: TrendingUp,
-      color: "text-chart-2",
-      testId: "stat-sales-week"
+      title: "Modal Hari Ini",
+      value: `RM ${stats?.todayExpenses || "0.00"}`,
+      icon: Wallet,
+      color: "text-orange-600 dark:text-orange-400",
+      testId: "stat-expenses-today"
     },
     {
-      title: "Untung Bersih",
+      title: "Untung Hari Ini",
+      value: `RM ${stats?.todayProfit || "0.00"}`,
+      icon: TrendingUp,
+      color: "text-green-600 dark:text-green-400",
+      testId: "stat-profit-today"
+    },
+    {
+      title: "Produk Reject Hari Ini",
+      value: `${stats?.todayRejectionsCount || 0} unit`,
+      subtitle: `RM ${stats?.todayRejectionsValue || "0.00"}`,
+      icon: AlertCircle,
+      color: "text-destructive",
+      testId: "stat-rejections-today"
+    },
+    {
+      title: "Untung Bersih (Keseluruhan)",
       value: `RM ${stats?.netProfit || "0.00"}`,
       icon: BarChart3,
       color: "text-chart-4",
@@ -100,7 +118,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
         {statCards.map((stat) => (
           <Card key={stat.title} className="hover-elevate">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -113,6 +131,11 @@ export default function Dashboard() {
               <div className="text-2xl font-semibold font-mono" data-testid={stat.testId}>
                 {stat.value}
               </div>
+              {stat.subtitle && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.subtitle}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}

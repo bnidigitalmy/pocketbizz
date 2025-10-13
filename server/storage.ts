@@ -226,12 +226,35 @@ export class DatabaseStorage implements IStorage {
       .from(productionBatches)
       .where(eq(productionBatches.batchDate, today));
 
+    // Today's production cost
+    const todayProductionCost = await db.select({
+      total: sql<string>`COALESCE(SUM(${productionBatches.totalCost}), 0)`,
+    })
+      .from(productionBatches)
+      .where(eq(productionBatches.batchDate, today));
+
     // Today's sales
     const todaySales = await db.select({
       total: sql<string>`COALESCE(SUM(${sales.totalAmount}), 0)`,
     })
       .from(sales)
       .where(eq(sales.saleDate, today));
+
+    // Today's expenses (Modal Hari Ini)
+    const todayExpenses = await db.select({
+      total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
+    })
+      .from(expenses)
+      .where(eq(expenses.expenseDate, today));
+
+    // Today's rejections
+    const todayRejections = await db.select({
+      count: sql<number>`COALESCE(SUM(${deliveryItems.rejectedQty}), 0)`,
+      value: sql<string>`COALESCE(SUM(${deliveryItems.rejectedQty} * ${deliveryItems.unitPrice}), 0)`,
+    })
+      .from(deliveryItems)
+      .leftJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+      .where(eq(deliveries.deliveryDate, today));
 
     // Week's sales
     const weekSales = await db.select({
@@ -258,11 +281,22 @@ export class DatabaseStorage implements IStorage {
     const expCost = parseFloat(totalExpenses[0]?.total || "0");
     const netProfit = revenue - prodCost - expCost;
 
+    // Today's profit calculation
+    const todaySalesValue = parseFloat(todaySales[0]?.total || "0");
+    const todayProdCost = parseFloat(todayProductionCost[0]?.total || "0");
+    const todayExpValue = parseFloat(todayExpenses[0]?.total || "0");
+    const todayProfit = todaySalesValue - todayProdCost - todayExpValue;
+
     return {
       todayProduction: todayProduction[0]?.total || 0,
-      todaySales: parseFloat(todaySales[0]?.total || "0").toFixed(2),
+      todaySales: todaySalesValue.toFixed(2),
       weekSales: parseFloat(weekSales[0]?.total || "0").toFixed(2),
       netProfit: netProfit.toFixed(2),
+      // New metrics
+      todayExpenses: todayExpValue.toFixed(2),
+      todayProfit: todayProfit.toFixed(2),
+      todayRejectionsCount: todayRejections[0]?.count || 0,
+      todayRejectionsValue: parseFloat(todayRejections[0]?.value || "0").toFixed(2),
       alerts: [],
     };
   }
