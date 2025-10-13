@@ -1,0 +1,125 @@
+Nice 🔥 bro! Jadi kita akan bina versi khas PocketBizz untuk wife kau — kita panggil dia sementara ni:
+
+🍰 ManisBizz – Sistem Pengurusan Bisnes Dessert Vendor
+
+⸻
+
+🎯 Objektif Sistem ManisBizz
+
+Bantu isteri kau urus semua proses bisnes dari dapur ke vendor dengan teratur dan automatik, tanpa perlu tulis manual atau kira satu-satu.
+
+⸻
+
+🧩 Struktur Modul “ManisBizz”
+
+🏠 1. Dashboard Utama
+
+Paparan ringkas setiap kali buka app:
+	•	📦 Jumlah produk siap hari ni
+	•	💰 Jualan hari ini & minggu ini
+	•	📉 Kos bahan & untung bersih
+	•	🏪 Senarai vendor + status claim (Paid / Pending)
+	•	⚠️ Notis produk expired / reject
+
+Shortcut Buttons: ➕ Tambah Produk | 🚚 Hantar ke Vendor | 💸 Rekod Jualan | 📊 Laporan
+
+⸻
+
+🧁 2. Modul Produk & Resepi
+
+Untuk simpan resepi & automatik kira kos.
+	•	Tambah produk baru (nama, kategori, gambar)
+	•	Masukkan resepi (bahan, kuantiti, harga)
+	•	Auto kira kos seunit, kos batch, cadangan harga jual
+	•	Link ke production planning
+
+Contoh: “Puding Roti” → 5 bahan → Kos RM2.80/unit → Cadangan jual RM5
+
+⸻
+
+🍳 3. Modul Produksi Harian
+
+Bahagian ni bantu wife kau rancang pengeluaran setiap hari.
+	•	Pilih produk nak buat hari ni
+	•	Masukkan kuantiti batch
+	•	Sistem auto tolak stok bahan mentah
+	•	Simpan rekod batch (tarikh, kuantiti, expiry date)
+
+Bonus: Sistem boleh duplicate batch semalam (kalau produk sama setiap hari)
+
+⸻
+
+🚚 4. Modul Hantar ke Vendor
+
+Untuk rekod penghantaran & invois automatik.
+	•	Pilih vendor (contoh: Kedai Kak Ani)
+	•	Pilih produk & kuantiti dihantar
+	•	Sistem auto kira jumlah invois
+	•	Simpan status: Delivered, Claimed, Pending, Rejected
+	•	Cetak / WhatsApp invois vendor
+
+Auto reminder: kalau vendor belum claim selepas 3 hari
+
+⸻
+
+💰 5. Modul Jualan & Claim
+
+Semua jualan vendor & direct customer direkod di sini.
+	•	Log jualan harian
+	•	Tandakan claim vendor (siapa dah bayar)
+	•	Kira jualan ikut vendor / produk
+	•	Tunjuk jualan mingguan & bulanan
+
+⸻
+
+🧾 6. Modul Kos & Perbelanjaan
+
+Untuk simpan semua kos bahan, minyak, plastik, tenaga kerja.
+	•	Tambah kategori kos (bahan, minyak, upah)
+	•	Masukkan nilai & tarikh
+	•	Lampirkan resit (optional)
+	•	Laporan perbelanjaan ikut kategori
+
+⸻
+
+📊 7. Modul Laporan & Analitik
+
+Paparan semua laporan secara automatik:
+	•	Untung Rugi Harian / Mingguan / Bulanan
+	•	Produk Paling Untung
+	•	Vendor Paling Aktif
+	•	Kos vs Jualan (graf)
+	•	Export ke PDF / Excel
+
+⸻
+
+💾 8. Modul Backup & Sync
+
+Supaya semua data wife kau selamat.
+	•	Backup ke Google Drive / Cloud
+	•	Restore data bila tukar telefon
+	•	Offline mode (guna tanpa internet)
+
+⸻
+
+🧠 Aliran Kerja Harian (Workflow)
+
+1️⃣ Masuk pagi → buka Dashboard
+2️⃣ Klik "Produksi Harian" → masukkan produk & kuantiti
+3️⃣ Klik "Hantar ke Vendor" → pilih vendor, auto kira invois
+4️⃣ Petang → semak jualan / claim vendor
+5️⃣ Akhir minggu → buka Laporan Untung Rugi
+
+
+⸻
+
+🌈 Cadangan Gaya Visual App
+	•	Warna utama: 🍓 Soft pink + cream + brown (macam tema dessert)
+	•	Ikon: minimal dan comel (cupcake, oven, vendor box)
+	•	Font: lembut tapi jelas, gaya bakery (contoh: Poppins atau Quicksand)
+	•	Layout: 1 dashboard utama + 6 modul bawah (macam tab bar)
+
+⸻
+
+Bro nak aku teruskan ke Fasa 2: Reka Mockup UI (Dashboard + Flow ManisBizz)
+— supaya kau boleh tunjuk kat wife kau dan terus nampak macam mana sistem tu jalan hari-hari?
