@@ -10,6 +10,12 @@ The system handles the complete lifecycle of a dessert business: creating produc
 
 **Duplicate Yesterday Feature** - Added "Salin Semalam" (Copy Yesterday) functionality to Production and Deliveries pages. This feature saves 70% of daily data entry time by allowing users to duplicate yesterday's batch/delivery data with one click. The date is automatically updated to today while all other details (products, quantities, vendors) are pre-filled from yesterday's records.
 
+**Expiry Tracking & Alerts** - Implemented visual expiry status indicators for production batches. The system now automatically detects and highlights:
+- Expired products (past expiry date) with red "Luput" badges
+- Products expiring soon (within 2 days) with orange "Hampir Luput" badges  
+- A filter toggle button allows users to view only expiring/expired items
+- Expiry dates are color-coded (red for expired, orange for expiring soon) for quick visual identification
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

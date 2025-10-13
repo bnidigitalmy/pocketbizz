@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, ChefHat, Calendar as CalendarIcon, Copy } from "lucide-react";
+import { Plus, ChefHat, Calendar as CalendarIcon, Copy, AlertTriangle, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProductionBatchSchema } from "@shared/schema";
@@ -46,6 +46,7 @@ type BatchFormValues = z.infer<typeof batchFormSchema>;
 
 export default function Production() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showExpiringOnly, setShowExpiringOnly] = useState(false);
   const { toast } = useToast();
 
   const { data: batches, isLoading } = useQuery({
@@ -146,6 +147,42 @@ export default function Production() {
     });
   };
 
+  // Expiry tracking helpers
+  const isExpired = (expiryDate: string | null) => {
+    if (!expiryDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    return expiry < today;
+  };
+
+  const isExpiringSoon = (expiryDate: string | null) => {
+    if (!expiryDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    const twoDaysFromNow = new Date(today);
+    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+    return expiry >= today && expiry <= twoDaysFromNow;
+  };
+
+  const getExpiryStatus = (expiryDate: string | null) => {
+    if (!expiryDate) return null;
+    if (isExpired(expiryDate)) return "expired";
+    if (isExpiringSoon(expiryDate)) return "expiring";
+    return "fresh";
+  };
+
+  // Filter batches based on expiry status
+  const filteredBatches = showExpiringOnly 
+    ? batches?.filter((batch: any) => {
+        const status = getExpiryStatus(batch.expiryDate);
+        return status === "expired" || status === "expiring";
+      })
+    : batches;
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -164,7 +201,7 @@ export default function Production() {
           <h1 className="text-2xl font-semibold md:text-3xl">Produksi Harian</h1>
           <p className="text-sm text-muted-foreground mt-1">Rekod pengeluaran produk harian</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             variant="outline" 
             onClick={duplicateYesterday}
@@ -172,6 +209,14 @@ export default function Production() {
           >
             <Copy className="h-4 w-4 mr-2" />
             Salin Semalam
+          </Button>
+          <Button
+            variant={showExpiringOnly ? "default" : "outline"}
+            onClick={() => setShowExpiringOnly(!showExpiringOnly)}
+            data-testid="button-filter-expiring"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            {showExpiringOnly ? "Semua" : "Hampir Luput"}
           </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -306,50 +351,80 @@ export default function Production() {
         </div>
       </div>
 
-      {!batches || batches.length === 0 ? (
+      {!filteredBatches || filteredBatches.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <ChefHat className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="font-medium mb-1">Tiada Rekod Produksi</h3>
-            <p className="text-sm text-muted-foreground mb-4">Mulakan dengan merekod batch produksi pertama</p>
+            <h3 className="font-medium mb-1">
+              {showExpiringOnly ? "Tiada Produk Hampir Luput" : "Tiada Rekod Produksi"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {showExpiringOnly 
+                ? "Semua batch masih segar" 
+                : "Mulakan dengan merekod batch produksi pertama"
+              }
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {batches.map((batch: any) => (
-            <Card key={batch.id} className="hover-elevate" data-testid={`batch-card-${batch.id}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="truncate text-base">{batch.productName}</CardTitle>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="secondary">
-                        {batch.quantity} unit
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(batch.batchDate).toLocaleDateString('ms-MY')}
-                      </span>
+          {filteredBatches.map((batch: any) => {
+            const expiryStatus = getExpiryStatus(batch.expiryDate);
+            return (
+              <Card key={batch.id} className="hover-elevate" data-testid={`batch-card-${batch.id}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="truncate text-base">{batch.productName}</CardTitle>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <Badge variant="secondary">
+                          {batch.quantity} unit
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(batch.batchDate).toLocaleDateString('ms-MY')}
+                        </span>
+                        {expiryStatus === "expired" && (
+                          <Badge variant="destructive" className="gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Luput
+                          </Badge>
+                        )}
+                        {expiryStatus === "expiring" && (
+                          <Badge variant="outline" className="gap-1 border-orange-500 text-orange-600 dark:text-orange-400">
+                            <AlertTriangle className="h-3 w-3" />
+                            Hampir Luput
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Kos</p>
+                      <p className="font-mono font-semibold text-lg">RM {batch.totalCost}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Kos</p>
-                    <p className="font-mono font-semibold text-lg">RM {batch.totalCost}</p>
-                  </div>
-                </div>
-              </CardHeader>
-              {batch.expiryDate && (
-                <CardContent className="pt-0">
-                  <div className="flex items-center gap-2 text-sm">
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Luput:</span>
-                    <span>{new Date(batch.expiryDate).toLocaleDateString('ms-MY')}</span>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                </CardHeader>
+                {batch.expiryDate && (
+                  <CardContent className="pt-0">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Luput:</span>
+                      <span className={
+                        expiryStatus === "expired" 
+                          ? "text-destructive font-medium"
+                          : expiryStatus === "expiring"
+                          ? "text-orange-600 dark:text-orange-400 font-medium"
+                          : ""
+                      }>
+                        {new Date(batch.expiryDate).toLocaleDateString('ms-MY')}
+                      </span>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
