@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown } from "lucide-react";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2 } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -225,6 +225,36 @@ export default function Deliveries() {
       case "rejected": return "Ditolak";
       default: return "Dihantar";
     }
+  };
+
+  const shareDeliveryViaWhatsApp = (delivery: any) => {
+    const statusLabels: { [key: string]: string } = {
+      delivered: 'Dihantar',
+      pending: 'Pending',
+      claimed: 'Dibayar',
+      rejected: 'Ditolak',
+    };
+
+    let message = `*ManisBizz - Penghantaran*\n\n` +
+      `Vendor: *${delivery.vendorName}*\n` +
+      `Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+      `Status: ${statusLabels[delivery.status] || delivery.status}\n` +
+      `Jumlah: RM ${parseFloat(delivery.totalAmount).toFixed(2)}\n\n` +
+      `*Senarai Produk:*\n`;
+
+    delivery.items?.forEach((item: any) => {
+      message += `• ${item.productName}: ${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)} = RM ${parseFloat(item.totalPrice).toFixed(2)}\n`;
+      if (item.rejectedQty > 0) {
+        message += `  Ditolak: ${item.rejectedQty} unit`;
+        if (item.rejectionReason) {
+          message += ` (${item.rejectionReason})`;
+        }
+        message += `\n`;
+      }
+    });
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (isLoading) {
@@ -557,16 +587,28 @@ export default function Deliveries() {
                       </div>
                     ))}
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-4"
-                    onClick={() => generateInvoicePDF(delivery)}
-                    data-testid={`button-download-invoice-${delivery.id}`}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Muat Turun Invois
-                  </Button>
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => generateInvoicePDF(delivery)}
+                      data-testid={`button-download-invoice-${delivery.id}`}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Muat Turun Invois
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => shareDeliveryViaWhatsApp(delivery)}
+                      data-testid={`button-share-delivery-${delivery.id}`}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Kongsi WhatsApp
+                    </Button>
+                  </div>
                 </CardContent>
               )}
             </Card>

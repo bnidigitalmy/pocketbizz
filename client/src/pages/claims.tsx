@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2 } from "lucide-react";
 
 interface ClaimSummary {
   vendorId: string;
@@ -86,6 +86,49 @@ export default function Claims() {
     );
   };
 
+  const shareClaimViaWhatsApp = (claim: ClaimSummary) => {
+    const message = `*ManisBizz - Tuntutan Vendor*\n\n` +
+      `Vendor: *${claim.vendorName}*\n` +
+      `Jumlah Keseluruhan: RM ${parseFloat(claim.totalAmount).toFixed(2)}\n` +
+      `Jumlah Penghantaran: ${claim.totalDeliveries}\n\n` +
+      `Status Bayaran:\n` +
+      `• Belum Bayar: RM ${parseFloat(claim.pendingAmount).toFixed(2)}\n` +
+      (parseFloat(claim.partialAmount) > 0 ? `• Bayar Separa: RM ${parseFloat(claim.partialAmount).toFixed(2)}\n` : '') +
+      `• Selesai: RM ${parseFloat(claim.settledAmount).toFixed(2)}`;
+    
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const shareDeliveryViaWhatsApp = (delivery: DeliveryWithItems) => {
+    const statusLabels: { [key: string]: string } = {
+      delivered: 'Dihantar',
+      pending: 'Pending',
+      claimed: 'Dibayar',
+      rejected: 'Ditolak',
+    };
+    const paymentLabels: { [key: string]: string } = {
+      pending: 'Belum Bayar',
+      partial: 'Bayar Separa',
+      settled: 'Selesai',
+    };
+
+    let message = `*ManisBizz - Penghantaran*\n\n` +
+      `Vendor: *${delivery.vendorName}*\n` +
+      `Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+      `Status: ${statusLabels[delivery.status] || delivery.status}\n` +
+      `Bayaran: ${paymentLabels[delivery.paymentStatus] || delivery.paymentStatus}\n` +
+      `Jumlah: RM ${parseFloat(delivery.totalAmount).toFixed(2)}\n\n` +
+      `*Senarai Produk:*\n`;
+
+    delivery.items?.forEach((item) => {
+      message += `• ${item.productName}: ${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)} = RM ${parseFloat(item.totalPrice).toFixed(2)}\n`;
+    });
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   if (claimsLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -149,6 +192,17 @@ export default function Claims() {
                     </span>
                   </div>
                 </div>
+
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="w-full mt-3"
+                  onClick={() => shareClaimViaWhatsApp(claim)}
+                  data-testid={`button-share-claim-${claim.vendorId}`}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Kongsi via WhatsApp
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -214,6 +268,17 @@ export default function Claims() {
                       </div>
                     ))}
                   </div>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full mt-3"
+                    onClick={() => shareDeliveryViaWhatsApp(delivery)}
+                    data-testid={`button-share-delivery-${delivery.id}`}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Kongsi via WhatsApp
+                  </Button>
                 </CardContent>
               </Card>
             ))}
