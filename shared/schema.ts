@@ -111,6 +111,19 @@ export const expenses = pgTable("expenses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Business Profile Table (for letterhead/invoice branding)
+export const businessProfile = pgTable("business_profile", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  businessName: text("business_name").notNull(),
+  registrationNumber: text("registration_number"),
+  address: text("address"),
+  phone: text("phone"),
+  email: text("email"),
+  tagline: text("tagline"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const productsRelations = relations(products, ({ many }) => ({
   ingredients: many(ingredients),
@@ -205,6 +218,12 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
   createdAt: true,
 });
 
+export const insertBusinessProfileSchema = createInsertSchema(businessProfile).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -229,3 +248,6 @@ export type InsertSale = z.infer<typeof insertSaleSchema>;
 
 export type Expense = typeof expenses.$inferSelect;
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+
+export type BusinessProfile = typeof businessProfile.$inferSelect;
+export type InsertBusinessProfile = z.infer<typeof insertBusinessProfileSchema>;

@@ -8,6 +8,7 @@ import {
   insertDeliverySchema,
   insertSaleSchema,
   insertExpenseSchema,
+  insertBusinessProfileSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -288,6 +289,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(delivery);
     } catch (error) {
       res.status(400).json({ error: "Failed to update payment status" });
+    }
+  });
+
+  // Business Profile
+  app.get("/api/business-profile", async (req, res) => {
+    try {
+      const profile = await storage.getBusinessProfile();
+      res.json(profile || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch business profile" });
+    }
+  });
+
+  app.post("/api/business-profile", async (req, res) => {
+    try {
+      const data = insertBusinessProfileSchema.parse(req.body);
+      const profile = await storage.createOrUpdateBusinessProfile(data);
+      res.json(profile);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid business profile data" });
     }
   });
 

@@ -8,6 +8,7 @@ import {
   deliveryItems,
   sales,
   expenses,
+  businessProfile,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -24,6 +25,8 @@ import {
   type InsertSale,
   type Expense,
   type InsertExpense,
+  type BusinessProfile,
+  type InsertBusinessProfile,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -71,6 +74,10 @@ export interface IStorage {
   
   // Claims
   getClaimsSummary(): Promise<any[]>;
+  
+  // Business Profile
+  getBusinessProfile(): Promise<BusinessProfile | undefined>;
+  createOrUpdateBusinessProfile(profile: InsertBusinessProfile): Promise<BusinessProfile>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -391,6 +398,30 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`COALESCE(SUM(${deliveries.totalAmount}), 0) DESC`);
 
     return claimsSummary;
+  }
+
+  // Business Profile
+  async getBusinessProfile(): Promise<BusinessProfile | undefined> {
+    const [profile] = await db.select().from(businessProfile).limit(1);
+    return profile || undefined;
+  }
+
+  async createOrUpdateBusinessProfile(profile: InsertBusinessProfile): Promise<BusinessProfile> {
+    // Check if profile exists
+    const existing = await this.getBusinessProfile();
+    
+    if (existing) {
+      // Update existing profile
+      const [updated] = await db.update(businessProfile)
+        .set({ ...profile, updatedAt: new Date() })
+        .where(eq(businessProfile.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new profile
+      const [newProfile] = await db.insert(businessProfile).values(profile).returning();
+      return newProfile;
+    }
   }
 }
 
