@@ -79,6 +79,8 @@ export const deliveryItems = pgTable("delivery_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  rejectedQty: integer("rejected_qty").default(0), // Number of items rejected by vendor
+  rejectionReason: text("rejection_reason"), // Reason for rejection (optional)
 });
 
 // Sales Table
