@@ -24,6 +24,36 @@ The system handles the complete lifecycle of a dessert business: creating produc
 - New "Kerugian Tolakan" (Rejection Loss) metric displayed on Reports page showing total financial impact of rejected products
 - Rejection losses automatically factored into net profit calculations for accurate financial insights
 
+**Enhanced Claim Reports (October 13, 2025)** - Comprehensive claim tracking with payment status management:
+- New paymentStatus enum field (pending/partial/settled) separate from delivery status for better payment tracking
+- Claims page with vendor-grouped summaries showing total amounts and payment breakdowns
+- Each claim card displays pending, partial, and settled amounts with color-coded indicators
+- Payment status filtering and quick status updates via dropdown selectors
+- Delivery list view with individual payment status management for each delivery
+
+**Dashboard Enhancements (October 13, 2025)** - Expanded dashboard with daily business metrics:
+- Modal Hari Ini (Today's Capital) - Total expenses for the current day
+- Untung Hari Ini (Today's Profit) - Calculated as today's sales minus today's production costs and expenses
+- Produk Reject Hari Ini (Today's Rejected Products) - Count and financial value of rejected items
+- 6-card responsive grid layout (2 cols mobile, 3 cols desktop) for comprehensive daily overview
+- Color-coded metrics: orange for expenses, green for profit, red for rejections
+
+**WhatsApp Share Integration (October 13, 2025)** - One-click sharing of business data via WhatsApp:
+- Share vendor claim summaries directly from Claims page with formatted messages
+- Share delivery details including products, quantities, prices, and rejection information
+- Pre-formatted messages with WhatsApp markdown formatting (*bold*, bullet points)
+- Universal WhatsApp URL format (wa.me) works on both mobile and desktop
+- Share buttons integrated on Claims page (vendor cards and delivery list) and Deliveries page
+
+**Mini Invoice Print (October 13, 2025)** - Compact A5 receipt PDF export for easy printing:
+- A5 format (148 x 210mm) optimized for small receipt printers
+- Compact layout with reduced margins (10mm) and smaller fonts (7-11pt)
+- Grid-themed product table with abbreviated headers (Qty instead of Kuantiti)
+- 128mm table width fits perfectly within A5 printable area
+- Separate "Resit A5" button alongside regular "Invois" download
+- Filename prefix "resit-" to distinguish from standard invoices
+- 3-button grid layout on delivery cards: Invois, Resit A5, Kongsi WhatsApp
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
