@@ -13,6 +13,15 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 -   **Mobile-First Responsive Design**: Prioritizes mobile experience.
 -   **Component Libraries**: Shadcn/ui (built on Radix UI) and Tailwind CSS for styling.
 -   **Theming**: Custom dessert-themed color palette and specific typography (Poppins, Quicksand, JetBrains Mono).
+-   **UX Enhancements (2025)**:
+    - **Global Search**: Cmd/Ctrl+K shortcut to search across all modules (products, vendors, stock, sales, deliveries) with real-time results
+    - **Skeleton Loaders**: Replaced spinners with skeleton screens for better perceived performance
+    - **Empty States**: Comprehensive component with helpful illustrations and CTAs for all empty scenarios
+    - **Keyboard Shortcuts**: Global (Cmd+K, ?) and page-specific (N for new) shortcuts with help dialog
+    - **Smart Filters**: Quick filter chips and advanced filtering with useMemo optimization (integrated in Stock page)
+    - **Swipe Gestures**: Touch-friendly swipe actions (swipe-to-mark-paid on Sales page)
+    - **Quick Actions FAB**: Floating action button with expandable actions for mobile-first navigation (Dashboard)
+    - **Enhanced Toasts**: Rich toast notifications with icons, undo actions, and custom action buttons
 
 ### Technical Implementations
 -   **Frontend**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for server state, React Hook Form with Zod for form management, Context API for theme. Key patterns include component composition, custom hooks, and centralized API handling.
