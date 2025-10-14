@@ -38,6 +38,32 @@ The system aims to streamline operations, reduce manual data entry, and provide 
     -   Storage layer updated to save recipe items to database
     -   Fixed React setState-during-render issues with proper form handling
 
+### 🎯 CRITICAL: Unit Conversion System (October 14, 2025)
+-   **Problem Solved**: Real-world scenario where purchase units differ from recipe units (e.g., flour bought in kg but used in grams, eggs bought by dozen but used by pieces)
+-   **Conversion Mapping**: Comprehensive unit conversion system supporting:
+    -   **Weight**: kg ↔ gram (1 kg = 1000 gram)
+    -   **Volume**: liter ↔ ml ↔ tbsp ↔ tsp (1 liter = 1000 ml, 1 tbsp = 15 ml, 1 tsp = 5 ml)
+    -   **Count**: dozen ↔ pieces (1 dozen = 12 pieces)
+-   **Accurate Cost Calculation**: 
+    -   Frontend: Real-time cost display converts recipe units to stock units before calculation
+    -   Backend: Server-side validation and conversion ensures accurate cost storage
+    -   Example: Recipe uses 500g flour from 1kg stock @ RM10 → Converts to 0.5kg → Cost = RM5.00 ✓
+-   **Database Schema**: 
+    -   Added `usageUnit` column to `recipe_items` table (stores unit used in recipe)
+    -   Removed legacy `unit` column that caused constraint violations
+    -   Drizzle ORM handles camelCase (usageUnit) to snake_case (usage_unit) mapping
+-   **Frontend UI**:
+    -   Usage Unit selector dynamically shows compatible units for selected stock item
+    -   Selector disabled until stock item is selected (prevents invalid unit selection)
+    -   getCompatibleUnits() helper derives available units from UNIT_CONVERSIONS mapping
+-   **Technical Implementation**:
+    -   `convertUnit(quantity, fromUnit, toUnit)` function in shared/schema.ts performs conversions
+    -   POST /api/products: Validates recipeItems with usageUnit, converts quantities, calculates costs
+    -   PUT /api/products: Same conversion logic for updates
+    -   Frontend calculateCosts() uses convertUnit for real-time display updates
+-   **Verification**: End-to-end playwright test confirms accurate conversion (500g from 1kg @ RM10 = RM5.00, 750g = RM7.50)
+-   **Impact**: Eliminates costing errors caused by unit mismatches, enables accurate profit margin calculations for all businesses
+
 ### Claims Enhancement with Product Breakdown
 -   Added detailed product breakdown API endpoint (`/api/claims/:vendorId/details`) showing per-invoice product details
 -   Enhanced Claims UI with Dialog component featuring filter toggle (Ringkasan vs Per Invois) for flexible viewing
