@@ -509,3 +509,337 @@ export function generateProfitLossReport(reportData: any, topProducts: any[], to
   // Save
   doc.save(`laporan-untung-rugi-${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
+// 58mm Thermal Printer Format for Invoice
+export function generateThermalInvoicePDF(delivery: any, businessProfile?: any) {
+  // 58mm width thermal printer (actual printable area ~48mm)
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [58, 200] // Width x Initial Height (will auto-expand)
+  });
+  
+  const margin = 2;
+  const contentWidth = 54; // 58 - 4mm margins
+  let yPos = 3;
+  
+  // Business name (centered)
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0);
+  const businessName = businessProfile?.businessName || 'ManisBizz';
+  doc.text(businessName, 29, yPos, { align: 'center' });
+  yPos += 5;
+  
+  // Tagline (if available)
+  if (businessProfile?.tagline) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80);
+    doc.text(businessProfile.tagline, 29, yPos, { align: 'center' });
+    yPos += 4;
+  }
+  
+  // Contact info (centered)
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  if (businessProfile?.phone) {
+    doc.text(businessProfile.phone, 29, yPos, { align: 'center' });
+    yPos += 3;
+  }
+  
+  // Separator
+  yPos += 1;
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(0);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 4;
+  
+  // Document title (centered)
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INVOIS', 29, yPos, { align: 'center' });
+  yPos += 5;
+  
+  // Invoice details
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No: ${delivery.id.substring(0, 8).toUpperCase()}`, margin, yPos);
+  yPos += 4;
+  doc.text(`Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, margin, yPos);
+  yPos += 4;
+  doc.text(`Kepada: ${delivery.vendorName}`, margin, yPos);
+  yPos += 5;
+  
+  // Separator
+  doc.setLineWidth(0.2);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 4;
+  
+  // Items header
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRODUK', margin, yPos);
+  yPos += 4;
+  
+  // Items list
+  doc.setFont('helvetica', 'normal');
+  delivery.items?.forEach((item: any) => {
+    // Product name
+    const productName = item.productName.length > 25 
+      ? item.productName.substring(0, 25) + '...'
+      : item.productName;
+    doc.text(productName, margin, yPos);
+    yPos += 4;
+    
+    // Quantity x Price = Total
+    const itemLine = `  ${item.quantity} x RM${parseFloat(item.unitPrice).toFixed(2)} = RM${parseFloat(item.totalPrice).toFixed(2)}`;
+    doc.text(itemLine, margin, yPos);
+    yPos += 4;
+    
+    // Rejection info (if exists)
+    if (item.rejectedQty && item.rejectedQty > 0) {
+      doc.setTextColor(200, 100, 0);
+      doc.setFontSize(7);
+      doc.text(`  ${item.rejectedQty} ditolak`, margin, yPos);
+      doc.setTextColor(0);
+      doc.setFontSize(8);
+      yPos += 4;
+    }
+    
+    yPos += 1; // Small gap between items
+  });
+  
+  // Separator
+  yPos += 1;
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 5;
+  
+  // Total
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('JUMLAH:', margin, yPos);
+  doc.text(`RM ${parseFloat(delivery.totalAmount).toFixed(2)}`, 58 - margin, yPos, { align: 'right' });
+  yPos += 6;
+  
+  // Payment status
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const paymentStatusMap: {[key: string]: string} = {
+    'pending': 'Belum Dibayar',
+    'partial': 'Bayaran Separa',
+    'settled': 'Telah Dibayar'
+  };
+  const paymentStatus = paymentStatusMap[delivery.paymentStatus] || 'Belum Dibayar';
+  doc.text(`Status: ${paymentStatus}`, 29, yPos, { align: 'center' });
+  yPos += 5;
+  
+  // Bank details (if available)
+  if (businessProfile?.bankName || businessProfile?.accountNumber) {
+    doc.setLineWidth(0.2);
+    doc.line(margin, yPos, 58 - margin, yPos);
+    yPos += 4;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('BAYARAN:', margin, yPos);
+    yPos += 4;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    if (businessProfile.bankName) {
+      doc.text(`Bank: ${businessProfile.bankName}`, margin, yPos);
+      yPos += 3;
+    }
+    if (businessProfile.accountNumber) {
+      doc.text(`No: ${businessProfile.accountNumber}`, margin, yPos);
+      yPos += 3;
+    }
+    if (businessProfile.accountName) {
+      doc.text(`Nama: ${businessProfile.accountName}`, margin, yPos);
+      yPos += 3;
+    }
+    yPos += 2;
+  }
+  
+  // Footer
+  yPos += 2;
+  doc.setFontSize(7);
+  doc.setTextColor(100);
+  doc.text('Terima kasih!', 29, yPos, { align: 'center' });
+  
+  // Save
+  doc.save(`thermal-${delivery.vendorName}-${delivery.id.substring(0, 8)}.pdf`);
+}
+
+// 58mm Thermal Printer Format for Claim Statement
+export function generateThermalClaimStatementPDF(
+  vendorName: string,
+  deliveries: any[],
+  dateFrom: string,
+  dateTo: string,
+  businessProfile?: any
+) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [58, 250] // Width x Initial Height
+  });
+  
+  const margin = 2;
+  let yPos = 3;
+  
+  // Business name (centered)
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0);
+  const businessName = businessProfile?.businessName || 'ManisBizz';
+  doc.text(businessName, 29, yPos, { align: 'center' });
+  yPos += 5;
+  
+  // Contact
+  if (businessProfile?.phone) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(businessProfile.phone, 29, yPos, { align: 'center' });
+    yPos += 3;
+  }
+  
+  // Separator
+  yPos += 1;
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(0);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 4;
+  
+  // Document title
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PENYATA TUNTUTAN', 29, yPos, { align: 'center' });
+  yPos += 5;
+  
+  // Vendor name
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('VENDOR:', margin, yPos);
+  yPos += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.text(vendorName, margin, yPos);
+  yPos += 5;
+  
+  // Period
+  doc.setFontSize(7);
+  doc.text(`Tempoh: ${new Date(dateFrom).toLocaleDateString('ms-MY')}`, margin, yPos);
+  yPos += 3;
+  doc.text(`hingga ${new Date(dateTo).toLocaleDateString('ms-MY')}`, margin, yPos);
+  yPos += 5;
+  
+  // Separator
+  doc.setLineWidth(0.2);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 4;
+  
+  // Deliveries list
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SENARAI INVOIS:', margin, yPos);
+  yPos += 4;
+  
+  doc.setFont('helvetica', 'normal');
+  deliveries.forEach((delivery: any, index: number) => {
+    // Invoice number
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${index + 1}. ${delivery.id.substring(0, 8).toUpperCase()}`, margin, yPos);
+    yPos += 4;
+    
+    // Date and amount
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(`${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, margin + 3, yPos);
+    yPos += 3;
+    doc.text(`RM ${parseFloat(delivery.totalAmount).toFixed(2)}`, margin + 3, yPos);
+    yPos += 3;
+    
+    // Payment status
+    const statusMap: {[key: string]: string} = {
+      'pending': 'Belum Bayar',
+      'partial': 'Separa',
+      'settled': 'Selesai'
+    };
+    const status = statusMap[delivery.paymentStatus] || 'Belum Bayar';
+    doc.text(`[${status}]`, margin + 3, yPos);
+    yPos += 4;
+    
+    doc.setFontSize(8);
+  });
+  
+  // Separator
+  yPos += 1;
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 58 - margin, yPos);
+  yPos += 5;
+  
+  // Summary
+  const totalAmount = deliveries.reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+  const settledAmount = deliveries
+    .filter(d => d.paymentStatus === 'settled')
+    .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+  const outstandingAmount = totalAmount - settledAmount;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Jumlah:', margin, yPos);
+  doc.text(`RM ${totalAmount.toFixed(2)}`, 58 - margin, yPos, { align: 'right' });
+  yPos += 4;
+  
+  doc.text('Dibayar:', margin, yPos);
+  doc.setTextColor(0, 150, 0);
+  doc.text(`RM ${settledAmount.toFixed(2)}`, 58 - margin, yPos, { align: 'right' });
+  yPos += 5;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(0);
+  doc.text('BAKI:', margin, yPos);
+  doc.setTextColor(200, 0, 0);
+  doc.text(`RM ${outstandingAmount.toFixed(2)}`, 58 - margin, yPos, { align: 'right' });
+  yPos += 6;
+  
+  // Bank details (if available)
+  if (businessProfile?.bankName || businessProfile?.accountNumber) {
+    doc.setTextColor(0);
+    doc.setLineWidth(0.2);
+    doc.line(margin, yPos, 58 - margin, yPos);
+    yPos += 4;
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BAYARAN:', margin, yPos);
+    yPos += 4;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    if (businessProfile.bankName) {
+      doc.text(`Bank: ${businessProfile.bankName}`, margin, yPos);
+      yPos += 3;
+    }
+    if (businessProfile.accountNumber) {
+      doc.text(`No: ${businessProfile.accountNumber}`, margin, yPos);
+      yPos += 3;
+    }
+    if (businessProfile.accountName) {
+      doc.text(`Nama: ${businessProfile.accountName}`, margin, yPos);
+      yPos += 3;
+    }
+    yPos += 2;
+  }
+  
+  // Footer
+  yPos += 2;
+  doc.setFontSize(7);
+  doc.setTextColor(100);
+  doc.text('Terima kasih!', 29, yPos, { align: 'center' });
+  
+  // Save
+  const dateStr = new Date().toISOString().split('T')[0];
+  doc.save(`thermal-penyata-${vendorName.toLowerCase().replace(/\s+/g, '-')}-${dateStr}.pdf`);
+}
