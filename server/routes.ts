@@ -33,10 +33,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products", async (req, res) => {
     try {
       const productSchema = insertProductSchema.extend({
+        unitsPerBatch: z.string(),
+        labourCost: z.string(),
+        otherCosts: z.string(),
+        sellingPrice: z.string(),
         recipeItems: z.array(z.object({
           stockItemId: z.string(),
           quantityNeeded: z.string(),
         })),
+      }).omit({
+        materialsCost: true,
+        totalCostPerBatch: true,
+        costPerUnit: true,
       });
       
       const data = productSchema.parse(req.body);
