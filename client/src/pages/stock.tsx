@@ -40,8 +40,13 @@ import {
 const stockItemSchema = z.object({
   name: z.string().min(1, "Nama diperlukan"),
   unit: z.string().min(1, "Unit diperlukan"),
+  packageSize: z.string()
+    .min(1, "Saiz pakej diperlukan")
+    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: "Saiz pakej mesti nombor positif",
+    }),
   currentQuantity: z.string().min(1, "Kuantiti diperlukan"),
-  purchasePrice: z.string().min(1, "Harga pembelian diperlukan"),
+  purchasePrice: z.string().min(1, "Harga pakej diperlukan"),
   lowStockThreshold: z.string().min(1, "Threshold diperlukan"),
   notes: z.string().optional(),
 });
@@ -66,6 +71,7 @@ interface StockItem {
   id: string;
   name: string;
   unit: string;
+  packageSize: string;
   currentQuantity: string;
   purchasePrice: string;
   lowStockThreshold: string;
@@ -90,6 +96,7 @@ export default function Stock() {
     defaultValues: {
       name: "",
       unit: "",
+      packageSize: "1",
       currentQuantity: "",
       purchasePrice: "",
       lowStockThreshold: "5",
@@ -195,6 +202,7 @@ export default function Stock() {
     form.reset({
       name: "",
       unit: "",
+      packageSize: "1",
       currentQuantity: "",
       purchasePrice: "",
       lowStockThreshold: "5",
@@ -208,6 +216,7 @@ export default function Stock() {
     form.reset({
       name: item.name,
       unit: item.unit,
+      packageSize: item.packageSize,
       currentQuantity: item.currentQuantity,
       purchasePrice: item.purchasePrice,
       lowStockThreshold: item.lowStockThreshold,
@@ -302,8 +311,9 @@ export default function Stock() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama Bahan</TableHead>
-                  <TableHead>Unit</TableHead>
+                  <TableHead>Pakej</TableHead>
                   <TableHead className="text-right">Kuantiti</TableHead>
+                  <TableHead className="text-right">Harga Pakej</TableHead>
                   <TableHead className="text-right">Harga/Unit</TableHead>
                   <TableHead className="text-right">Threshold</TableHead>
                   <TableHead>Status</TableHead>
@@ -311,54 +321,62 @@ export default function Stock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockItems.map((item) => (
-                  <TableRow key={item.id} data-testid={`row-stock-${item.id}`}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.unit}</TableCell>
-                    <TableCell className="text-right">{item.currentQuantity}</TableCell>
-                    <TableCell className="text-right">RM {item.purchasePrice}</TableCell>
-                    <TableCell className="text-right">{item.lowStockThreshold}</TableCell>
-                    <TableCell>
-                      {isLowStock(item) ? (
-                        <Badge variant="destructive" className="gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Rendah
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">OK</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReplenish(item)}
-                          data-testid={`button-replenish-stock-${item.id}`}
-                          title="Tambah Stok"
-                        >
-                          <PackagePlus className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(item)}
-                          data-testid={`button-edit-stock-${item.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item.id)}
-                          data-testid={`button-delete-stock-${item.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {stockItems.map((item) => {
+                  const unitPrice = parseFloat(item.purchasePrice) / parseFloat(item.packageSize);
+                  return (
+                    <TableRow key={item.id} data-testid={`row-stock-${item.id}`}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <span className="text-sm">{item.packageSize} {item.unit}</span>
+                      </TableCell>
+                      <TableCell className="text-right">{item.currentQuantity} {item.unit}</TableCell>
+                      <TableCell className="text-right">RM {parseFloat(item.purchasePrice).toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        <span className="text-xs">RM {unitPrice.toFixed(4)}/{item.unit}</span>
+                      </TableCell>
+                      <TableCell className="text-right">{item.lowStockThreshold}</TableCell>
+                      <TableCell>
+                        {isLowStock(item) ? (
+                          <Badge variant="destructive" className="gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Rendah
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">OK</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleReplenish(item)}
+                            data-testid={`button-replenish-stock-${item.id}`}
+                            title="Tambah Stok"
+                          >
+                            <PackagePlus className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(item)}
+                            data-testid={`button-edit-stock-${item.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(item.id)}
+                            data-testid={`button-delete-stock-${item.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -396,16 +414,16 @@ export default function Stock() {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="unit"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Unit Ukuran</FormLabel>
+                      <FormLabel>Unit</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="cth: kg, gram, liter, pcs"
+                          placeholder="cth: gram, kg, ml"
                           {...field}
                           data-testid="input-stock-unit"
                         />
@@ -415,6 +433,48 @@ export default function Stock() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="packageSize"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Saiz Pakej</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="cth: 500, 1.4"
+                          {...field}
+                          data-testid="input-stock-package-size"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="purchasePrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Harga Pakej (RM)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="21.90"
+                          {...field}
+                          data-testid="input-stock-price"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="currentQuantity"
@@ -428,28 +488,6 @@ export default function Stock() {
                           placeholder="100"
                           {...field}
                           data-testid="input-stock-quantity"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="purchasePrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Harga Pembelian (RM/unit)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="10.00"
-                          {...field}
-                          data-testid="input-stock-price"
                         />
                       </FormControl>
                       <FormMessage />
