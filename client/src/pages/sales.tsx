@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SwipeableItem } from "@/components/swipeable-item";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -377,8 +378,18 @@ export default function Sales() {
           ) : (
             <div className="space-y-4">
               {filteredSales.map((sale: any) => (
-                <Card key={sale.id} className="hover-elevate" data-testid={`sale-card-${sale.id}`}>
-                  <CardHeader>
+                <SwipeableItem
+                  key={sale.id}
+                  rightAction={sale.isPaid === 0 ? {
+                    type: "confirm",
+                    label: "Tandakan Dibayar",
+                    color: "success",
+                    onAction: () => markPaidMutation.mutate(sale.id),
+                  } : undefined}
+                  disabled={sale.isPaid === 1}
+                >
+                  <Card className="hover-elevate" data-testid={`sale-card-${sale.id}`}>
+                    <CardHeader>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <CardTitle className="truncate text-base">{sale.productName}</CardTitle>
@@ -426,6 +437,7 @@ export default function Sales() {
                     </div>
                   </CardContent>
                 </Card>
+              </SwipeableItem>
               ))}
             </div>
           )}
