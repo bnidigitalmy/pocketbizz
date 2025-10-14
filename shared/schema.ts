@@ -120,6 +120,9 @@ export const businessProfile = pgTable("business_profile", {
   phone: text("phone"),
   email: text("email"),
   tagline: text("tagline"),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  accountName: text("account_name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
