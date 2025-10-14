@@ -84,6 +84,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.createProduct(
         {
           ...productData,
+          unitsPerBatch: unitsPerBatch,
+          labourCost: labourCost.toFixed(2),
+          otherCosts: otherCosts.toFixed(2),
           materialsCost: materialsCost.toFixed(2),
           totalCostPerBatch: totalCostPerBatch.toFixed(2),
           costPerUnit: costPerUnit.toFixed(2),
@@ -95,6 +98,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Product creation error:", error);
       res.status(400).json({ error: "Invalid product data" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productSchema = insertProductSchema.extend({
+        unitsPerBatch: z.string(),
+        labourCost: z.string(),
+        otherCosts: z.string(),
+        sellingPrice: z.string(),
+        recipeItems: z.array(z.object({
+          stockItemId: z.string(),
+          quantityNeeded: z.string(),
+        })),
+      }).omit({
+        materialsCost: true,
+        totalCostPerBatch: true,
+        costPerUnit: true,
+      }).partial();
+      
+      const data = productSchema.parse(req.body);
+      const { recipeItems, ...productData } = data;
+      
+      // Calculate materials cost from recipe items if provided
+      let materialsCost = 0;
+      let recipeItemsWithCost: any[] = [];
+      
+      if (recipeItems && recipeItems.length > 0) {
+        for (const item of recipeItems) {
+          const stockItem = await storage.getStockItem(item.stockItemId);
+          if (stockItem) {
+            const quantity = parseFloat(item.quantityNeeded) || 0;
+            const price = parseFloat(stockItem.purchasePrice) || 0;
+            const cost = quantity * price;
+            materialsCost += cost;
+            
+            recipeItemsWithCost.push({
+              stockItemId: item.stockItemId,
+              quantityNeeded: quantity.toFixed(2),
+              unit: stockItem.unit,
+              costPerRecipe: cost.toFixed(2),
+              productId: id,
+            });
+          }
+        }
+        
+        // Calculate total cost per batch
+        const labourCost = parseFloat(productData.labourCost as string) || 0;
+        const otherCosts = parseFloat(productData.otherCosts as string) || 0;
+        const totalCostPerBatch = materialsCost + labourCost + otherCosts;
+        
+        // Calculate cost per unit
+        const unitsPerBatch = parseInt(productData.unitsPerBatch as string) || 1;
+        const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
+        
+        const updateData: any = {
+          ...productData,
+          unitsPerBatch: unitsPerBatch,
+          labourCost: labourCost.toFixed(2),
+          otherCosts: otherCosts.toFixed(2),
+          materialsCost: materialsCost.toFixed(2),
+          totalCostPerBatch: totalCostPerBatch.toFixed(2),
+          costPerUnit: costPerUnit.toFixed(2),
+        };
+        
+        const product = await storage.updateProduct(
+          id,
+          updateData,
+          recipeItemsWithCost.length > 0 ? recipeItemsWithCost : undefined
+        );
+        
+        res.json(product);
+      } else {
+        // No recipe items update, just update product data
+        const updateData: any = { ...productData };
+        if (productData.unitsPerBatch) {
+          updateData.unitsPerBatch = parseInt(productData.unitsPerBatch as string);
+        }
+        
+        const product = await storage.updateProduct(id, updateData, undefined);
+        res.json(product);
+      }
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(400).json({ error: "Invalid product data" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Product deletion error:", error);
+      res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  app.get("/api/recipe-items/:productId", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const items = await storage.getRecipeItems(productId);
+      res.json(items);
+    } catch (error) {
+      console.error("Recipe items fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch recipe items" });
     }
   });
 

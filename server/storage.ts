@@ -48,6 +48,8 @@ export interface IStorage {
   getProducts(): Promise<Product[]>;
   getProduct(id: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct, recipeItemsList: any[]): Promise<Product>;
+  updateProduct(id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product>;
+  deleteProduct(id: string): Promise<void>;
   
   // Recipe Items
   getRecipeItems(productId: string): Promise<any[]>;
@@ -154,6 +156,33 @@ export class DatabaseStorage implements IStorage {
     }
     
     return newProduct;
+  }
+
+  async updateProduct(id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product> {
+    const [updatedProduct] = await db.update(products).set(product).where(eq(products.id, id)).returning();
+    
+    // Update recipe items if provided
+    if (recipeItemsList && recipeItemsList.length > 0) {
+      // Delete existing recipe items
+      await db.delete(recipeItems).where(eq(recipeItems.productId, id));
+      
+      // Insert new recipe items
+      const recipeItemsWithProductId = recipeItemsList.map(item => ({
+        ...item,
+        productId: id,
+      }));
+      await db.insert(recipeItems).values(recipeItemsWithProductId);
+    }
+    
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    // Delete recipe items first (foreign key constraint)
+    await db.delete(recipeItems).where(eq(recipeItems.productId, id));
+    
+    // Delete the product
+    await db.delete(products).where(eq(products.id, id));
   }
 
   // Ingredients

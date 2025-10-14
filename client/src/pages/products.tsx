@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -29,12 +39,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, Calculator, Trash2, TrendingUp, Package } from "lucide-react";
+import { Plus, Calculator, Trash2, TrendingUp, Package, Edit, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import type { Product } from "@shared/schema";
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Nama produk diperlukan"),
@@ -60,11 +71,21 @@ interface StockItem {
   purchasePrice: string;
 }
 
+interface RecipeItem {
+  id?: string;
+  stockItemId: string;
+  quantityNeeded: string;
+  unit?: string;
+  costPerRecipe?: string;
+}
+
 export default function Products() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const { toast } = useToast();
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
 
@@ -97,6 +118,7 @@ export default function Products() {
         description: "Produk & resepi telah ditambah.",
       });
       setDialogOpen(false);
+      setEditingProduct(null);
       form.reset();
     },
     onError: (error: any) => {
@@ -107,6 +129,101 @@ export default function Products() {
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ProductFormValues }) => {
+      return apiRequest("PUT", `/api/products/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Berjaya!",
+        description: "Produk telah dikemaskini.",
+      });
+      setDialogOpen(false);
+      setEditingProduct(null);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal mengemaskini produk.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/products/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Berjaya!",
+        description: "Produk telah dipadam.",
+      });
+      setProductToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal memadam produk.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch recipe items when editing
+  const { data: editRecipeItems } = useQuery<RecipeItem[]>({
+    queryKey: ["/api/recipe-items", editingProduct?.id],
+    queryFn: async () => {
+      if (!editingProduct?.id) return [];
+      const response = await fetch(`/api/recipe-items/${editingProduct.id}`);
+      if (!response.ok) throw new Error("Failed to fetch recipe items");
+      return response.json();
+    },
+    enabled: !!editingProduct,
+  });
+
+  // Populate form when editing product
+  useEffect(() => {
+    if (editingProduct && editRecipeItems) {
+      form.reset({
+        name: editingProduct.name,
+        category: editingProduct.category,
+        imageUrl: editingProduct.imageUrl || "",
+        unitsPerBatch: String(editingProduct.unitsPerBatch || 1),
+        labourCost: editingProduct.labourCost || "0",
+        otherCosts: editingProduct.otherCosts || "0",
+        sellingPrice: editingProduct.sellingPrice || "0",
+        recipeItems: editRecipeItems.length > 0 
+          ? editRecipeItems.map(item => ({
+              stockItemId: item.stockItemId,
+              quantityNeeded: item.quantityNeeded,
+            }))
+          : [{ stockItemId: "", quantityNeeded: "" }],
+      });
+    }
+  }, [editingProduct, editRecipeItems, form]);
+
+  const handleOpenDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product);
+    } else {
+      setEditingProduct(null);
+      form.reset();
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = (data: ProductFormValues) => {
+    if (editingProduct) {
+      updateMutation.mutate({ id: editingProduct.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
 
   const addRecipeItem = () => {
     const current = form.getValues("recipeItems") || [];
@@ -191,21 +308,23 @@ export default function Products() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-product">
+            <Button data-testid="button-add-product" onClick={() => handleOpenDialog()}>
               <Plus className="h-4 w-4 mr-2" />
               Tambah Produk
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Tambah Produk & Resepi Baru</DialogTitle>
+              <DialogTitle>
+                {editingProduct ? "Edit Produk & Resepi" : "Tambah Produk & Resepi Baru"}
+              </DialogTitle>
               <DialogDescription>
                 Pilih bahan dari stok gudang, sistem akan auto-kira kos & cadangkan harga jualan
               </DialogDescription>
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 {/* Product Details */}
                 <div className="space-y-4">
                   <h3 className="font-medium">Maklumat Produk</h3>
@@ -470,10 +589,13 @@ export default function Products() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-save-product"
                   >
-                    {createMutation.isPending ? "Menyimpan..." : "Simpan Produk"}
+                    {editingProduct 
+                      ? (updateMutation.isPending ? "Mengemaskini..." : "Kemaskini Produk")
+                      : (createMutation.isPending ? "Menyimpan..." : "Simpan Produk")
+                    }
                   </Button>
                 </DialogFooter>
               </form>
@@ -499,10 +621,28 @@ export default function Products() {
           {products.map((product: any) => (
             <Card key={product.id} className="hover-elevate" data-testid={`card-product-${product.id}`}>
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <Badge variant="secondary" className="mt-2">{product.category}</Badge>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleOpenDialog(product)}
+                      data-testid={`button-edit-${product.id}`}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setProductToDelete(product)}
+                      data-testid={`button-delete-${product.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -522,6 +662,29 @@ export default function Products() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Padam Produk?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adakah anda pasti ingin memadam produk "{productToDelete?.name}"? 
+              Tindakan ini tidak boleh dibatalkan dan akan memadam semua resepi yang berkaitan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => productToDelete && deleteMutation.mutate(productToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Mempadam..." : "Padam"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
