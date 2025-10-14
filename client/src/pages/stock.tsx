@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus } from "lucide-react";
+import { SmartFilters } from "@/components/smart-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,6 +92,7 @@ export default function Stock() {
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [replenishDialogOpen, setReplenishDialogOpen] = useState(false);
   const [replenishingItem, setReplenishingItem] = useState<StockItem | null>(null);
+  const [filters, setFilters] = useState<Record<string, any>>({});
 
   const { data: stockItems = [], isLoading } = useQuery<StockItem[]>({
     queryKey: ["/api/stock"],
@@ -265,6 +267,21 @@ export default function Stock() {
     return parseFloat(item.currentQuantity) <= parseFloat(item.lowStockThreshold);
   };
 
+  const filteredStockItems = useMemo(() => {
+    return stockItems.filter((item) => {
+      if (filters.lowStock && !isLowStock(item)) return false;
+      if (filters.outOfStock && parseFloat(item.currentQuantity) > 0) return false;
+      if (filters.inStock && parseFloat(item.currentQuantity) <= 0) return false;
+      
+      if (filters.priceMin && parseFloat(item.purchasePrice) < parseFloat(filters.priceMin)) return false;
+      if (filters.priceMax && parseFloat(item.purchasePrice) > parseFloat(filters.priceMax)) return false;
+      
+      if (filters.searchText && !item.name.toLowerCase().includes(filters.searchText.toLowerCase())) return false;
+      
+      return true;
+    });
+  }, [stockItems, filters]);
+
   const lowStockCount = stockItems.filter(isLowStock).length;
 
   return (
@@ -296,10 +313,38 @@ export default function Stock() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Senarai Stok</CardTitle>
-          <CardDescription>
-            {stockItems.length} item dalam gudang
-          </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div>
+              <CardTitle>Senarai Stok</CardTitle>
+              <CardDescription>
+                {filteredStockItems.length} item ditunjukkan ({stockItems.length} jumlah)
+              </CardDescription>
+            </div>
+            <SmartFilters
+              quickFilters={[
+                { id: "lowStock", label: "Stok Rendah", icon: <AlertTriangle className="h-3 w-3" /> },
+                { id: "outOfStock", label: "Habis Stok", icon: <Package className="h-3 w-3" /> },
+                { id: "inStock", label: "Ada Stok", icon: <PackagePlus className="h-3 w-3" /> },
+              ]}
+              advancedFilters={[
+                {
+                  type: "range",
+                  label: "Julat Harga",
+                  key: "price",
+                  placeholder: "Min - Max",
+                },
+                {
+                  type: "text",
+                  label: "Cari Nama",
+                  key: "searchText",
+                  placeholder: "Cari bahan...",
+                },
+              ]}
+              activeFilters={filters}
+              onFilterChange={setFilters}
+              onClearAll={() => setFilters({})}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -328,7 +373,7 @@ export default function Stock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockItems.map((item) => {
+                {filteredStockItems.map((item) => {
                   const unitPrice = parseFloat(item.purchasePrice) / parseFloat(item.packageSize);
                   return (
                     <TableRow key={item.id} data-testid={`row-stock-${item.id}`}>
