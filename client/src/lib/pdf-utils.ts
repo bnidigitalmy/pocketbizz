@@ -395,6 +395,40 @@ export function generateClaimStatementPDF(
   doc.text('Sila buat pembayaran baki tertunggak dalam tempoh 7 hari dari tarikh penyata ini.', 20, yPos);
   doc.text('Hubungi kami jika terdapat sebarang percanggahan dalam penyata ini.', 20, yPos + 5);
   
+  // Bank account details (if available)
+  if (businessProfile?.bankName || businessProfile?.accountNumber) {
+    yPos += 15;
+    
+    // Payment instruction box
+    doc.setFillColor(255, 250, 240);
+    doc.rect(20, yPos - 5, 170, 20, 'F');
+    doc.setDrawColor(217, 97, 118);
+    doc.setLineWidth(0.5);
+    doc.rect(20, yPos - 5, 170, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(217, 97, 118);
+    doc.text('Maklumat Pembayaran:', 25, yPos + 2);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0);
+    
+    let bankInfo = '';
+    if (businessProfile.bankName) bankInfo += `Bank: ${businessProfile.bankName}`;
+    if (businessProfile.accountNumber) {
+      if (bankInfo) bankInfo += '  |  ';
+      bankInfo += `No. Akaun: ${businessProfile.accountNumber}`;
+    }
+    if (businessProfile.accountName) {
+      if (bankInfo) bankInfo += '  |  ';
+      bankInfo += `Nama: ${businessProfile.accountName}`;
+    }
+    
+    doc.setFontSize(9);
+    doc.text(bankInfo, 25, yPos + 9);
+  }
+  
   // Save
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`penyata-${vendorName.toLowerCase().replace(/\s+/g, '-')}-${dateStr}.pdf`);
