@@ -64,6 +64,40 @@ The system aims to streamline operations, reduce manual data entry, and provide 
 -   **Verification**: End-to-end playwright test confirms accurate conversion (500g from 1kg @ RM10 = RM5.00, 750g = RM7.50)
 -   **Impact**: Eliminates costing errors caused by unit mismatches, enables accurate profit margin calculations for all businesses
 
+### 📦 Stock Replenishment & Shopping List System (October 14, 2025)
+-   **Stock Replenishment Feature**: Added ability to add additional quantity to existing stock items
+    -   Frontend: "Tambah Stok" button with PackagePlus icon for each stock item
+    -   Replenishment Dialog displays current stock and price with real-time preview of new quantity
+    -   Input fields for additional quantity and optional new purchase price
+    -   Backend: POST /api/stock/:id/replenish endpoint with comprehensive validation
+    -   **Robust Validation**: Frontend and backend both enforce numeric, positive values
+        -   Rejects negative numbers (e.g., "-5") with error "Kuantiti mesti nombor positif"
+        -   Rejects non-numeric input (e.g., "abc") to prevent data corruption
+        -   Server-side safeParse() with 400 error responses for invalid input
+        -   Double-check validation after parsing for additional safety
+    -   **Cache Invalidation**: Replenish mutation invalidates `/api/stock`, `/api/stock/low`, AND `/api/dashboard/stats` to ensure all UI updates immediately
+-   **Dashboard Low Stock Alerts**: Real-time notification system on main dashboard
+    -   Alert card (amber styling) shows count of items below threshold
+    -   Displays top 3 low stock items with badges
+    -   "Lihat Stok" button links directly to stock management page
+    -   Only appears when low stock items exist (no clutter when all OK)
+    -   Auto-updates when stock is replenished via query cache invalidation
+-   **Shopping List Page**: Dedicated `/shopping-list` route for purchasing workflow
+    -   Displays ALL out-of-stock (quantity ≤ 0) AND low-stock items in one unified list
+    -   Summary cards show: out-of-stock count, low-stock count, total estimated cost
+    -   For each item: current quantity, suggested purchase quantity (2× threshold), unit price, estimated cost
+    -   Checkbox system to mark items as "purchased" for tracking
+    -   Print-friendly format with print-specific styling (@media print)
+    -   Calculates total estimated cost automatically
+    -   Added to sidebar menu with ShoppingCart icon
+    -   Automatically updates when stock changes (cache invalidation)
+-   **End-to-End Testing**: Comprehensive Playwright tests verify:
+    -   Validation rejects negative (-5) and non-numeric inputs with proper errors
+    -   Valid replenishment (+10 units) updates stock correctly
+    -   Dashboard alert and shopping list update immediately after replenishment (cache invalidation working)
+    -   All three features work together seamlessly
+-   **Impact**: Streamlines stock purchasing workflow - from low-stock alert → shopping list → replenishment → auto-update across all pages
+
 ### Claims Enhancement with Product Breakdown
 -   Added detailed product breakdown API endpoint (`/api/claims/:vendorId/details`) showing per-invoice product details
 -   Enhanced Claims UI with Dialog component featuring filter toggle (Ringkasan vs Per Invois) for flexible viewing
