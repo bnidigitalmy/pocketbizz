@@ -13,6 +13,7 @@ import {
   vendorCommissions,
   stockItems,
   recipeItems,
+  categories,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -39,6 +40,8 @@ import {
   type InsertStockItem,
   type RecipeItem,
   type InsertRecipeItem,
+  type Category,
+  type InsertCategory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -115,6 +118,10 @@ export interface IStorage {
   updateStockItem(id: string, item: Partial<InsertStockItem>): Promise<StockItem>;
   deleteStockItem(id: string): Promise<void>;
   getLowStockItems(): Promise<StockItem[]>;
+  
+  // Categories
+  getCategories(): Promise<Category[]>;
+  createCategory(category: InsertCategory): Promise<Category>;
   
   // Recipe Items
   getRecipeItems(productId: string): Promise<RecipeItem[]>;
@@ -713,6 +720,16 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(stockItems)
       .where(sql`${stockItems.currentQuantity} <= ${stockItems.lowStockThreshold}`)
       .orderBy(stockItems.currentQuantity);
+  }
+  
+  // Categories
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories).orderBy(categories.name);
+  }
+  
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const result = await db.insert(categories).values(category).returning();
+    return result[0];
   }
   
   // Recipe Items

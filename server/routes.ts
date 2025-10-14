@@ -14,6 +14,7 @@ import {
   insertBusinessProfileSchema,
   insertGoogleDriveSyncLogSchema,
   insertStockItemSchema,
+  insertCategorySchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
@@ -390,6 +391,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete stock item" });
+    }
+  });
+
+  // Categories
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getCategories();
+      res.json(categories);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.post("/api/categories", async (req, res) => {
+    try {
+      const data = insertCategorySchema.parse(req.body);
+      const category = await storage.createCategory(data);
+      res.json(category);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid category data", message: error.message });
     }
   });
 
