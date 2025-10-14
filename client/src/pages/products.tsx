@@ -72,6 +72,7 @@ interface StockItem {
   id: string;
   name: string;
   unit: string;
+  packageSize: string;
   currentQuantity: string;
   purchasePrice: string;
 }
@@ -329,12 +330,18 @@ export default function Products() {
         const stockItem = stockItems.find(s => s.id === item.stockItemId);
         if (stockItem) {
           const quantity = parseFloat(item.quantityNeeded) || 0;
-          const price = parseFloat(stockItem.purchasePrice) || 0;
+          const packagePrice = parseFloat(stockItem.purchasePrice) || 0;
+          const packageSize = parseFloat(stockItem.packageSize) || 1;
           const usageUnit = item.usageUnit || stockItem.unit;
+          
+          // Calculate unit price (price per single unit, e.g., RM0.0438 per gram for RM21.90/500gram)
+          const unitPrice = packagePrice / packageSize;
           
           // Convert quantity from usage unit to stock's purchase unit
           const convertedQuantity = convertUnit(quantity, usageUnit, stockItem.unit);
-          materialsCost += convertedQuantity * price;
+          
+          // Calculate cost: converted quantity × unit price
+          materialsCost += convertedQuantity * unitPrice;
         }
       }
     });

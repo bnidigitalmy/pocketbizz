@@ -67,8 +67,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Example: Recipe uses 500 gram, stock purchased in kg -> convert 500g to 0.5kg
           const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);
           
-          const pricePerUnit = parseFloat(stockItem.purchasePrice) || 0;
-          const cost = convertedQuantity * pricePerUnit;
+          // Calculate unit price from package price
+          // Example: RM21.90 for 500gram package -> RM21.90 / 500 = RM0.0438 per gram
+          const packagePrice = parseFloat(stockItem.purchasePrice) || 0;
+          const packageSize = parseFloat(stockItem.packageSize) || 1;
+          const unitPrice = packagePrice / packageSize;
+          
+          const cost = convertedQuantity * unitPrice;
           materialsCost += cost;
           
           recipeItemsWithCost.push({
@@ -146,8 +151,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Convert recipe quantity to stock's purchase unit
             const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);
             
-            const pricePerUnit = parseFloat(stockItem.purchasePrice) || 0;
-            const cost = convertedQuantity * pricePerUnit;
+            // Calculate unit price from package price
+            // Example: RM21.90 for 500gram package -> RM21.90 / 500 = RM0.0438 per gram
+            const packagePrice = parseFloat(stockItem.purchasePrice) || 0;
+            const packageSize = parseFloat(stockItem.packageSize) || 1;
+            const unitPrice = packagePrice / packageSize;
+            
+            const cost = convertedQuantity * unitPrice;
             materialsCost += cost;
             
             recipeItemsWithCost.push({
