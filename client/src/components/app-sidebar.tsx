@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Cake,
   ChefHat,
+  Package,
   Truck,
   DollarSign,
   Receipt,
@@ -39,6 +40,11 @@ const menuItems = [
     title: "Produksi",
     url: "/production",
     icon: ChefHat,
+  },
+  {
+    title: "Stok Gudang",
+    url: "/stock",
+    icon: Package,
   },
   {
     title: "Vendor",

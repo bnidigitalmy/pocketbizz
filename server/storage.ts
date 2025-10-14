@@ -11,6 +11,8 @@ import {
   businessProfile,
   googleDriveSyncLog,
   vendorCommissions,
+  stockItems,
+  recipeItems,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -33,6 +35,10 @@ import {
   type InsertGoogleDriveSyncLog,
   type VendorCommission,
   type InsertVendorCommission,
+  type StockItem,
+  type InsertStockItem,
+  type RecipeItem,
+  type InsertRecipeItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -96,6 +102,19 @@ export interface IStorage {
   getVendorCommission(vendorId: string): Promise<VendorCommission | undefined>;
   createOrUpdateVendorCommission(commission: InsertVendorCommission): Promise<VendorCommission>;
   deleteVendorCommission(vendorId: string): Promise<void>;
+  
+  // Stock Items (Warehouse Inventory)
+  getStockItems(): Promise<StockItem[]>;
+  getStockItem(id: string): Promise<StockItem | undefined>;
+  createStockItem(item: InsertStockItem): Promise<StockItem>;
+  updateStockItem(id: string, item: Partial<InsertStockItem>): Promise<StockItem>;
+  deleteStockItem(id: string): Promise<void>;
+  getLowStockItems(): Promise<StockItem[]>;
+  
+  // Recipe Items
+  getRecipeItems(productId: string): Promise<RecipeItem[]>;
+  createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem>;
+  deleteRecipeItems(productId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -629,6 +648,53 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVendorCommission(vendorId: string): Promise<void> {
     await db.delete(vendorCommissions).where(eq(vendorCommissions.vendorId, vendorId));
+  }
+  
+  // Stock Items (Warehouse Inventory)
+  async getStockItems(): Promise<StockItem[]> {
+    return await db.select().from(stockItems).orderBy(desc(stockItems.createdAt));
+  }
+  
+  async getStockItem(id: string): Promise<StockItem | undefined> {
+    const result = await db.select().from(stockItems).where(eq(stockItems.id, id));
+    return result[0];
+  }
+  
+  async createStockItem(item: InsertStockItem): Promise<StockItem> {
+    const result = await db.insert(stockItems).values(item).returning();
+    return result[0];
+  }
+  
+  async updateStockItem(id: string, item: Partial<InsertStockItem>): Promise<StockItem> {
+    const result = await db.update(stockItems)
+      .set({ ...item, updatedAt: new Date() })
+      .where(eq(stockItems.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteStockItem(id: string): Promise<void> {
+    await db.delete(stockItems).where(eq(stockItems.id, id));
+  }
+  
+  async getLowStockItems(): Promise<StockItem[]> {
+    return await db.select().from(stockItems)
+      .where(sql`${stockItems.currentQuantity} <= ${stockItems.lowStockThreshold}`)
+      .orderBy(stockItems.currentQuantity);
+  }
+  
+  // Recipe Items
+  async getRecipeItems(productId: string): Promise<RecipeItem[]> {
+    return await db.select().from(recipeItems).where(eq(recipeItems.productId, productId));
+  }
+  
+  async createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem> {
+    const result = await db.insert(recipeItems).values(item).returning();
+    return result[0];
+  }
+  
+  async deleteRecipeItems(productId: string): Promise<void> {
+    await db.delete(recipeItems).where(eq(recipeItems.productId, productId));
   }
 }
 

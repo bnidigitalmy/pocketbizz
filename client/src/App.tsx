@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Production from "@/pages/production";
+import Stock from "@/pages/stock";
 import Vendors from "@/pages/vendors";
 import Deliveries from "@/pages/deliveries";
 import Sales from "@/pages/sales";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/products" component={Products} />
       <Route path="/production" component={Production} />
+      <Route path="/stock" component={Stock} />
       <Route path="/vendors" component={Vendors} />
       <Route path="/deliveries" component={Deliveries} />
       <Route path="/sales" component={Sales} />

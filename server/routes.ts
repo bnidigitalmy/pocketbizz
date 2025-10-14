@@ -13,6 +13,7 @@ import {
   insertExpenseSchema,
   insertBusinessProfileSchema,
   insertGoogleDriveSyncLogSchema,
+  insertStockItemSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
@@ -192,6 +193,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete commission" });
+    }
+  });
+
+  // Stock Items (Warehouse Inventory)
+  app.get("/api/stock", async (req, res) => {
+    try {
+      const items = await storage.getStockItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock items" });
+    }
+  });
+
+  app.get("/api/stock/low", async (req, res) => {
+    try {
+      const items = await storage.getLowStockItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch low stock items" });
+    }
+  });
+
+  app.get("/api/stock/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const item = await storage.getStockItem(id);
+      if (!item) {
+        return res.status(404).json({ error: "Stock item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock item" });
+    }
+  });
+
+  app.post("/api/stock", async (req, res) => {
+    try {
+      const data = insertStockItemSchema.parse(req.body);
+      const item = await storage.createStockItem(data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid stock item data", message: error.message });
+    }
+  });
+
+  app.patch("/api/stock/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertStockItemSchema.partial().parse(req.body);
+      const item = await storage.updateStockItem(id, data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid stock item data", message: error.message });
+    }
+  });
+
+  app.delete("/api/stock/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteStockItem(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete stock item" });
     }
   });
 
