@@ -130,3 +130,60 @@ PocketBizz is a monolithic full-stack application built with React 18, TypeScrip
     -   Desktop viewport (1920x1080): Back button hidden, sidebar stays open
     -   Deep link safeguard: Users landing directly on /stock can still navigate back to home
 -   **Impact**: Significantly improved mobile UX with intuitive navigation patterns matching native mobile apps
+
+### 📲 Progressive Web App (PWA) Implementation (October 14, 2025)
+-   **Goal**: Enable users to install PocketBizz to their phone's home screen without requiring app stores, providing a native app-like experience
+-   **Core PWA Features Implemented**:
+    -   **Web App Manifest** (`client/manifest.json`):
+        -   App metadata: name "PocketBizz", short_name "PocketBizz"
+        -   Display mode: `standalone` (fullscreen app experience without browser UI)
+        -   Orientation: `portrait-primary` (optimized for mobile phone usage)
+        -   Theme color: `#8B4513` (matches app's dessert theme)
+        -   Categories: business, finance, productivity
+    -   **Service Worker** (`client/public/service-worker.js`):
+        -   Runtime caching strategy for all network requests
+        -   Cache-first for static assets with network fallback
+        -   API requests bypass cache for fresh data
+        -   Automatic cache cleanup on service worker updates
+    -   **Install Prompt UI** (`client/src/components/install-pwa.tsx`):
+        -   Banner appears when browser detects PWA install capability
+        -   "Install App" and "Not Now" action buttons
+        -   Dismissal stored in localStorage to prevent repeated prompts
+        -   Auto-hides if app already installed (standalone display mode)
+    -   **HTML Integration** (`client/index.html`):
+        -   Manifest link: `<link rel="manifest" href="/manifest.json" />`
+        -   PWA meta tags for iOS: `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`
+        -   Theme color meta tag for Android status bar
+        -   Service worker registration in `main.tsx`
+-   **Technical Implementation Details**:
+    -   **beforeinstallprompt Event Handling**: Captures browser's install prompt, prevents default mini-infobar, displays custom banner
+    -   **LocalStorage Flag**: `pwa-install-dismissed` tracks user dismissal to respect their choice
+    -   **Service Worker Lifecycle**: Implements install, activate, and fetch events with proper skip waiting
+    -   **Runtime Caching**: Service worker uses runtime caching (not precaching) to handle Vite's hashed build filenames
+-   **Installation Flow**:
+    1. User visits PocketBizz on mobile browser (Chrome, Safari, Edge)
+    2. Browser detects PWA criteria (HTTPS, manifest, service worker)
+    3. Custom install banner appears with "Install App" button
+    4. User taps "Install App" → browser shows native install dialog
+    5. User confirms → PocketBizz icon added to home screen
+    6. App opens in standalone mode (no browser UI, feels native)
+-   **App Icons Status**: 
+    -   **TODO**: Icons currently not included (icons array empty in manifest)
+    -   PWA will function and can be installed, but may show default browser icon
+    -   To add proper icons, create PNG files in these sizes:
+        -   192x192 pixels (minimum required for Android)
+        -   512x512 pixels (required for splash screen)
+        -   Optional: 72x72, 96x96, 128x128, 144x144, 152x152, 384x384
+    -   Icon requirements: Square, PNG format, purpose "any maskable" for adaptive icons
+    -   Place icons in `client/public/` and update manifest.json icons array
+-   **Browser Compatibility**:
+    -   ✅ Chrome Android (80+): Full PWA support with install banner
+    -   ✅ Safari iOS (11.3+): Add to Home Screen via Share menu
+    -   ✅ Edge Desktop/Mobile: Full PWA support
+    -   ⚠️ Firefox: Limited PWA support, can add to home screen manually
+-   **Impact**: Transforms web app into installable mobile app, enabling:
+    -   Offline access to core features (after first visit)
+    -   Native app icon on user's home screen
+    -   Fullscreen experience without browser chrome
+    -   Fast app launch (no browser startup delay)
+    -   Improved user retention and engagement
