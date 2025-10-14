@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuickActionsFab } from "@/components/quick-actions-fab";
+import { DashboardChart } from "@/components/dashboard-chart";
 import { 
   Package, 
   DollarSign, 
@@ -227,6 +228,9 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Interactive Chart */}
+      <DashboardChart />
 
       {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (
