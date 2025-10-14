@@ -10,6 +10,7 @@ import {
   expenses,
   businessProfile,
   googleDriveSyncLog,
+  vendorCommissions,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -30,6 +31,8 @@ import {
   type InsertBusinessProfile,
   type GoogleDriveSyncLog,
   type InsertGoogleDriveSyncLog,
+  type VendorCommission,
+  type InsertVendorCommission,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -87,6 +90,11 @@ export interface IStorage {
   logGoogleDriveSync(log: InsertGoogleDriveSyncLog): Promise<GoogleDriveSyncLog>;
   getGoogleDriveSyncLogs(): Promise<GoogleDriveSyncLog[]>;
   getGoogleDriveSyncLogsByDelivery(deliveryId: string): Promise<GoogleDriveSyncLog[]>;
+  
+  // Vendor Commissions
+  getVendorCommission(vendorId: string): Promise<VendorCommission | undefined>;
+  createOrUpdateVendorCommission(commission: InsertVendorCommission): Promise<VendorCommission>;
+  deleteVendorCommission(vendorId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -498,6 +506,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(googleDriveSyncLog.deliveryId, deliveryId))
       .orderBy(desc(googleDriveSyncLog.syncedAt));
     return logs;
+  }
+
+  // Vendor Commissions
+  async getVendorCommission(vendorId: string): Promise<VendorCommission | undefined> {
+    const [commission] = await db.select()
+      .from(vendorCommissions)
+      .where(eq(vendorCommissions.vendorId, vendorId))
+      .limit(1);
+    return commission || undefined;
+  }
+
+  async createOrUpdateVendorCommission(commission: InsertVendorCommission): Promise<VendorCommission> {
+    // Check if commission exists for this vendor
+    const existing = await this.getVendorCommission(commission.vendorId);
+    
+    if (existing) {
+      // Update existing commission
+      const [updated] = await db.update(vendorCommissions)
+        .set({ ...commission, updatedAt: new Date() })
+        .where(eq(vendorCommissions.vendorId, commission.vendorId))
+        .returning();
+      return updated;
+    } else {
+      // Create new commission
+      const [newCommission] = await db.insert(vendorCommissions).values(commission).returning();
+      return newCommission;
+    }
+  }
+
+  async deleteVendorCommission(vendorId: string): Promise<void> {
+    await db.delete(vendorCommissions).where(eq(vendorCommissions.vendorId, vendorId));
   }
 }
 

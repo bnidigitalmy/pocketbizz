@@ -17,6 +17,7 @@ import { z } from "zod";
 export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claimed", "pending", "rejected"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
+export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
 
 // Products Table
 export const products = pgTable("products", {
@@ -140,6 +141,19 @@ export const googleDriveSyncLog = pgTable("google_drive_sync_log", {
   vendorName: text("vendor_name"),
 });
 
+// Vendor Commissions Table (commission setup per vendor)
+export const vendorCommissions = pgTable("vendor_commissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  commissionType: commissionTypeEnum("commission_type").notNull(),
+  // For percentage type
+  percentage: decimal("percentage", { precision: 5, scale: 2 }), // e.g., 10.00, 15.50, 20.00
+  // For fixed_range type - store as JSON array: [{min: 1, max: 5, amount: 1.00}, {min: 5.01, max: 10, amount: 1.50}]
+  ranges: text("ranges"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const productsRelations = relations(products, ({ many }) => ({
   ingredients: many(ingredients),
@@ -163,6 +177,14 @@ export const productionBatchesRelations = relations(productionBatches, ({ one })
 export const vendorsRelations = relations(vendors, ({ many }) => ({
   deliveries: many(deliveries),
   sales: many(sales),
+  commissions: many(vendorCommissions),
+}));
+
+export const vendorCommissionsRelations = relations(vendorCommissions, ({ one }) => ({
+  vendor: one(vendors, {
+    fields: [vendorCommissions.vendorId],
+    references: [vendors.id],
+  }),
 }));
 
 export const deliveriesRelations = relations(deliveries, ({ one, many }) => ({
@@ -245,6 +267,12 @@ export const insertGoogleDriveSyncLogSchema = createInsertSchema(googleDriveSync
   syncedAt: true,
 });
 
+export const insertVendorCommissionSchema = createInsertSchema(vendorCommissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -275,3 +303,6 @@ export type InsertBusinessProfile = z.infer<typeof insertBusinessProfileSchema>;
 
 export type GoogleDriveSyncLog = typeof googleDriveSyncLog.$inferSelect;
 export type InsertGoogleDriveSyncLog = z.infer<typeof insertGoogleDriveSyncLogSchema>;
+
+export type VendorCommission = typeof vendorCommissions.$inferSelect;
+export type InsertVendorCommission = z.infer<typeof insertVendorCommissionSchema>;
