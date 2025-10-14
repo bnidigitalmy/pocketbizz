@@ -422,6 +422,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
             message: "Purchase price must be a positive number",
           }),
+        newPackageSize: z.string()
+          .optional()
+          .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+            message: "Package size must be a positive number",
+          }),
       });
       
       const validationResult = replenishSchema.safeParse(req.body);
@@ -432,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { additionalQuantity, newPurchasePrice } = validationResult.data;
+      const { additionalQuantity, newPurchasePrice, newPackageSize } = validationResult.data;
 
       // Get current stock item
       const currentItem = await storage.getStockItem(id);
@@ -463,6 +468,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Invalid purchase price" });
         }
         updateData.purchasePrice = newPrice.toFixed(2);
+      }
+
+      // Update package size if provided and valid
+      if (newPackageSize && newPackageSize.trim() !== "") {
+        const newSize = parseFloat(newPackageSize);
+        if (isNaN(newSize) || newSize <= 0) {
+          return res.status(400).json({ error: "Invalid package size" });
+        }
+        updateData.packageSize = newSize.toFixed(2);
       }
 
       // Update the stock item

@@ -62,6 +62,11 @@ const replenishSchema = z.object({
     .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
       message: "Harga mesti nombor positif",
     }),
+  newPackageSize: z.string()
+    .optional()
+    .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: "Saiz pakej mesti nombor positif",
+    }),
 });
 
 type StockItemForm = z.infer<typeof stockItemSchema>;
@@ -109,6 +114,7 @@ export default function Stock() {
     defaultValues: {
       additionalQuantity: "",
       newPurchasePrice: "",
+      newPackageSize: "",
     },
   });
 
@@ -236,6 +242,7 @@ export default function Stock() {
     replenishForm.reset({
       additionalQuantity: "",
       newPurchasePrice: item.purchasePrice,
+      newPackageSize: item.packageSize,
     });
     setReplenishDialogOpen(true);
   };
@@ -576,8 +583,16 @@ export default function Stock() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Harga Semasa:</span>
-                  <span className="font-medium">RM {replenishingItem?.purchasePrice}/{replenishingItem?.unit}</span>
+                  <span className="text-muted-foreground">Pakej Semasa:</span>
+                  <span className="font-medium">
+                    {replenishingItem?.packageSize} {replenishingItem?.unit} @ RM {replenishingItem?.purchasePrice}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Harga Per Unit:</span>
+                  <span className="font-medium">
+                    RM {replenishingItem && (parseFloat(replenishingItem.purchasePrice) / parseFloat(replenishingItem.packageSize)).toFixed(4)}/{replenishingItem?.unit}
+                  </span>
                 </div>
               </div>
 
@@ -606,7 +621,7 @@ export default function Stock() {
                 name="newPurchasePrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Harga Pembelian Baru (Optional)</FormLabel>
+                    <FormLabel>Harga Pakej Baru (Optional)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -614,6 +629,26 @@ export default function Stock() {
                         placeholder="Jika harga berubah..."
                         {...field}
                         data-testid="input-replenish-price"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={replenishForm.control}
+                name="newPackageSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Saiz Pakej Baru (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Jika saiz pakej berubah..."
+                        {...field}
+                        data-testid="input-replenish-package-size"
                       />
                     </FormControl>
                     <FormMessage />
@@ -631,6 +666,26 @@ export default function Stock() {
                           parseFloat(replenishForm.watch("additionalQuantity") || "0")).toFixed(2)} {replenishingItem?.unit}
                       </span>
                     </div>
+                    {(replenishForm.watch("newPurchasePrice") || replenishForm.watch("newPackageSize")) && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Pakej Baru:</span>
+                          <span className="font-medium">
+                            {replenishForm.watch("newPackageSize") || replenishingItem?.packageSize} {replenishingItem?.unit} @ RM {replenishForm.watch("newPurchasePrice") || replenishingItem?.purchasePrice}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Harga Per Unit Baru:</span>
+                          <span className="font-medium">
+                            RM {(() => {
+                              const newPrice = parseFloat(replenishForm.watch("newPurchasePrice") || replenishingItem?.purchasePrice || "0");
+                              const newSize = parseFloat(replenishForm.watch("newPackageSize") || replenishingItem?.packageSize || "1");
+                              return (newPrice / newSize).toFixed(4);
+                            })()}/{replenishingItem?.unit}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
