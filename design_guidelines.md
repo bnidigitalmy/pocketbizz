@@ -11,25 +11,27 @@
 
 ### A. Color Palette
 
-**Light Mode (Primary)**
-- Background Primary: 35 25% 98% (soft cream)
-- Background Secondary: 340 45% 96% (light pink tint)
-- Primary Brand: 345 65% 75% (soft dusty rose)
-- Primary Hover: 345 65% 65%
-- Accent: 25 35% 55% (warm brown)
-- Text Primary: 25 25% 20% (dark chocolate brown)
-- Text Secondary: 25 15% 45%
-- Success: 145 60% 45% (for paid/completed status)
-- Warning: 35 85% 60% (for pending status)
+**Light Mode (Primary) - Sophisticated Warm Neutrals**
+- Background Primary: 35 12% 97% (warm cream)
+- Card Background: 35 25% 95% (soft beige)
+- Primary Brand: 38 58% 58% (warm terracotta) - unified warm hue
+- Accent: 42 65% 58% (warm gold) - for highlights and premium features
+- Text Primary: 30 30% 18% (rich chocolate brown)
+- Text Secondary: 30 15% 42% (soft brown)
+- Success: 145 52% 48% (for paid/completed status)
+- Warning: 28 68% 56% (for pending status)
 - Danger: 355 70% 55% (for rejected/expired)
-- Border: 340 20% 90%
+- Border: 35 15% 86% (subtle warm border)
+- All primary surfaces: hues 28-42 (fully warm-neutral cohesive)
 
-**Dark Mode**
-- Background Primary: 25 15% 12% (deep brown)
-- Background Secondary: 340 20% 16%
-- Primary Brand: 345 55% 65%
-- Text Primary: 35 25% 95% (cream)
-- Text Secondary: 35 15% 75%
+**Dark Mode - Rich Chocolate Tones**
+- Background Primary: 30 15% 10% (deep chocolate brown)
+- Card Background: 30 18% 14% (rich dark brown)
+- Primary Brand: 38 52% 52% (warm terracotta) - unified warm hue
+- Accent: 42 58% 52% (warm gold) - for highlights and premium features
+- Text Primary: 35 20% 92% (warm cream)
+- Text Secondary: 35 12% 70% (soft beige)
+- All primary surfaces: hues 28-42 (fully warm-neutral cohesive)
 
 ### B. Typography
 
