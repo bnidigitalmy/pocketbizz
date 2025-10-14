@@ -21,6 +21,8 @@ import {
   Box
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { format } from "date-fns";
+import { ms } from "date-fns/locale";
 
 interface StockItem {
   id: string;
@@ -45,6 +47,18 @@ export default function Dashboard() {
   const { data: lowStockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/low"],
   });
+
+  // Greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Selamat Pagi";
+    if (hour < 15) return "Selamat Tengah Hari";
+    if (hour < 18) return "Selamat Petang";
+    return "Selamat Malam";
+  };
+
+  // Format current date
+  const currentDate = format(new Date(), "EEEE, dd MMMM yyyy", { locale: ms });
 
   const quickActions = [
     {
@@ -200,9 +214,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold md:text-3xl">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Ringkasan perniagaan anda hari ini</p>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold md:text-3xl" data-testid="dashboard-greeting">
+          {getGreeting()} 👋
+        </h1>
+        <p className="text-sm text-muted-foreground" data-testid="dashboard-date">
+          {currentDate}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Ringkasan perniagaan anda hari ini
+        </p>
       </div>
 
       {/* Stats Grid */}
