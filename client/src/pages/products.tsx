@@ -45,7 +45,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import type { Product } from "@shared/schema";
+import type { Product, Category } from "@shared/schema";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Nama produk diperlukan"),
@@ -92,6 +95,14 @@ export default function Products() {
   const { data: stockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock"],
   });
+
+  // Fetch categories for category selector
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  // Category combobox state
+  const [categoryOpen, setCategoryOpen] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -217,11 +228,65 @@ export default function Products() {
     setDialogOpen(true);
   };
 
-  const handleSubmit = (data: ProductFormValues) => {
-    if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, data });
-    } else {
-      createMutation.mutate(data);
+  const handleSubmit = async (data: ProductFormValues) => {
+    try {
+      // Trim and normalize category name
+      const categoryName = data.category.trim();
+      
+      if (!categoryName) {
+        toast({
+          title: "Error",
+          description: "Nama kategori diperlukan",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Force fetch fresh category data (not cached) before checking
+      const freshCategories = await queryClient.fetchQuery<Category[]>({
+        queryKey: ["/api/categories"],
+        queryFn: async () => {
+          const response = await fetch("/api/categories");
+          if (!response.ok) throw new Error("Failed to fetch categories");
+          return response.json();
+        },
+      });
+
+      // Check if category exists (case-insensitive)
+      const categoryExists = freshCategories.some(
+        cat => cat.name.toLowerCase() === categoryName.toLowerCase()
+      );
+      
+      if (!categoryExists) {
+        try {
+          // Create new category
+          await apiRequest("POST", "/api/categories", { name: categoryName });
+          // Invalidate categories cache to refresh list
+          queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        } catch (error: any) {
+          // If category already exists (409/422/400 with unique constraint), continue anyway
+          const status = error?.status || error?.response?.status;
+          if (status === 409 || status === 422 || status === 400) {
+            // Category already exists, that's fine
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // Submit product with normalized category name
+      const productData = { ...data, category: categoryName };
+      if (editingProduct) {
+        updateMutation.mutate({ id: editingProduct.id, data: productData });
+      } else {
+        createMutation.mutate(productData);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan produk",
+        variant: "destructive",
+      });
     }
   };
 
@@ -346,11 +411,56 @@ export default function Products() {
                       control={form.control}
                       name="category"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                           <FormLabel>Kategori</FormLabel>
-                          <FormControl>
-                            <Input placeholder="cth: Pastri" {...field} data-testid="input-category" />
-                          </FormControl>
+                          <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={categoryOpen}
+                                  className="justify-between"
+                                  data-testid="button-category-select"
+                                >
+                                  {field.value || "Pilih atau taip kategori..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput 
+                                  placeholder="Cari atau taip kategori baru..." 
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>Tiada kategori ditemui. Taip untuk tambah baru.</CommandEmpty>
+                                  <CommandGroup>
+                                    {categories.map((category) => (
+                                      <CommandItem
+                                        key={category.id}
+                                        value={category.name}
+                                        onSelect={(currentValue) => {
+                                          field.onChange(currentValue);
+                                          setCategoryOpen(false);
+                                        }}
+                                        data-testid={`option-category-${category.name}`}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 ${
+                                            field.value === category.name ? "opacity-100" : "opacity-0"
+                                          }`}
+                                        />
+                                        {category.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <FormMessage />
                         </FormItem>
                       )}
