@@ -46,7 +46,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import type { Product, Category } from "@shared/schema";
-import { UNIT_CONVERSIONS } from "@shared/schema";
+import { UNIT_CONVERSIONS, convertUnit } from "@shared/schema";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -322,7 +322,7 @@ export default function Products() {
     const otherCosts = parseFloat(form.watch("otherCosts")) || 0;
     const unitsPerBatch = parseInt(form.watch("unitsPerBatch")) || 1;
 
-    // Calculate materials cost from recipe items
+    // Calculate materials cost from recipe items (with unit conversion)
     let materialsCost = 0;
     recipeItems.forEach(item => {
       if (item.stockItemId && item.quantityNeeded) {
@@ -330,7 +330,11 @@ export default function Products() {
         if (stockItem) {
           const quantity = parseFloat(item.quantityNeeded) || 0;
           const price = parseFloat(stockItem.purchasePrice) || 0;
-          materialsCost += quantity * price;
+          const usageUnit = item.usageUnit || stockItem.unit;
+          
+          // Convert quantity from usage unit to stock's purchase unit
+          const convertedQuantity = convertUnit(quantity, usageUnit, stockItem.unit);
+          materialsCost += convertedQuantity * price;
         }
       }
     });

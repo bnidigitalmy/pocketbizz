@@ -154,7 +154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stockItemId: item.stockItemId,
               quantityNeeded: recipeQuantity.toFixed(2),
               usageUnit: usageUnit,
-              unit: stockItem.unit,
               costPerRecipe: cost.toFixed(2),
               productId: id,
             });
