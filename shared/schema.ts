@@ -64,9 +64,10 @@ export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "per
 export const stockItems = pgTable("stock_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(), // e.g., "Tepung Gandum", "Gula Pasir", "Telur"
-  unit: text("unit").notNull(), // e.g., "kg", "gram", "liter", "pcs", "packet"
-  currentQuantity: decimal("current_quantity", { precision: 10, scale: 2 }).notNull().default("0"), // Current stock in warehouse
-  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(), // Price per unit purchased
+  unit: text("unit").notNull(), // e.g., "kg", "gram", "liter", "ml", "pcs"
+  packageSize: decimal("package_size", { precision: 10, scale: 2 }).notNull().default("1"), // Size of package purchased (e.g., 500 for 500gram, 1.4 for 1.4kg)
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(), // Total price for the PACKAGE (e.g., RM21.90 for 500gram package)
+  currentQuantity: decimal("current_quantity", { precision: 10, scale: 2 }).notNull().default("0"), // Current stock quantity in warehouse (in base units)
   lowStockThreshold: decimal("low_stock_threshold", { precision: 10, scale: 2 }).notNull().default("5"), // Alert when below this
   notes: text("notes"), // Optional notes
   createdAt: timestamp("created_at").defaultNow().notNull(),
