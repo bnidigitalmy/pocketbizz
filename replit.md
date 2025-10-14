@@ -1,18 +1,42 @@
-# ManisBizz - Sistem Pengurusan Bisnes Dessert
+# PocketBizz - Universal Small Business Management System
 
 ## Overview
 
-ManisBizz is a comprehensive dessert business management system designed to help small dessert vendors manage their entire business workflow. It covers recipe management, production tracking, vendor deliveries, sales recording, expense management, and financial reporting. The application features an intuitive, mobile-first interface with a dessert-themed aesthetic. Key capabilities include:
+PocketBizz (formerly ManisBizz) is a comprehensive, mobile-first business management system designed to help small vendors manage their entire business workflow. Originally built for dessert businesses, it has been rebranded for universal small business applicability with integrated POS capabilities (PocketPOS coming soon). Key capabilities include:
 
--   **End-to-end Business Management**: From recipe costing to profit/loss reports.
+-   **End-to-end Business Management**: From stock management & recipe costing to profit/loss reports.
+-   **Stock & Inventory System**: Warehouse stock tracking with automatic cost calculation from recipe items.
 -   **Production & Delivery Tracking**: Manage daily batches, track deliveries, and monitor payment statuses.
 -   **Financial Reporting**: Detailed sales, expenses, and profit/loss insights, including rejection loss tracking.
 -   **Efficiency Tools**: "Copy Yesterday" feature for production and deliveries, WhatsApp sharing, and A5 receipt generation.
 -   **Advanced Features**: Expiry tracking, professional invoicing with letterhead, comprehensive claim management with detailed product breakdown, and Google Drive auto-sync for all documents.
 
-The system aims to streamline operations, reduce manual data entry, and provide actionable financial insights for dessert businesses.
+The system aims to streamline operations, reduce manual data entry, and provide actionable financial insights for small businesses across various industries.
 
 ## Recent Changes (October 2025)
+
+### PocketBizz Rebranding & Stock Management System (Phase 2 Complete)
+-   **Rebranding**: Changed from "ManisBizz" (dessert-specific) to "PocketBizz" (universal small business) for broader market appeal
+-   **Stock Management Phase 1**: Built complete warehouse inventory system with CRUD operations
+    -   Stock Items table with purchase price, current quantity, low stock threshold
+    -   Stock Management UI page with low stock alerts and visual indicators
+    -   API endpoints for stock CRUD operations
+-   **Stock Management Phase 2**: Integrated stock system with Product & Recipe management
+    -   **Recipe Builder**: Select stock items from dropdown instead of manual ingredient entry
+    -   **Auto Cost Calculation**: Materials cost calculated from recipe items (quantity × stock price)
+    -   **Production Costing**: Added fields for labour cost, other costs (utilities, gas, etc.)
+    -   **Batch Costing**: Calculate total cost per batch and cost per unit automatically
+    -   **Profit Margin Intelligence**: Smart suggestion algorithm (30-50% based on cost tiers)
+    -   **Flexible Pricing**: Manual selling price override with "Use Suggestion" button
+-   **Database Schema Updates**: 
+    -   Created `stock_items` table for warehouse inventory
+    -   Created `recipe_items` table linking products to stock items
+    -   Updated `products` table with cost breakdown fields (materialsCost, labourCost, otherCosts, totalCostPerBatch, costPerUnit, unitsPerBatch, sellingPrice)
+-   **Technical Implementation**:
+    -   Backend API validates recipe items and calculates costs server-side
+    -   Frontend uses reactive form watching for real-time cost updates
+    -   Storage layer updated to save recipe items to database
+    -   Fixed React setState-during-render issues with proper form handling
 
 ### Claims Enhancement with Product Breakdown
 -   Added detailed product breakdown API endpoint (`/api/claims/:vendorId/details`) showing per-invoice product details

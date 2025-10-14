@@ -33,39 +33,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products", async (req, res) => {
     try {
       const productSchema = insertProductSchema.extend({
-        ingredients: z.array(z.object({
-          name: z.string(),
-          quantity: z.string(),
-          unitPrice: z.string(),
+        recipeItems: z.array(z.object({
+          stockItemId: z.string(),
+          quantityNeeded: z.string(),
         })),
       });
       
       const data = productSchema.parse(req.body);
-      const { ingredients: ingredientsList, ...productData } = data;
+      const { recipeItems, ...productData } = data;
       
-      // Calculate total cost from ingredients (sum of all ingredient unit prices)
-      const totalCost = ingredientsList.reduce((sum, ing) => {
-        const price = parseFloat(ing.unitPrice) || 0;
-        return sum + price;
-      }, 0);
+      // Calculate materials cost from recipe items
+      let materialsCost = 0;
+      const recipeItemsWithCost = [];
       
-      const ingredientsWithCost = ingredientsList.map(ing => {
-        const unitPrice = parseFloat(ing.unitPrice) || 0;
-        return {
-          name: ing.name,
-          quantity: ing.quantity,
-          unitPrice: unitPrice.toFixed(2),
-          totalCost: unitPrice.toFixed(2),
-          productId: "", // Will be set in storage
-        };
-      });
+      for (const item of recipeItems) {
+        const stockItem = await storage.getStockItem(item.stockItemId);
+        if (stockItem) {
+          const quantity = parseFloat(item.quantityNeeded) || 0;
+          const price = parseFloat(stockItem.purchasePrice) || 0;
+          const cost = quantity * price;
+          materialsCost += cost;
+          
+          recipeItemsWithCost.push({
+            stockItemId: item.stockItemId,
+            quantityNeeded: quantity.toFixed(2),
+            unit: stockItem.unit,
+            costPerRecipe: cost.toFixed(2),
+            productId: "", // Will be set in storage
+          });
+        }
+      }
+      
+      // Calculate total cost per batch
+      const labourCost = parseFloat(productData.labourCost) || 0;
+      const otherCosts = parseFloat(productData.otherCosts) || 0;
+      const totalCostPerBatch = materialsCost + labourCost + otherCosts;
+      
+      // Calculate cost per unit
+      const unitsPerBatch = parseInt(productData.unitsPerBatch) || 1;
+      const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
       
       const product = await storage.createProduct(
         {
           ...productData,
-          costPerUnit: totalCost.toFixed(2),
+          materialsCost: materialsCost.toFixed(2),
+          totalCostPerBatch: totalCostPerBatch.toFixed(2),
+          costPerUnit: costPerUnit.toFixed(2),
         },
-        ingredientsWithCost
+        recipeItemsWithCost
       );
       
       res.json(product);

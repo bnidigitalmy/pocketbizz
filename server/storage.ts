@@ -47,9 +47,12 @@ export interface IStorage {
   // Products
   getProducts(): Promise<Product[]>;
   getProduct(id: string): Promise<Product | undefined>;
-  createProduct(product: InsertProduct, ingredientsList: InsertIngredient[]): Promise<Product>;
+  createProduct(product: InsertProduct, recipeItemsList: any[]): Promise<Product>;
   
-  // Ingredients
+  // Recipe Items
+  getRecipeItems(productId: string): Promise<any[]>;
+  
+  // Ingredients (legacy)
   getIngredients(productId: string): Promise<Ingredient[]>;
   
   // Production
@@ -138,16 +141,16 @@ export class DatabaseStorage implements IStorage {
     return product || undefined;
   }
 
-  async createProduct(product: InsertProduct, ingredientsList: InsertIngredient[]): Promise<Product> {
+  async createProduct(product: InsertProduct, recipeItemsList: any[]): Promise<Product> {
     const [newProduct] = await db.insert(products).values(product).returning();
     
-    // Insert ingredients
-    if (ingredientsList.length > 0) {
-      const ingredientsWithProductId = ingredientsList.map(ing => ({
-        ...ing,
+    // Insert recipe items (new stock-based system)
+    if (recipeItemsList.length > 0) {
+      const recipeItemsWithProductId = recipeItemsList.map(item => ({
+        ...item,
         productId: newProduct.id,
       }));
-      await db.insert(ingredients).values(ingredientsWithProductId);
+      await db.insert(recipeItems).values(recipeItemsWithProductId);
     }
     
     return newProduct;
