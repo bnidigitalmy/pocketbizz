@@ -15,7 +15,7 @@ interface SyncLog {
 }
 
 export default function DriveSync() {
-  const { data: syncLogs, isLoading } = useQuery<SyncLog[]>({
+  const { data: syncLogs, isLoading, error } = useQuery<SyncLog[]>({
     queryKey: ["/api/google-drive/sync-logs"],
   });
 
@@ -47,6 +47,21 @@ export default function DriveSync() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <h1 className="text-2xl font-semibold md:text-3xl">Dokumen Google Drive</h1>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Cloud className="h-16 w-16 mx-auto text-destructive mb-4" />
+            <p className="text-destructive font-medium">Ralat memuatkan sync logs</p>
+            <p className="text-sm text-muted-foreground mt-2">Sila refresh halaman atau cuba lagi kemudian</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -71,25 +86,25 @@ export default function DriveSync() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-semibold font-mono">
-                {syncLogs?.length || 0}
+                {(syncLogs ?? []).length}
               </div>
               <div className="text-xs text-muted-foreground">Total Dokumen</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold font-mono text-blue-600 dark:text-blue-400">
-                {syncLogs?.filter(l => l.fileType.includes('invoice')).length || 0}
+                {(syncLogs?.filter(l => l.fileType.includes('invoice')) ?? []).length}
               </div>
               <div className="text-xs text-muted-foreground">Invois</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold font-mono text-green-600 dark:text-green-400">
-                {syncLogs?.filter(l => l.fileType.includes('claim')).length || 0}
+                {(syncLogs?.filter(l => l.fileType.includes('claim')) ?? []).length}
               </div>
               <div className="text-xs text-muted-foreground">Penyata</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold font-mono text-orange-600 dark:text-orange-400">
-                {syncLogs?.filter(l => l.fileType.includes('thermal')).length || 0}
+                {(syncLogs?.filter(l => l.fileType.includes('thermal')) ?? []).length}
               </div>
               <div className="text-xs text-muted-foreground">Thermal</div>
             </div>
