@@ -74,6 +74,7 @@ export interface IStorage {
   
   // Claims
   getClaimsSummary(): Promise<any[]>;
+  getClaimDetailsByVendor(vendorId: string): Promise<any>;
   
   // Business Profile
   getBusinessProfile(): Promise<BusinessProfile | undefined>;
@@ -398,6 +399,51 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`COALESCE(SUM(${deliveries.totalAmount}), 0) DESC`);
 
     return claimsSummary;
+  }
+
+  async getClaimDetailsByVendor(vendorId: string): Promise<any> {
+    // Get all deliveries for this vendor
+    const vendorDeliveries = await db.select()
+      .from(deliveries)
+      .where(eq(deliveries.vendorId, vendorId))
+      .orderBy(desc(deliveries.deliveryDate));
+
+    // Get items for each delivery
+    const deliveriesWithItems = await Promise.all(
+      vendorDeliveries.map(async (delivery) => {
+        const items = await db.select()
+          .from(deliveryItems)
+          .where(eq(deliveryItems.deliveryId, delivery.id));
+        
+        return {
+          ...delivery,
+          items,
+        };
+      })
+    );
+
+    // Calculate summary
+    const totalAmount = vendorDeliveries.reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    const pendingAmount = vendorDeliveries
+      .filter(d => d.paymentStatus === 'pending')
+      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    const settledAmount = vendorDeliveries
+      .filter(d => d.paymentStatus === 'settled')
+      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    const partialAmount = vendorDeliveries
+      .filter(d => d.paymentStatus === 'partial')
+      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+
+    return {
+      vendorId,
+      vendorName: vendorDeliveries[0]?.vendorName || '',
+      totalDeliveries: vendorDeliveries.length,
+      totalAmount: totalAmount.toFixed(2),
+      pendingAmount: pendingAmount.toFixed(2),
+      settledAmount: settledAmount.toFixed(2),
+      partialAmount: partialAmount.toFixed(2),
+      deliveries: deliveriesWithItems,
+    };
   }
 
   // Business Profile

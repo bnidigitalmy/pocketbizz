@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package } from "lucide-react";
 import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
 
 interface ClaimSummary {
@@ -37,6 +45,8 @@ interface DeliveryWithItems {
 
 export default function Claims() {
   const { toast } = useToast();
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'summary' | 'individual'>('summary');
 
   const { data: claims, isLoading: claimsLoading } = useQuery<ClaimSummary[]>({
     queryKey: ["/api/claims"],
@@ -48,6 +58,11 @@ export default function Claims() {
 
   const { data: businessProfile } = useQuery({
     queryKey: ["/api/business-profile"],
+  });
+
+  const { data: claimDetails } = useQuery({
+    queryKey: ["/api/claims", selectedVendorId, "details"],
+    enabled: !!selectedVendorId,
   });
 
   const updatePaymentMutation = useMutation({
@@ -264,29 +279,41 @@ export default function Claims() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="space-y-2 mt-3">
                   <Button 
-                    variant="default" 
+                    variant="secondary" 
                     size="sm"
-                    onClick={() => generateClaimStatement(claim.vendorId, claim.vendorName)}
-                    data-testid={`button-generate-statement-${claim.vendorId}`}
+                    className="w-full"
+                    onClick={() => setSelectedVendorId(claim.vendorId)}
+                    data-testid={`button-view-details-${claim.vendorId}`}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Penyata
+                    <Eye className="h-4 w-4 mr-2" />
+                    Lihat Detail Produk
                   </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => generateClaimStatement(claim.vendorId, claim.vendorName)}
+                      data-testid={`button-generate-statement-${claim.vendorId}`}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Penyata
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => generateThermalClaimStatement(claim.vendorId, claim.vendorName)}
+                      data-testid={`button-thermal-statement-${claim.vendorId}`}
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Thermal
+                    </Button>
+                  </div>
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => generateThermalClaimStatement(claim.vendorId, claim.vendorName)}
-                    data-testid={`button-thermal-statement-${claim.vendorId}`}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Thermal
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="col-span-2"
+                    className="w-full"
                     onClick={() => shareClaimViaWhatsApp(claim)}
                     data-testid={`button-share-claim-${claim.vendorId}`}
                   >
@@ -382,6 +409,178 @@ export default function Claims() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Detailed Product View Dialog */}
+      <Dialog open={!!selectedVendorId} onOpenChange={(open) => !open && setSelectedVendorId(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Detail Produk - {claimDetails?.vendorName}
+            </DialogTitle>
+            <DialogDescription>
+              Senarai lengkap produk untuk semua invois vendor ini
+            </DialogDescription>
+          </DialogHeader>
+
+          {claimDetails && (
+            <div className="space-y-4">
+              {/* Summary Card */}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-semibold font-mono">
+                        RM {parseFloat(claimDetails.totalAmount).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Jumlah</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-semibold font-mono text-orange-600 dark:text-orange-400">
+                        RM {parseFloat(claimDetails.pendingAmount).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Belum Bayar</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-semibold font-mono text-blue-600 dark:text-blue-400">
+                        RM {parseFloat(claimDetails.partialAmount).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Separa</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-semibold font-mono text-green-600 dark:text-green-400">
+                        RM {parseFloat(claimDetails.settledAmount).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Selesai</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* View Mode Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'summary' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('summary')}
+                  data-testid="button-view-summary"
+                >
+                  Ringkasan
+                </Button>
+                <Button
+                  variant={viewMode === 'individual' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('individual')}
+                  data-testid="button-view-individual"
+                >
+                  Per Invois
+                </Button>
+              </div>
+
+              {/* Summary View - Group all products */}
+              {viewMode === 'summary' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Ringkasan Produk ({claimDetails.totalDeliveries} invois)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(() => {
+                        const productSummary = new Map<string, { quantity: number; totalPrice: number; unitPrice: number }>();
+                        
+                        claimDetails.deliveries?.forEach((delivery: any) => {
+                          delivery.items?.forEach((item: any) => {
+                            const existing = productSummary.get(item.productName) || { quantity: 0, totalPrice: 0, unitPrice: parseFloat(item.unitPrice) };
+                            productSummary.set(item.productName, {
+                              quantity: existing.quantity + item.quantity,
+                              totalPrice: existing.totalPrice + parseFloat(item.totalPrice),
+                              unitPrice: parseFloat(item.unitPrice),
+                            });
+                          });
+                        });
+
+                        return Array.from(productSummary.entries()).map(([name, data]) => (
+                          <div key={name} className="flex justify-between items-center p-3 border rounded-md hover-elevate">
+                            <div className="flex-1">
+                              <div className="font-medium">{name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                @ RM {data.unitPrice.toFixed(2)} per unit
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold font-mono">{data.quantity} unit</div>
+                              <div className="text-sm font-mono text-muted-foreground">
+                                RM {data.totalPrice.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Individual View - Per invoice breakdown */}
+              {viewMode === 'individual' && (
+                <div className="space-y-3">
+                  {claimDetails.deliveries?.map((delivery: any, idx: number) => (
+                    <Card key={delivery.id} className="hover-elevate">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-base">
+                              Invois #{idx + 1} - {new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {delivery.items?.length || 0} produk
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold font-mono text-lg">
+                              RM {parseFloat(delivery.totalAmount).toFixed(2)}
+                            </div>
+                            {getPaymentStatusBadge(delivery.paymentStatus)}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-2">
+                          {delivery.items?.map((item: any, itemIdx: number) => (
+                            <div key={itemIdx} className="flex justify-between p-2 bg-muted/50 rounded">
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{item.productName}</div>
+                                {item.rejectedQuantity > 0 && (
+                                  <div className="text-xs text-orange-600 dark:text-orange-400">
+                                    Tolak: {item.rejectedQuantity} unit
+                                    {item.rejectionReason && ` (${item.rejectionReason})`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-mono">
+                                  {item.quantity}x @ RM {parseFloat(item.unitPrice).toFixed(2)}
+                                </div>
+                                <div className="text-sm font-semibold font-mono">
+                                  RM {parseFloat(item.totalPrice).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

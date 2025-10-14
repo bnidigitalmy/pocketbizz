@@ -281,6 +281,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/claims/:vendorId/details", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      const claimDetails = await storage.getClaimDetailsByVendor(vendorId);
+      res.json(claimDetails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch claim details" });
+    }
+  });
+
   app.patch("/api/deliveries/:id/payment-status", async (req, res) => {
     try {
       const { id } = req.params;
