@@ -1,11 +1,25 @@
 const CACHE_NAME = 'pocketbizz-v1';
+const OFFLINE_CACHE_NAME = 'pocketbizz-offline-v1';
 
-// Don't precache specific files - let runtime caching handle it
-// Production builds create hashed filenames that we can't predict here
+// Essential URLs to cache for offline startup
+const ESSENTIAL_URLS = [
+  '/',
+  '/index.html'
+];
 
-// Install event - skip waiting to activate immediately
+// Install event - cache essential URLs for offline startup
 self.addEventListener('install', (event) => {
   console.log('Service Worker installed');
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE_NAME)
+      .then((cache) => {
+        console.log('Caching essential URLs for offline');
+        return cache.addAll(ESSENTIAL_URLS);
+      })
+      .catch((error) => {
+        console.error('Failed to cache essential URLs:', error);
+      })
+  );
   self.skipWaiting();
 });
 
@@ -15,7 +29,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== OFFLINE_CACHE_NAME) {
             console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -67,8 +81,13 @@ self.addEventListener('fetch', (event) => {
         });
       })
       .catch(() => {
-        // Offline fallback
-        return caches.match('/');
+        // Offline fallback - only for navigation requests
+        // Don't serve HTML for JS/CSS/image requests
+        if (event.request.mode === 'navigate') {
+          return caches.match('/');
+        }
+        // For other resources, just fail gracefully
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       })
   );
 });
