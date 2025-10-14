@@ -8,6 +8,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { InstallPWA } from "@/components/install-pwa";
+import { GlobalSearch } from "@/components/global-search";
+import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -77,7 +79,9 @@ function Header() {
           </Button>
         )}
       </div>
-      <div className="flex-1" />
+      <div className="flex-1 flex justify-center px-4">
+        <GlobalSearch />
+      </div>
       <ThemeToggle />
     </header>
   );
@@ -106,6 +110,7 @@ export default function App() {
           </SidebarProvider>
           <Toaster />
           <InstallPWA />
+          <KeyboardShortcuts />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

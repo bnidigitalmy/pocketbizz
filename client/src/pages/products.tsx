@@ -50,6 +50,7 @@ import { UNIT_CONVERSIONS, convertUnit } from "@shared/schema";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { useKeyboardShortcuts } from "@/components/keyboard-shortcuts";
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Nama produk diperlukan"),
@@ -376,6 +377,15 @@ export default function Products() {
   };
 
   const costs = calculateCosts();
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onNew: () => {
+      form.reset();
+      setEditingProduct(null);
+      setDialogOpen(true);
+    },
+  });
 
   if (isLoading) {
     return (

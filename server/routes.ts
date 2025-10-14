@@ -22,6 +22,106 @@ import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Global Search - Search across all entities
+  app.get("/api/search", async (req, res) => {
+    try {
+      const query = (req.query.q as string || '').toLowerCase().trim();
+      
+      if (!query || query.length < 2) {
+        return res.json({ results: [] });
+      }
+
+      const [products, vendors, stockItems, sales, deliveries] = await Promise.all([
+        storage.getProducts(),
+        storage.getVendors(),
+        storage.getStockItems(),
+        storage.getSales(),
+        storage.getDeliveries(),
+      ]);
+
+      const results = [];
+
+      // Search Products
+      products.forEach(product => {
+        if (product.name.toLowerCase().includes(query) || 
+            product.category.toLowerCase().includes(query)) {
+          results.push({
+            id: product.id,
+            type: 'product',
+            title: product.name,
+            subtitle: `${product.category} • RM${product.sellingPrice}`,
+            url: '/products',
+            icon: 'Cake',
+          });
+        }
+      });
+
+      // Search Vendors
+      vendors.forEach(vendor => {
+        if (vendor.name.toLowerCase().includes(query) ||
+            (vendor.contactPerson && vendor.contactPerson.toLowerCase().includes(query))) {
+          results.push({
+            id: vendor.id,
+            type: 'vendor',
+            title: vendor.name,
+            subtitle: vendor.contactPerson || vendor.phoneNumber || '',
+            url: '/vendors',
+            icon: 'Store',
+          });
+        }
+      });
+
+      // Search Stock Items
+      stockItems.forEach(item => {
+        if (item.name.toLowerCase().includes(query)) {
+          results.push({
+            id: item.id,
+            type: 'stock',
+            title: item.name,
+            subtitle: `${item.currentQuantity} ${item.unit} • RM${item.purchasePrice}`,
+            url: '/stock',
+            icon: 'Package',
+          });
+        }
+      });
+
+      // Search Sales (by product name or vendor name)
+      sales.forEach(sale => {
+        if (sale.productName.toLowerCase().includes(query) ||
+            (sale.vendorName && sale.vendorName.toLowerCase().includes(query))) {
+          results.push({
+            id: sale.id,
+            type: 'sale',
+            title: `Jualan: ${sale.productName}`,
+            subtitle: `${sale.vendorName || 'Tunai'} • RM${sale.totalAmount}`,
+            url: '/sales',
+            icon: 'DollarSign',
+          });
+        }
+      });
+
+      // Search Deliveries (by vendor name)
+      deliveries.forEach(delivery => {
+        if (delivery.vendorName.toLowerCase().includes(query)) {
+          results.push({
+            id: delivery.id,
+            type: 'delivery',
+            title: `Hantar: ${delivery.vendorName}`,
+            subtitle: `RM${delivery.totalAmount} • ${delivery.status}`,
+            url: '/deliveries',
+            icon: 'Truck',
+          });
+        }
+      });
+
+      // Limit to top 20 results
+      res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+      console.error('Search error:', error);
+      res.status(500).json({ error: "Failed to search" });
+    }
+  });
+  
   // Products
   app.get("/api/products", async (req, res) => {
     try {
