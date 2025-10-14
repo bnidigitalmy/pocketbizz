@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText } from "lucide-react";
-import { generateClaimStatementPDF } from "@/lib/pdf-utils";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer } from "lucide-react";
+import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
 
 interface ClaimSummary {
   vendorId: string;
@@ -167,6 +167,39 @@ export default function Claims() {
     });
   };
 
+  const generateThermalClaimStatement = (vendorId: string, vendorName: string) => {
+    // Filter deliveries for this vendor
+    const vendorDeliveries = deliveries?.filter(d => d.vendorId === vendorId) || [];
+    
+    if (vendorDeliveries.length === 0) {
+      toast({
+        title: "Tiada Data",
+        description: "Tiada penghantaran untuk vendor ini",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get date range (earliest to latest delivery)
+    const dates = vendorDeliveries.map(d => new Date(d.deliveryDate));
+    const earliestDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+    const latestDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+
+    // Generate Thermal PDF
+    generateThermalClaimStatementPDF(
+      vendorName,
+      vendorDeliveries,
+      earliestDate,
+      latestDate,
+      businessProfile
+    );
+
+    toast({
+      title: "Penyata Thermal Dijana",
+      description: `Penyata thermal (58mm) untuk ${vendorName} telah dijana`,
+    });
+  };
+
   if (claimsLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -244,6 +277,16 @@ export default function Claims() {
                   <Button 
                     variant="outline" 
                     size="sm"
+                    onClick={() => generateThermalClaimStatement(claim.vendorId, claim.vendorName)}
+                    data-testid={`button-thermal-statement-${claim.vendorId}`}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Thermal
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="col-span-2"
                     onClick={() => shareClaimViaWhatsApp(claim)}
                     data-testid={`button-share-claim-${claim.vendorId}`}
                   >

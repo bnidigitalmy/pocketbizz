@@ -30,8 +30,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt } from "lucide-react";
-import { generateInvoicePDF, generateMiniInvoicePDF } from "@/lib/pdf-utils";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer } from "lucide-react";
+import { generateInvoicePDF, generateMiniInvoicePDF, generateThermalInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDeliverySchema } from "@shared/schema";
@@ -612,13 +612,21 @@ export default function Deliveries() {
                     </Button>
                     <Button 
                       variant="outline" 
-                      size="sm" 
-                      className="col-span-2"
+                      size="sm"
+                      onClick={() => generateThermalInvoicePDF(delivery, businessProfile)}
+                      data-testid={`button-thermal-invoice-${delivery.id}`}
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Thermal 58mm
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
                       onClick={() => shareDeliveryViaWhatsApp(delivery)}
                       data-testid={`button-share-delivery-${delivery.id}`}
                     >
                       <Share2 className="h-4 w-4 mr-2" />
-                      Kongsi WhatsApp
+                      WhatsApp
                     </Button>
                   </div>
                 </CardContent>
