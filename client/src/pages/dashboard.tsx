@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QuickActionsFab } from "@/components/quick-actions-fab";
 import { 
   Package, 
   DollarSign, 
@@ -14,9 +15,11 @@ import {
   BarChart3,
   Wallet,
   TrendingDown,
-  AlertCircle
+  AlertCircle,
+  ShoppingCart,
+  Box
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface StockItem {
   id: string;
@@ -28,6 +31,8 @@ interface StockItem {
 }
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
+  
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -39,6 +44,33 @@ export default function Dashboard() {
   const { data: lowStockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/low"],
   });
+
+  const quickActions = [
+    {
+      id: "add-sale",
+      label: "Rekod Jualan",
+      icon: <Receipt className="h-5 w-5" />,
+      onClick: () => setLocation("/sales"),
+    },
+    {
+      id: "add-product",
+      label: "Tambah Produk",
+      icon: <Package className="h-5 w-5" />,
+      onClick: () => setLocation("/products"),
+    },
+    {
+      id: "add-stock",
+      label: "Tambah Stok",
+      icon: <Box className="h-5 w-5" />,
+      onClick: () => setLocation("/stock"),
+    },
+    {
+      id: "add-delivery",
+      label: "Rekod Penghantaran",
+      icon: <Truck className="h-5 w-5" />,
+      onClick: () => setLocation("/deliveries"),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -339,6 +371,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      <QuickActionsFab actions={quickActions} />
     </div>
   );
 }
