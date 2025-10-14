@@ -24,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const menuItems = [
@@ -96,6 +97,14 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  const handleMenuClick = () => {
+    // Auto-close sidebar on mobile after navigation
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -105,8 +114,8 @@ export function AppSidebar() {
             <Cake className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">ManisBizz</h2>
-            <p className="text-xs text-muted-foreground">Dessert Manager</p>
+            <h2 className="text-lg font-semibold">PocketBizz</h2>
+            <p className="text-xs text-muted-foreground">Business Manager</p>
           </div>
         </div>
       </SidebarHeader>
@@ -118,7 +127,11 @@ export function AppSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`link-${item.url.slice(1) || 'dashboard'}`}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1) || 'dashboard'}`}
+                    >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>

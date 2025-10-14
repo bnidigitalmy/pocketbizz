@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
@@ -44,6 +46,42 @@ function Router() {
   );
 }
 
+function Header() {
+  const [location, navigate] = useLocation();
+  const isHomePage = location === "/";
+
+  const handleBack = () => {
+    // Check if there's history to go back to
+    // If user came from external link (no history), go to home instead
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate("/");
+    }
+  };
+
+  return (
+    <header className="flex items-center gap-2 p-4 border-b bg-background sticky top-0 z-10">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger data-testid="button-sidebar-toggle" />
+        {!isHomePage && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="md:hidden"
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      <div className="flex-1" />
+      <ThemeToggle />
+    </header>
+  );
+}
+
 export default function App() {
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -58,10 +96,7 @@ export default function App() {
             <div className="flex h-screen w-full">
               <AppSidebar />
               <div className="flex flex-col flex-1 overflow-hidden">
-                <header className="flex items-center justify-between gap-4 p-4 border-b bg-background sticky top-0 z-10">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <ThemeToggle />
-                </header>
+                <Header />
                 <main className="flex-1 overflow-y-auto p-4 md:p-6">
                   <Router />
                 </main>
