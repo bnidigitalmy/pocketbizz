@@ -19,15 +19,45 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial",
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
 
+// Stock Items Table (Warehouse Inventory for Raw Materials)
+export const stockItems = pgTable("stock_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // e.g., "Tepung Gandum", "Gula Pasir", "Telur"
+  unit: text("unit").notNull(), // e.g., "kg", "gram", "liter", "pcs", "packet"
+  currentQuantity: decimal("current_quantity", { precision: 10, scale: 2 }).notNull().default("0"), // Current stock in warehouse
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(), // Price per unit purchased
+  lowStockThreshold: decimal("low_stock_threshold", { precision: 10, scale: 2 }).notNull().default("5"), // Alert when below this
+  notes: text("notes"), // Optional notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Products Table
 export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   category: text("category").notNull(),
   imageUrl: text("image_url"),
-  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }).notNull().default("0"),
-  suggestedPrice: decimal("suggested_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  unitsPerBatch: integer("units_per_batch").notNull().default(1), // How many units 1 recipe produces
+  labourCost: decimal("labour_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Labour cost per batch
+  otherCosts: decimal("other_costs", { precision: 10, scale: 2 }).notNull().default("0"), // Gas, electricity, etc per batch
+  materialsCost: decimal("materials_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Auto-calculated from recipe items
+  totalCostPerBatch: decimal("total_cost_per_batch", { precision: 10, scale: 2 }).notNull().default("0"), // materials + labour + other
+  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }).notNull().default("0"), // totalCostPerBatch / unitsPerBatch
+  suggestedMargin: decimal("suggested_margin", { precision: 5, scale: 2 }).notNull().default("30"), // Suggested profit margin %
+  sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull().default("0"), // User-set selling price
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Recipe Items Table (Links products to stock items with quantities)
+export const recipeItems = pgTable("recipe_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  stockItemId: varchar("stock_item_id").notNull().references(() => stockItems.id, { onDelete: "cascade" }),
+  quantityNeeded: decimal("quantity_needed", { precision: 10, scale: 2 }).notNull(), // How much of stock item needed for 1 batch
+  unit: text("unit").notNull(), // Unit of measurement (from stock item)
+  costPerRecipe: decimal("cost_per_recipe", { precision: 10, scale: 2 }).notNull(), // Calculated: quantityNeeded * stockItem.purchasePrice
 });
 
 // Ingredients Table
@@ -155,9 +185,25 @@ export const vendorCommissions = pgTable("vendor_commissions", {
 });
 
 // Relations
+export const stockItemsRelations = relations(stockItems, ({ many }) => ({
+  recipeItems: many(recipeItems),
+}));
+
+export const recipeItemsRelations = relations(recipeItems, ({ one }) => ({
+  product: one(products, {
+    fields: [recipeItems.productId],
+    references: [products.id],
+  }),
+  stockItem: one(stockItems, {
+    fields: [recipeItems.stockItemId],
+    references: [stockItems.id],
+  }),
+}));
+
 export const productsRelations = relations(products, ({ many }) => ({
   ingredients: many(ingredients),
   productionBatches: many(productionBatches),
+  recipeItems: many(recipeItems),
 }));
 
 export const ingredientsRelations = relations(ingredients, ({ one }) => ({
@@ -218,9 +264,20 @@ export const salesRelations = relations(sales, ({ one }) => ({
 }));
 
 // Insert Schemas
+export const insertStockItemSchema = createInsertSchema(stockItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRecipeItemSchema = createInsertSchema(recipeItems).omit({
+  id: true,
+});
+
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertIngredientSchema = createInsertSchema(ingredients).omit({
@@ -274,6 +331,12 @@ export const insertVendorCommissionSchema = createInsertSchema(vendorCommissions
 });
 
 // Types
+export type StockItem = typeof stockItems.$inferSelect;
+export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
+
+export type RecipeItem = typeof recipeItems.$inferSelect;
+export type InsertRecipeItem = z.infer<typeof insertRecipeItemSchema>;
+
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 
