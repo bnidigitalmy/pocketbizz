@@ -13,6 +13,47 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Unit Conversion System
+// Converts between different measurement units for recipe calculations
+// Factor represents: 1 [fromUnit] = factor × [toUnit]
+// Example: 1 kg = 1000 gram, so kg→gram factor is 1000
+export const UNIT_CONVERSIONS: Record<string, Record<string, number>> = {
+  // Weight conversions
+  "kg": { "kg": 1, "gram": 1000, "g": 1000 },
+  "gram": { "kg": 0.001, "gram": 1, "g": 1 },
+  "g": { "kg": 0.001, "gram": 1, "g": 1 },
+  
+  // Volume conversions
+  "liter": { "liter": 1, "l": 1, "ml": 1000, "tbsp": 66.67, "tsp": 200 },
+  "l": { "liter": 1, "l": 1, "ml": 1000, "tbsp": 66.67, "tsp": 200 },
+  "ml": { "liter": 0.001, "l": 0.001, "ml": 1, "tbsp": 0.0667, "tsp": 0.2 },
+  "tbsp": { "liter": 0.015, "l": 0.015, "ml": 15, "tbsp": 1, "tsp": 3 },
+  "tsp": { "liter": 0.005, "l": 0.005, "ml": 5, "tbsp": 0.333, "tsp": 1 },
+  
+  // Count conversions
+  "dozen": { "dozen": 1, "pcs": 12, "pieces": 12 },
+  "pcs": { "dozen": 0.0833, "pcs": 1, "pieces": 1 },
+  "pieces": { "dozen": 0.0833, "pcs": 1, "pieces": 1 },
+};
+
+// Helper function to convert quantity from one unit to another
+export function convertUnit(quantity: number, fromUnit: string, toUnit: string): number {
+  const from = fromUnit.toLowerCase().trim();
+  const to = toUnit.toLowerCase().trim();
+  
+  // If units are the same, no conversion needed
+  if (from === to) return quantity;
+  
+  // Check if conversion exists
+  if (!UNIT_CONVERSIONS[from] || !UNIT_CONVERSIONS[from][to]) {
+    // If no conversion found, return original quantity (incompatible units)
+    return quantity;
+  }
+  
+  // Convert: multiply by conversion factor
+  return quantity * UNIT_CONVERSIONS[from][to];
+}
+
 // Enums
 export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claimed", "pending", "rejected"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
@@ -64,8 +105,8 @@ export const recipeItems = pgTable("recipe_items", {
   productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   stockItemId: varchar("stock_item_id").notNull().references(() => stockItems.id, { onDelete: "cascade" }),
   quantityNeeded: decimal("quantity_needed", { precision: 10, scale: 2 }).notNull(), // How much of stock item needed for 1 batch
-  unit: text("unit").notNull(), // Unit of measurement (from stock item)
-  costPerRecipe: decimal("cost_per_recipe", { precision: 10, scale: 2 }).notNull(), // Calculated: quantityNeeded * stockItem.purchasePrice
+  usageUnit: text("usage_unit").notNull(), // Unit used in recipe (can differ from stock purchase unit) e.g., "gram" when stock is "kg"
+  costPerRecipe: decimal("cost_per_recipe", { precision: 10, scale: 2 }).notNull(), // Calculated: converted quantity * stockItem.purchasePrice
 });
 
 // Ingredients Table

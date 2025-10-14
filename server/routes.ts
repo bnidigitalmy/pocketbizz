@@ -15,6 +15,7 @@ import {
   insertGoogleDriveSyncLogSchema,
   insertStockItemSchema,
   insertCategorySchema,
+  convertUnit,
 } from "@shared/schema";
 import { z } from "zod";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
@@ -41,6 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recipeItems: z.array(z.object({
           stockItemId: z.string(),
           quantityNeeded: z.string(),
+          usageUnit: z.string(), // Unit used in recipe (e.g., "gram")
         })),
       }).omit({
         materialsCost: true,
@@ -51,22 +53,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = productSchema.parse(req.body);
       const { recipeItems, ...productData } = data;
       
-      // Calculate materials cost from recipe items
+      // Calculate materials cost from recipe items WITH UNIT CONVERSION
       let materialsCost = 0;
       const recipeItemsWithCost = [];
       
       for (const item of recipeItems) {
         const stockItem = await storage.getStockItem(item.stockItemId);
         if (stockItem) {
-          const quantity = parseFloat(item.quantityNeeded) || 0;
-          const price = parseFloat(stockItem.purchasePrice) || 0;
-          const cost = quantity * price;
+          const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
+          const usageUnit = item.usageUnit || stockItem.unit; // Default to stock unit if not provided
+          
+          // Convert recipe quantity to stock's purchase unit for accurate pricing
+          // Example: Recipe uses 500 gram, stock purchased in kg -> convert 500g to 0.5kg
+          const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);
+          
+          const pricePerUnit = parseFloat(stockItem.purchasePrice) || 0;
+          const cost = convertedQuantity * pricePerUnit;
           materialsCost += cost;
           
           recipeItemsWithCost.push({
             stockItemId: item.stockItemId,
-            quantityNeeded: quantity.toFixed(2),
-            unit: stockItem.unit,
+            quantityNeeded: recipeQuantity.toFixed(2),
+            usageUnit: usageUnit,
             costPerRecipe: cost.toFixed(2),
             productId: "", // Will be set in storage
           });
@@ -113,6 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recipeItems: z.array(z.object({
           stockItemId: z.string(),
           quantityNeeded: z.string(),
+          usageUnit: z.string(), // Unit used in recipe
         })),
       }).omit({
         materialsCost: true,
@@ -123,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = productSchema.parse(req.body);
       const { recipeItems, ...productData } = data;
       
-      // Calculate materials cost from recipe items if provided
+      // Calculate materials cost from recipe items WITH UNIT CONVERSION if provided
       let materialsCost = 0;
       let recipeItemsWithCost: any[] = [];
       
@@ -131,14 +140,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const item of recipeItems) {
           const stockItem = await storage.getStockItem(item.stockItemId);
           if (stockItem) {
-            const quantity = parseFloat(item.quantityNeeded) || 0;
-            const price = parseFloat(stockItem.purchasePrice) || 0;
-            const cost = quantity * price;
+            const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
+            const usageUnit = item.usageUnit || stockItem.unit;
+            
+            // Convert recipe quantity to stock's purchase unit
+            const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);
+            
+            const pricePerUnit = parseFloat(stockItem.purchasePrice) || 0;
+            const cost = convertedQuantity * pricePerUnit;
             materialsCost += cost;
             
             recipeItemsWithCost.push({
               stockItemId: item.stockItemId,
-              quantityNeeded: quantity.toFixed(2),
+              quantityNeeded: recipeQuantity.toFixed(2),
+              usageUnit: usageUnit,
               unit: stockItem.unit,
               costPerRecipe: cost.toFixed(2),
               productId: id,

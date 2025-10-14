@@ -46,6 +46,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import type { Product, Category } from "@shared/schema";
+import { UNIT_CONVERSIONS } from "@shared/schema";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -61,6 +62,7 @@ const productFormSchema = z.object({
   recipeItems: z.array(z.object({
     stockItemId: z.string().min(1, "Pilih bahan"),
     quantityNeeded: z.string().min(1, "Kuantiti diperlukan"),
+    usageUnit: z.string().min(1, "Unit diperlukan"),
   })).min(1, "Sila tambah sekurang-kurangnya satu bahan"),
 });
 
@@ -78,8 +80,18 @@ interface RecipeItem {
   id?: string;
   stockItemId: string;
   quantityNeeded: string;
-  unit?: string;
+  usageUnit: string;
   costPerRecipe?: string;
+}
+
+// Helper function to get compatible units for a stock item unit
+function getCompatibleUnits(stockUnit: string): string[] {
+  const unit = stockUnit.toLowerCase().trim();
+  if (UNIT_CONVERSIONS[unit]) {
+    return Object.keys(UNIT_CONVERSIONS[unit]);
+  }
+  // If no conversions found, return the stock unit itself
+  return [stockUnit];
 }
 
 export default function Products() {
@@ -114,7 +126,7 @@ export default function Products() {
       labourCost: "0",
       otherCosts: "0",
       sellingPrice: "0",
-      recipeItems: [{ stockItemId: "", quantityNeeded: "" }],
+      recipeItems: [{ stockItemId: "", quantityNeeded: "", usageUnit: "" }],
     },
   });
 
@@ -211,9 +223,10 @@ export default function Products() {
         recipeItems: editRecipeItems.length > 0 
           ? editRecipeItems.map(item => ({
               stockItemId: item.stockItemId,
-              quantityNeeded: item.quantityNeeded,
+              quantityNeeded: String(item.quantityNeeded),
+              usageUnit: item.usageUnit || "pcs",
             }))
-          : [{ stockItemId: "", quantityNeeded: "" }],
+          : [{ stockItemId: "", quantityNeeded: "", usageUnit: "" }],
       });
     }
   }, [editingProduct, editRecipeItems, form]);
@@ -292,7 +305,7 @@ export default function Products() {
 
   const addRecipeItem = () => {
     const current = form.getValues("recipeItems") || [];
-    form.setValue("recipeItems", [...current, { stockItemId: "", quantityNeeded: "" }]);
+    form.setValue("recipeItems", [...current, { stockItemId: "", quantityNeeded: "", usageUnit: "" }]);
   };
 
   const removeRecipeItem = (index: number) => {
@@ -512,6 +525,40 @@ export default function Products() {
                             <FormMessage />
                           </FormItem>
                         )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`recipeItems.${index}.usageUnit`}
+                        render={({ field }) => {
+                          const selectedStockId = form.watch(`recipeItems.${index}.stockItemId`);
+                          const selectedStock = stockItems.find(s => s.id === selectedStockId);
+                          const compatibleUnits = selectedStock ? getCompatibleUnits(selectedStock.unit) : [];
+                          
+                          return (
+                            <FormItem className="w-28">
+                              <FormLabel className="text-xs">Unit</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value}
+                                disabled={!selectedStock}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-usage-unit-${index}`}>
+                                    <SelectValue placeholder="Unit" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {compatibleUnits.map((unit) => (
+                                    <SelectItem key={unit} value={unit}>
+                                      {unit}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={form.control}
