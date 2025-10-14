@@ -17,6 +17,15 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 
+interface StockItem {
+  id: string;
+  name: string;
+  unit: string;
+  currentQuantity: string;
+  purchasePrice: string;
+  lowStockThreshold: string;
+}
+
 export default function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -24,6 +33,10 @@ export default function Dashboard() {
 
   const { data: recentDeliveries } = useQuery({
     queryKey: ["/api/deliveries/recent"],
+  });
+
+  const { data: lowStockItems = [] } = useQuery<StockItem[]>({
+    queryKey: ["/api/stock/low"],
   });
 
   if (isLoading) {
@@ -140,6 +153,54 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Low Stock Alert */}
+      {lowStockItems.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20" data-testid="alert-low-stock">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <div>
+                  <CardTitle className="text-lg">⚠️ Amaran Stok Rendah!</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {lowStockItems.length} item perlu dibeli segera
+                  </p>
+                </div>
+              </div>
+              <Link href="/stock">
+                <Button variant="outline" size="sm" data-testid="button-view-stock">
+                  Lihat Stok
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {lowStockItems.slice(0, 3).map((item) => (
+                <div 
+                  key={item.id} 
+                  className="flex items-center justify-between py-2 px-3 bg-background/50 rounded-md"
+                  data-testid={`low-stock-item-${item.id}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  <Badge variant="destructive">
+                    {parseFloat(item.currentQuantity).toFixed(0)} {item.unit} sahaja
+                  </Badge>
+                </div>
+              ))}
+              {lowStockItems.length > 3 && (
+                <p className="text-sm text-muted-foreground text-center pt-2">
+                  ...dan {lowStockItems.length - 3} item lagi
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Shortcut Buttons */}
       <Card>

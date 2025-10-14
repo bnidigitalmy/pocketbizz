@@ -398,6 +398,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Replenish stock - add additional quantity to existing stock
+  app.post("/api/stock/:id/replenish", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const replenishSchema = z.object({
+        additionalQuantity: z.string()
+          .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+            message: "Additional quantity must be a positive number",
+          }),
+        newPurchasePrice: z.string()
+          .optional()
+          .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+            message: "Purchase price must be a positive number",
+          }),
+      });
+      
+      const validationResult = replenishSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { additionalQuantity, newPurchasePrice } = validationResult.data;
+
+      // Get current stock item
+      const currentItem = await storage.getStockItem(id);
+      if (!currentItem) {
+        return res.status(404).json({ error: "Stock item not found" });
+      }
+
+      // Calculate new quantity
+      const currentQty = parseFloat(currentItem.currentQuantity);
+      const additionalQty = parseFloat(additionalQuantity);
+      
+      // Double-check for safety
+      if (isNaN(currentQty) || isNaN(additionalQty) || additionalQty <= 0) {
+        return res.status(400).json({ error: "Invalid quantity values" });
+      }
+      
+      const newQuantity = (currentQty + additionalQty).toFixed(2);
+
+      // Prepare update data
+      const updateData: any = {
+        currentQuantity: newQuantity,
+      };
+
+      // Update price if provided and valid
+      if (newPurchasePrice && newPurchasePrice.trim() !== "") {
+        const newPrice = parseFloat(newPurchasePrice);
+        if (isNaN(newPrice) || newPrice <= 0) {
+          return res.status(400).json({ error: "Invalid purchase price" });
+        }
+        updateData.purchasePrice = newPrice.toFixed(2);
+      }
+
+      // Update the stock item
+      const updatedItem = await storage.updateStockItem(id, updateData);
+      res.json(updatedItem);
+    } catch (error: any) {
+      console.error("Stock replenishment error:", error);
+      res.status(400).json({ error: "Failed to replenish stock", message: error.message });
+    }
+  });
+
   app.delete("/api/stock/:id", async (req, res) => {
     try {
       const { id } = req.params;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,21 @@ const stockItemSchema = z.object({
   notes: z.string().optional(),
 });
 
+const replenishSchema = z.object({
+  additionalQuantity: z.string()
+    .min(1, "Kuantiti tambahan diperlukan")
+    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: "Kuantiti mesti nombor positif",
+    }),
+  newPurchasePrice: z.string()
+    .optional()
+    .refine((val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: "Harga mesti nombor positif",
+    }),
+});
+
 type StockItemForm = z.infer<typeof stockItemSchema>;
+type ReplenishForm = z.infer<typeof replenishSchema>;
 
 interface StockItem {
   id: string;
@@ -64,6 +78,8 @@ export default function Stock() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [replenishDialogOpen, setReplenishDialogOpen] = useState(false);
+  const [replenishingItem, setReplenishingItem] = useState<StockItem | null>(null);
 
   const { data: stockItems = [], isLoading } = useQuery<StockItem[]>({
     queryKey: ["/api/stock"],
@@ -78,6 +94,14 @@ export default function Stock() {
       purchasePrice: "",
       lowStockThreshold: "5",
       notes: "",
+    },
+  });
+
+  const replenishForm = useForm<ReplenishForm>({
+    resolver: zodResolver(replenishSchema),
+    defaultValues: {
+      additionalQuantity: "",
+      newPurchasePrice: "",
     },
   });
 
@@ -141,6 +165,31 @@ export default function Stock() {
     },
   });
 
+  const replenishMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ReplenishForm }) =>
+      apiRequest("POST", `/api/stock/${id}/replenish`, data),
+    onSuccess: () => {
+      // Invalidate all stock-related queries including low stock
+      queryClient.invalidateQueries({ queryKey: ["/api/stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stock/low"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Berjaya!",
+        description: "Stok telah ditambah.",
+      });
+      setReplenishDialogOpen(false);
+      setReplenishingItem(null);
+      replenishForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal menambah stok.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAdd = () => {
     setEditingItem(null);
     form.reset({
@@ -173,11 +222,26 @@ export default function Stock() {
     }
   };
 
+  const handleReplenish = (item: StockItem) => {
+    setReplenishingItem(item);
+    replenishForm.reset({
+      additionalQuantity: "",
+      newPurchasePrice: item.purchasePrice,
+    });
+    setReplenishDialogOpen(true);
+  };
+
   const onSubmit = (data: StockItemForm) => {
     if (editingItem) {
       updateMutation.mutate({ id: editingItem.id, data });
     } else {
       createMutation.mutate(data);
+    }
+  };
+
+  const onReplenishSubmit = (data: ReplenishForm) => {
+    if (replenishingItem) {
+      replenishMutation.mutate({ id: replenishingItem.id, data });
     }
   };
 
@@ -266,6 +330,15 @@ export default function Stock() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleReplenish(item)}
+                          data-testid={`button-replenish-stock-${item.id}`}
+                          title="Tambah Stok"
+                        >
+                          <PackagePlus className="h-4 w-4 text-green-600" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -438,6 +511,106 @@ export default function Stock() {
                   data-testid="button-save-stock"
                 >
                   {editingItem ? "Kemaskini" : "Tambah"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Replenish Stock Dialog */}
+      <Dialog open={replenishDialogOpen} onOpenChange={setReplenishDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tambah Stok</DialogTitle>
+            <DialogDescription>
+              Masukkan kuantiti tambahan untuk {replenishingItem?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...replenishForm}>
+            <form onSubmit={replenishForm.handleSubmit(onReplenishSubmit)} className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Stok Semasa:</span>
+                  <span className="font-medium">
+                    {replenishingItem?.currentQuantity} {replenishingItem?.unit}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Harga Semasa:</span>
+                  <span className="font-medium">RM {replenishingItem?.purchasePrice}/{replenishingItem?.unit}</span>
+                </div>
+              </div>
+
+              <FormField
+                control={replenishForm.control}
+                name="additionalQuantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kuantiti Tambahan</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Berapa banyak stok ditambah?"
+                        {...field}
+                        data-testid="input-replenish-quantity"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={replenishForm.control}
+                name="newPurchasePrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Harga Pembelian Baru (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Jika harga berubah..."
+                        {...field}
+                        data-testid="input-replenish-price"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {replenishForm.watch("additionalQuantity") && (
+                <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg">
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Stok Baru:</span>
+                      <span className="font-semibold text-green-700 dark:text-green-400">
+                        {(parseFloat(replenishingItem?.currentQuantity || "0") + 
+                          parseFloat(replenishForm.watch("additionalQuantity") || "0")).toFixed(2)} {replenishingItem?.unit}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setReplenishDialogOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={replenishMutation.isPending}
+                  data-testid="button-save-replenish"
+                >
+                  {replenishMutation.isPending ? "Menyimpan..." : "Tambah Stok"}
                 </Button>
               </DialogFooter>
             </form>
