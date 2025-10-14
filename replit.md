@@ -22,6 +22,8 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - **Swipe Gestures**: Touch-friendly swipe actions (swipe-to-mark-paid on Sales page)
     - **Quick Actions FAB**: Floating action button with expandable actions for mobile-first navigation (Dashboard)
     - **Enhanced Toasts**: Rich toast notifications with icons, undo actions, and custom action buttons
+    - **Interactive Dashboard Charts**: Recharts area chart with time range selector (7d/30d/90d/6m), trend indicators with percentage deltas, dual-area visualization for sales and profit tracking
+    - **Optimized Theme**: Sophisticated warm-neutral palette (hues 28-42) with rich chocolate browns, warm gold accents (42°), and full cohesion across light/dark modes
 
 ### Technical Implementations
 -   **Frontend**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for server state, React Hook Form with Zod for form management, Context API for theme. Key patterns include component composition, custom hooks, and centralized API handling.
