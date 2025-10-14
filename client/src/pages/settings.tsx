@@ -29,20 +29,26 @@ export default function Settings() {
   const form = useForm<InsertBusinessProfile>({
     resolver: zodResolver(insertBusinessProfileSchema),
     defaultValues: {
-      businessName: businessProfile?.businessName || "",
-      registrationNumber: businessProfile?.registrationNumber || "",
-      address: businessProfile?.address || "",
-      phone: businessProfile?.phone || "",
-      email: businessProfile?.email || "",
-      tagline: businessProfile?.tagline || "",
+      businessName: "",
+      registrationNumber: "",
+      address: "",
+      phone: "",
+      email: "",
+      tagline: "",
+      bankName: "",
+      accountNumber: "",
+      accountName: "",
     },
     values: businessProfile ? {
-      businessName: businessProfile.businessName,
-      registrationNumber: businessProfile.registrationNumber || "",
-      address: businessProfile.address || "",
-      phone: businessProfile.phone || "",
-      email: businessProfile.email || "",
-      tagline: businessProfile.tagline || "",
+      businessName: businessProfile.businessName ?? "",
+      registrationNumber: businessProfile.registrationNumber ?? "",
+      address: businessProfile.address ?? "",
+      phone: businessProfile.phone ?? "",
+      email: businessProfile.email ?? "",
+      tagline: businessProfile.tagline ?? "",
+      bankName: businessProfile.bankName ?? "",
+      accountNumber: businessProfile.accountNumber ?? "",
+      accountName: businessProfile.accountName ?? "",
     } : undefined,
   });
 
@@ -219,6 +225,70 @@ export default function Settings() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-medium mb-4">Maklumat Akaun Bank</h3>
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Bank (Pilihan)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Maybank / CIMB / Public Bank" 
+                            {...field} 
+                            data-testid="input-bank-name"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Nama bank untuk tuntutan pembayaran
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>No. Akaun (Pilihan)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="1234567890" 
+                              {...field} 
+                              data-testid="input-account-number"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="accountName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Pemegang Akaun (Pilihan)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Nama seperti di kad bank" 
+                              {...field} 
+                              data-testid="input-account-name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-4">
