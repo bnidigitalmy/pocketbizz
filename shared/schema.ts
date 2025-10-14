@@ -32,6 +32,13 @@ export const stockItems = pgTable("stock_items", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Categories Table (Product Categories)
+export const categories = pgTable("categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // Category name must be unique
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Products Table
 export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -45,6 +52,7 @@ export const products = pgTable("products", {
   totalCostPerBatch: decimal("total_cost_per_batch", { precision: 10, scale: 2 }).notNull().default("0"), // materials + labour + other
   costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }).notNull().default("0"), // totalCostPerBatch / unitsPerBatch
   suggestedMargin: decimal("suggested_margin", { precision: 5, scale: 2 }).notNull().default("30"), // Suggested profit margin %
+  suggestedPrice: decimal("suggested_price", { precision: 10, scale: 2 }).notNull().default("0"), // Auto-calculated: costPerUnit * (1 + suggestedMargin/100)
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull().default("0"), // User-set selling price
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -270,6 +278,11 @@ export const insertStockItemSchema = createInsertSchema(stockItems).omit({
   updatedAt: true,
 });
 
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertRecipeItemSchema = createInsertSchema(recipeItems).omit({
   id: true,
 });
@@ -333,6 +346,9 @@ export const insertVendorCommissionSchema = createInsertSchema(vendorCommissions
 // Types
 export type StockItem = typeof stockItems.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
 
 export type RecipeItem = typeof recipeItems.$inferSelect;
 export type InsertRecipeItem = z.infer<typeof insertRecipeItemSchema>;
