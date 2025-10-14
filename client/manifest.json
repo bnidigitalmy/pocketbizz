@@ -1,0 +1,20 @@
+{
+  "name": "PocketBizz - Business Manager",
+  "short_name": "PocketBizz",
+  "description": "Sistem pengurusan bisnes yang lengkap untuk small business - dari stok, produksi, hingga laporan kewangan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B4513",
+  "orientation": "portrait-primary",
+  "icons": [],
+  "categories": ["business", "finance", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "375x812",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

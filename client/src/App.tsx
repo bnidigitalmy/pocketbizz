@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InstallPWA } from "@/components/install-pwa";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -104,6 +105,7 @@ export default function App() {
             </div>
           </SidebarProvider>
           <Toaster />
+          <InstallPWA />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
