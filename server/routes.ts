@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { deliveryItems } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { 
   insertProductSchema,
   insertProductionBatchSchema,
@@ -111,6 +114,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Vendor Commissions
+  app.get("/api/vendors/:vendorId/commission", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      const commission = await storage.getVendorCommission(vendorId);
+      res.json(commission || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch vendor commission" });
+    }
+  });
+
+  app.post("/api/vendors/:vendorId/commission", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      
+      // Validate commission data
+      const commissionSchema = z.object({
+        commissionType: z.enum(['fixed_range', 'percentage']),
+        percentage: z.string().nullable().optional().transform(val => {
+          if (val === null || val === undefined) return null;
+          const num = parseFloat(val);
+          if (isNaN(num) || num < 0 || num > 100) {
+            throw new Error('Percentage must be between 0 and 100');
+          }
+          return val;
+        }),
+        ranges: z.string().nullable().optional().transform(val => {
+          if (val === null || val === undefined) return null;
+          try {
+            const parsed = JSON.parse(val);
+            if (!Array.isArray(parsed)) throw new Error('Ranges must be an array');
+            
+            // Validate each range
+            for (const range of parsed) {
+              const min = parseFloat(range.min);
+              const max = parseFloat(range.max);
+              const amount = parseFloat(range.amount);
+              
+              if (isNaN(min) || isNaN(max) || isNaN(amount)) {
+                throw new Error('Range values must be numeric');
+              }
+              if (min < 0 || max < 0 || amount < 0) {
+                throw new Error('Range values must be non-negative');
+              }
+              if (min >= max) {
+                throw new Error('Range min must be less than max');
+              }
+            }
+            
+            return val;
+          } catch (e: any) {
+            throw new Error(`Invalid ranges: ${e.message}`);
+          }
+        }),
+      });
+      
+      const validatedData = commissionSchema.parse(req.body);
+      
+      const data = {
+        ...validatedData,
+        vendorId,
+      };
+      
+      const commission = await storage.createOrUpdateVendorCommission(data);
+      res.json(commission);
+    } catch (error: any) {
+      console.error("Commission update error:", error);
+      res.status(400).json({ error: "Invalid commission data", message: error.message });
+    }
+  });
+
+  app.delete("/api/vendors/:vendorId/commission", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      await storage.deleteVendorCommission(vendorId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete commission" });
+    }
+  });
+
   // Deliveries
   app.get("/api/deliveries", async (req, res) => {
     try {
@@ -173,6 +257,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: "Failed to update status" });
+    }
+  });
+
+  app.patch("/api/delivery-items/:itemId/rejection", async (req, res) => {
+    try {
+      const { itemId } = req.params;
+      
+      // Get the delivery item to check quantity
+      const items = await db.select().from(deliveryItems).where(eq(deliveryItems.id, itemId));
+      if (items.length === 0) {
+        return res.status(404).json({ error: "Delivery item not found" });
+      }
+      
+      const item = items[0];
+      
+      // Validate rejection data
+      const rejectionSchema = z.object({
+        rejectedQty: z.coerce.number().int().min(0).max(item.quantity),
+        rejectionReason: z.string().nullable().optional(),
+      });
+      
+      const validatedData = rejectionSchema.parse(req.body);
+      
+      await storage.updateDeliveryItemRejection(
+        itemId,
+        validatedData.rejectedQty,
+        validatedData.rejectionReason || null
+      );
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Update rejection error:", error);
+      res.status(400).json({ 
+        error: "Invalid rejection data", 
+        message: error.message || "Rejected quantity must be between 0 and delivered quantity"
+      });
     }
   });
 

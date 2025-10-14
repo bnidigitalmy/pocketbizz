@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Store, Phone, MapPin } from "lucide-react";
+import { Plus, Store, Phone, MapPin, Settings } from "lucide-react";
+import { CommissionDialog } from "@/components/commission-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertVendorSchema, type InsertVendor } from "@shared/schema";
@@ -30,9 +31,11 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Vendors() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
 
-  const { data: vendors, isLoading } = useQuery({
+  const { data: vendors, isLoading } = useQuery<any[]>({
     queryKey: ["/api/vendors"],
   });
 
@@ -115,7 +118,7 @@ export default function Vendors() {
                     <FormItem>
                       <FormLabel>No. Telefon</FormLabel>
                       <FormControl>
-                        <Input placeholder="cth: 012-3456789" {...field} data-testid="input-vendor-phone" />
+                        <Input placeholder="cth: 012-3456789" {...field} value={field.value || ""} data-testid="input-vendor-phone" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -132,6 +135,7 @@ export default function Vendors() {
                         <Textarea 
                           placeholder="Alamat kedai/lokasi vendor"
                           {...field}
+                          value={field.value || ""}
                           data-testid="input-vendor-address"
                         />
                       </FormControl>
@@ -185,17 +189,39 @@ export default function Vendors() {
                   </div>
                 </div>
               </CardHeader>
-              {vendor.address && (
-                <CardContent className="pt-0">
+              <CardContent className="pt-0 space-y-3">
+                {vendor.address && (
                   <div className="flex items-start gap-1 text-sm">
                     <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <span className="text-muted-foreground line-clamp-2">{vendor.address}</span>
                   </div>
-                </CardContent>
-              )}
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setSelectedVendor({ id: vendor.id, name: vendor.name });
+                    setCommissionDialogOpen(true);
+                  }}
+                  data-testid={`button-setup-commission-${vendor.id}`}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Setup Komisyen
+                </Button>
+              </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedVendor && (
+        <CommissionDialog
+          vendorId={selectedVendor.id}
+          vendorName={selectedVendor.name}
+          open={commissionDialogOpen}
+          onOpenChange={setCommissionDialogOpen}
+        />
       )}
     </div>
   );

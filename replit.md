@@ -28,6 +28,20 @@ The system aims to streamline operations, reduce manual data entry, and provide 
 -   Added sidebar menu item with Cloud icon for easy access to synced documents
 -   Auto-sync tracking: all generated invoices and claim statements logged with metadata (file type, vendor, Drive links)
 
+### Commission Management & Rejection Tracking
+-   **Commission Setup System**: Created `vendorCommissions` schema supporting two commission types:
+    -   **Percentage-based**: 10%-20% from sales (e.g., 15% commission)
+    -   **Range-based Fixed**: Price ranges with fixed commission (e.g., RM1-5 = RM1, RM5.01-10 = RM1.50)
+-   **Commission UI**: Built Commission Dialog in Vendors page with form validation and range management
+-   **Claims Calculation Enhancement**: Updated claims API to:
+    -   Calculate gross amount (total delivered items)
+    -   Deduct rejected/returned items
+    -   Apply vendor commission based on setup
+    -   Return final claimable amount
+-   **API Validation**: Added comprehensive Zod validation for commission data (numeric checks, range validation, min < max)
+-   **Rejection Tracking**: Delivery items support `rejectedQty` and `rejectionReason` fields for tracking returned/expired/damaged products
+-   **Note**: Users should configure commission ranges carefully to cover expected price ranges (system defaults to RM0 commission for unmatched prices)
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

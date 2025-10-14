@@ -61,6 +61,7 @@ export interface IStorage {
   createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
   updateDeliveryStatus(id: string, status: string): Promise<void>;
   updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any>;
+  updateDeliveryItemRejection(itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void>;
   
   // Sales
   getSales(): Promise<Sale[]>;
@@ -212,6 +213,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(deliveries.id, id))
       .returning();
     return updated;
+  }
+
+  async updateDeliveryItemRejection(itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void> {
+    await db.update(deliveryItems)
+      .set({ 
+        rejectedQty,
+        rejectionReason 
+      })
+      .where(eq(deliveryItems.id, itemId));
   }
 
   // Sales
@@ -398,23 +408,68 @@ export class DatabaseStorage implements IStorage {
     return [];
   }
 
+  // Helper function to calculate commission
+  private async calculateCommission(vendorId: string, amount: number): Promise<number> {
+    const commission = await this.getVendorCommission(vendorId);
+    
+    if (!commission) {
+      return 0;
+    }
+
+    if (commission.commissionType === 'percentage') {
+      const percentage = parseFloat(commission.percentage || '0');
+      return (amount * percentage) / 100;
+    } else if (commission.commissionType === 'fixed_range') {
+      try {
+        const ranges = JSON.parse(commission.ranges || '[]');
+        // Find the applicable range
+        for (const range of ranges) {
+          if (amount >= parseFloat(range.min) && amount <= parseFloat(range.max)) {
+            return parseFloat(range.amount);
+          }
+        }
+        // If no range matches, check if amount exceeds all ranges
+        if (ranges.length > 0) {
+          const maxRange = ranges[ranges.length - 1];
+          if (amount > parseFloat(maxRange.max)) {
+            return parseFloat(maxRange.amount);
+          }
+        }
+      } catch {
+        return 0;
+      }
+    }
+
+    return 0;
+  }
+
   // Claims
   async getClaimsSummary(): Promise<any[]> {
-    // Get all deliveries grouped by vendor with payment status summary
-    const claimsSummary = await db.select({
+    // Get all unique vendors from deliveries
+    const uniqueVendors = await db.selectDistinct({
       vendorId: deliveries.vendorId,
       vendorName: deliveries.vendorName,
-      totalDeliveries: sql<number>`COUNT(${deliveries.id})`,
-      totalAmount: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
-      pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'pending' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
-      settledAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'settled' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
-      partialAmount: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.paymentStatus} = 'partial' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
     })
-      .from(deliveries)
-      .groupBy(deliveries.vendorId, deliveries.vendorName)
-      .orderBy(sql`COALESCE(SUM(${deliveries.totalAmount}), 0) DESC`);
+      .from(deliveries);
 
-    return claimsSummary;
+    // Calculate detailed claims for each vendor
+    const claimsSummary = await Promise.all(
+      uniqueVendors.map(async (vendor) => {
+        const details = await this.getClaimDetailsByVendor(vendor.vendorId);
+        return {
+          vendorId: vendor.vendorId,
+          vendorName: vendor.vendorName,
+          totalDeliveries: details.totalDeliveries,
+          totalAmount: details.claimableAmount, // Use claimable amount (after commission & rejections)
+          pendingAmount: details.pendingAmount,
+          settledAmount: details.settledAmount,
+          partialAmount: details.partialAmount,
+        };
+      })
+    );
+
+    // Sort by total amount descending
+    return claimsSummary.sort((a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount));
   }
 
   async getClaimDetailsByVendor(vendorId: string): Promise<any> {
@@ -424,37 +479,74 @@ export class DatabaseStorage implements IStorage {
       .where(eq(deliveries.vendorId, vendorId))
       .orderBy(desc(deliveries.deliveryDate));
 
-    // Get items for each delivery
+    // Get items for each delivery with detailed calculation
     const deliveriesWithItems = await Promise.all(
       vendorDeliveries.map(async (delivery) => {
         const items = await db.select()
           .from(deliveryItems)
           .where(eq(deliveryItems.deliveryId, delivery.id));
         
+        // Calculate gross, rejected, and net amounts for this delivery
+        let grossAmount = 0;
+        let rejectedAmount = 0;
+        
+        items.forEach(item => {
+          const itemGross = item.quantity * parseFloat(item.unitPrice);
+          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+          
+          grossAmount += itemGross;
+          rejectedAmount += itemRejected;
+        });
+
+        const netAmount = grossAmount - rejectedAmount;
+        const commission = await this.calculateCommission(vendorId, netAmount);
+        const claimableAmount = netAmount - commission;
+
         return {
           ...delivery,
           items,
+          grossAmount: grossAmount.toFixed(2),
+          rejectedAmount: rejectedAmount.toFixed(2),
+          netAmount: netAmount.toFixed(2),
+          commission: commission.toFixed(2),
+          claimableAmount: claimableAmount.toFixed(2),
         };
       })
     );
 
-    // Calculate summary
-    const totalAmount = vendorDeliveries.reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
-    const pendingAmount = vendorDeliveries
+    // Calculate overall summary
+    let totalGross = 0;
+    let totalRejected = 0;
+    let totalCommission = 0;
+    
+    deliveriesWithItems.forEach(d => {
+      totalGross += parseFloat(d.grossAmount);
+      totalRejected += parseFloat(d.rejectedAmount);
+      totalCommission += parseFloat(d.commission);
+    });
+
+    const totalNet = totalGross - totalRejected;
+    const totalClaimable = totalNet - totalCommission;
+
+    const pendingAmount = deliveriesWithItems
       .filter(d => d.paymentStatus === 'pending')
-      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
-    const settledAmount = vendorDeliveries
+      .reduce((sum, d) => sum + parseFloat(d.claimableAmount), 0);
+    const settledAmount = deliveriesWithItems
       .filter(d => d.paymentStatus === 'settled')
-      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
-    const partialAmount = vendorDeliveries
+      .reduce((sum, d) => sum + parseFloat(d.claimableAmount), 0);
+    const partialAmount = deliveriesWithItems
       .filter(d => d.paymentStatus === 'partial')
-      .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+      .reduce((sum, d) => sum + parseFloat(d.claimableAmount), 0);
 
     return {
       vendorId,
       vendorName: vendorDeliveries[0]?.vendorName || '',
       totalDeliveries: vendorDeliveries.length,
-      totalAmount: totalAmount.toFixed(2),
+      grossAmount: totalGross.toFixed(2),
+      rejectedAmount: totalRejected.toFixed(2),
+      commissionAmount: totalCommission.toFixed(2),
+      netAmount: totalNet.toFixed(2),
+      claimableAmount: totalClaimable.toFixed(2),
       pendingAmount: pendingAmount.toFixed(2),
       settledAmount: settledAmount.toFixed(2),
       partialAmount: partialAmount.toFixed(2),
