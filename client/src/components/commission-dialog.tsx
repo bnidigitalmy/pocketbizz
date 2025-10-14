@@ -251,7 +251,7 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
                           <Input
                             type="number"
                             step="0.01"
-                            placeholder="1.00"
+                            placeholder="0.00"
                             value={range.min}
                             onChange={(e) => updateRange(index, "min", e.target.value)}
                             data-testid={`input-range-min-${index}`}
@@ -299,7 +299,7 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Contoh: RM1-5 = RM1, RM5.01-10 = RM1.50, RM10.01-13 = RM2
+                Contoh: RM0-5 = RM1, RM5.01-10 = RM1.50, RM10.01-15 = RM2
               </p>
             </div>
           )}
