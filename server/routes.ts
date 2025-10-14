@@ -9,8 +9,10 @@ import {
   insertSaleSchema,
   insertExpenseSchema,
   insertBusinessProfileSchema,
+  insertGoogleDriveSyncLogSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -319,6 +321,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(profile);
     } catch (error) {
       res.status(400).json({ error: "Invalid business profile data" });
+    }
+  });
+
+  // Google Drive Sync
+  app.post("/api/google-drive/upload", async (req, res) => {
+    try {
+      const { pdfBase64, fileName, deliveryId, vendorId, vendorName, fileType } = req.body;
+      
+      if (!pdfBase64 || !fileName) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Convert base64 to buffer
+      const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      
+      // Upload to Google Drive
+      const driveFile = await uploadPDFToGoogleDrive(pdfBuffer, fileName);
+      
+      // Log sync to database
+      const syncLog = await storage.logGoogleDriveSync({
+        deliveryId: deliveryId || null,
+        fileName,
+        fileType: fileType || 'invoice',
+        driveFileId: driveFile.id,
+        driveWebViewLink: driveFile.webViewLink,
+        vendorId: vendorId || null,
+        vendorName: vendorName || null,
+      });
+
+      res.json({ 
+        success: true, 
+        driveFile,
+        syncLog 
+      });
+    } catch (error: any) {
+      console.error('Google Drive upload error:', error);
+      res.status(500).json({ 
+        error: "Failed to upload to Google Drive",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/google-drive/files", async (req, res) => {
+    try {
+      const files = await listManisBizzFiles();
+      res.json(files);
+    } catch (error: any) {
+      res.status(500).json({ 
+        error: "Failed to fetch Google Drive files",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/google-drive/sync-logs", async (req, res) => {
+    try {
+      const logs = await storage.getGoogleDriveSyncLogs();
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch sync logs" });
+    }
+  });
+
+  app.get("/api/google-drive/sync-logs/:deliveryId", async (req, res) => {
+    try {
+      const { deliveryId } = req.params;
+      const logs = await storage.getGoogleDriveSyncLogsByDelivery(deliveryId);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch delivery sync logs" });
     }
   });
 

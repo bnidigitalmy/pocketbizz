@@ -127,6 +127,19 @@ export const businessProfile = pgTable("business_profile", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Google Drive Sync Log Table (track uploaded files)
+export const googleDriveSyncLog = pgTable("google_drive_sync_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryId: varchar("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(), // 'invoice', 'claim_statement', 'thermal_invoice', 'thermal_claim'
+  driveFileId: text("drive_file_id").notNull(),
+  driveWebViewLink: text("drive_web_view_link"),
+  syncedAt: timestamp("synced_at").defaultNow().notNull(),
+  vendorId: varchar("vendor_id").references(() => vendors.id, { onDelete: "set null" }),
+  vendorName: text("vendor_name"),
+});
+
 // Relations
 export const productsRelations = relations(products, ({ many }) => ({
   ingredients: many(ingredients),
@@ -227,6 +240,11 @@ export const insertBusinessProfileSchema = createInsertSchema(businessProfile).o
   updatedAt: true,
 });
 
+export const insertGoogleDriveSyncLogSchema = createInsertSchema(googleDriveSyncLog).omit({
+  id: true,
+  syncedAt: true,
+});
+
 // Types
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -254,3 +272,6 @@ export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 
 export type BusinessProfile = typeof businessProfile.$inferSelect;
 export type InsertBusinessProfile = z.infer<typeof insertBusinessProfileSchema>;
+
+export type GoogleDriveSyncLog = typeof googleDriveSyncLog.$inferSelect;
+export type InsertGoogleDriveSyncLog = z.infer<typeof insertGoogleDriveSyncLogSchema>;

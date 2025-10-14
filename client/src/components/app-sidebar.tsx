@@ -9,6 +9,7 @@ import {
   Store,
   ClipboardCheck,
   Settings,
+  Cloud,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -68,6 +69,11 @@ const menuItems = [
     title: "Laporan",
     url: "/reports",
     icon: BarChart3,
+  },
+  {
+    title: "Google Drive",
+    url: "/drive-sync",
+    icon: Cloud,
   },
   {
     title: "Tetapan",

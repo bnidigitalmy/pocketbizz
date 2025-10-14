@@ -18,6 +18,7 @@ import Expenses from "@/pages/expenses";
 import Claims from "@/pages/claims";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import DriveSync from "@/pages/drive-sync";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/claims" component={Claims} />
       <Route path="/reports" component={Reports} />
       <Route path="/settings" component={Settings} />
+      <Route path="/drive-sync" component={DriveSync} />
       <Route component={NotFound} />
     </Switch>
   );

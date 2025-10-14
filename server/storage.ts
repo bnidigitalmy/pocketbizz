@@ -9,6 +9,7 @@ import {
   sales,
   expenses,
   businessProfile,
+  googleDriveSyncLog,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -27,6 +28,8 @@ import {
   type InsertExpense,
   type BusinessProfile,
   type InsertBusinessProfile,
+  type GoogleDriveSyncLog,
+  type InsertGoogleDriveSyncLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -79,6 +82,11 @@ export interface IStorage {
   // Business Profile
   getBusinessProfile(): Promise<BusinessProfile | undefined>;
   createOrUpdateBusinessProfile(profile: InsertBusinessProfile): Promise<BusinessProfile>;
+  
+  // Google Drive Sync
+  logGoogleDriveSync(log: InsertGoogleDriveSyncLog): Promise<GoogleDriveSyncLog>;
+  getGoogleDriveSyncLogs(): Promise<GoogleDriveSyncLog[]>;
+  getGoogleDriveSyncLogsByDelivery(deliveryId: string): Promise<GoogleDriveSyncLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -468,6 +476,28 @@ export class DatabaseStorage implements IStorage {
       const [newProfile] = await db.insert(businessProfile).values(profile).returning();
       return newProfile;
     }
+  }
+
+  // Google Drive Sync
+  async logGoogleDriveSync(log: InsertGoogleDriveSyncLog): Promise<GoogleDriveSyncLog> {
+    const [syncLog] = await db.insert(googleDriveSyncLog).values(log).returning();
+    return syncLog;
+  }
+
+  async getGoogleDriveSyncLogs(): Promise<GoogleDriveSyncLog[]> {
+    const logs = await db.select()
+      .from(googleDriveSyncLog)
+      .orderBy(desc(googleDriveSyncLog.syncedAt))
+      .limit(100);
+    return logs;
+  }
+
+  async getGoogleDriveSyncLogsByDelivery(deliveryId: string): Promise<GoogleDriveSyncLog[]> {
+    const logs = await db.select()
+      .from(googleDriveSyncLog)
+      .where(eq(googleDriveSyncLog.deliveryId, deliveryId))
+      .orderBy(desc(googleDriveSyncLog.syncedAt));
+    return logs;
   }
 }
 
