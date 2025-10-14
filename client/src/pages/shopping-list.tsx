@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, AlertTriangle, CheckCircle2, Printer, ShoppingCart } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle2, Printer, ShoppingCart, Share2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface StockItem {
   id: string;
@@ -18,6 +19,7 @@ interface StockItem {
 
 export default function ShoppingList() {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const { data: lowStockItems = [], isLoading } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/low"],
@@ -51,6 +53,55 @@ export default function ShoppingList() {
     window.print();
   };
 
+  const handleShareWhatsApp = () => {
+    if (allItemsToBuy.length === 0) {
+      toast({
+        title: "Tiada item untuk dikongsi",
+        description: "Senarai belian kosong",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Format message for WhatsApp
+    let message = "📋 *SENARAI BELIAN STOK*\n";
+    message += `📅 ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
+    
+    allItemsToBuy.forEach((item, index) => {
+      const currentQty = parseFloat(item.currentQuantity);
+      const threshold = parseFloat(item.lowStockThreshold);
+      const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
+      const isOutOfStock = currentQty <= 0;
+      
+      message += `${index + 1}. ${isOutOfStock ? '🔴 ' : '⚠️ '}*${item.name}*\n`;
+      message += `   • Stok: ${currentQty.toFixed(1)} ${item.unit}\n`;
+      message += `   • Beli: ${qtyNeeded.toFixed(1)} ${item.unit}\n`;
+      message += `   • Harga: RM ${item.purchasePrice}/${item.unit}\n`;
+      if (item.notes) {
+        message += `   • Nota: ${item.notes}\n`;
+      }
+      message += `\n`;
+    });
+    
+    message += `💰 *JUMLAH ANGGARAN: RM ${totalEstimatedCost.toFixed(2)}*\n\n`;
+    message += `📊 Ringkasan:\n`;
+    message += `• Habis stok: ${outOfStockItems.length} item\n`;
+    message += `• Stok rendah: ${lowStockItems.length} item\n`;
+    message += `• Jumlah item: ${allItemsToBuy.length} item`;
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+
+    // Open WhatsApp
+    window.open(whatsappUrl, '_blank');
+
+    toast({
+      title: "WhatsApp dibuka",
+      description: "Senarai belian telah disediakan untuk dihantar",
+    });
+  };
+
   const totalEstimatedCost = allItemsToBuy.reduce((total, item) => {
     const pricePerUnit = parseFloat(item.purchasePrice) || 0;
     const currentQty = parseFloat(item.currentQuantity);
@@ -78,10 +129,21 @@ export default function ShoppingList() {
           <h1 className="text-3xl font-bold">📋 Senarai Belian</h1>
           <p className="text-muted-foreground">Item yang perlu dibeli untuk stok gudang</p>
         </div>
-        <Button onClick={handlePrint} variant="outline" data-testid="button-print-shopping-list">
-          <Printer className="h-4 w-4 mr-2" />
-          Cetak
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleShareWhatsApp} 
+            variant="default" 
+            className="bg-green-600 hover:bg-green-700"
+            data-testid="button-share-whatsapp"
+          >
+            <Share2 className="h-4 w-4 mr-2" />
+            WhatsApp
+          </Button>
+          <Button onClick={handlePrint} variant="outline" data-testid="button-print-shopping-list">
+            <Printer className="h-4 w-4 mr-2" />
+            Cetak
+          </Button>
+        </div>
       </div>
 
       {/* Print Header - Only visible when printing */}
@@ -242,8 +304,92 @@ export default function ShoppingList() {
 
       {/* Print Instructions */}
       <div className="text-center text-sm text-muted-foreground print:hidden">
-        💡 Tip: Klik "Cetak" untuk dapatkan senarai dalam format yang cantik untuk dibawa pergi beli barang
+        💡 Tip: Klik "Cetak" untuk dapatkan senarai dalam format yang cantik untuk dibawa pergi beli barang, atau "WhatsApp" untuk hantar ke pekerja
       </div>
+
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 1.5cm;
+          }
+          
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+          
+          .container {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          /* Hide unnecessary elements */
+          nav, header, footer, .print\\:hidden {
+            display: none !important;
+          }
+          
+          /* Optimize card spacing for print */
+          .space-y-6 > * + * {
+            margin-top: 1rem !important;
+          }
+          
+          /* Make cards print-friendly - target actual card divs */
+          .rounded-lg.border {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+          }
+          
+          /* Shopping list item containers */
+          .space-y-3 > div {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          
+          /* Adjust text sizes for print */
+          .text-3xl {
+            font-size: 1.5rem !important;
+          }
+          
+          .text-2xl {
+            font-size: 1.25rem !important;
+          }
+          
+          .text-lg {
+            font-size: 1rem !important;
+          }
+          
+          /* Ensure checkboxes print as boxes */
+          .hidden.print\\:block {
+            display: block !important;
+          }
+          
+          /* Grid responsive for print */
+          .grid {
+            display: grid !important;
+            gap: 0.5rem !important;
+          }
+          
+          .md\\:grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+          
+          /* Shopping list items */
+          .space-y-3 > * + * {
+            margin-top: 0.5rem !important;
+          }
+          
+          /* Preserve background colors for badges */
+          [class*="bg-red"], [class*="bg-amber"], [class*="bg-green"] {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
     </div>
   );
 }
