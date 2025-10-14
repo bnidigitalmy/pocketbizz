@@ -8,9 +8,25 @@ ManisBizz is a comprehensive dessert business management system designed to help
 -   **Production & Delivery Tracking**: Manage daily batches, track deliveries, and monitor payment statuses.
 -   **Financial Reporting**: Detailed sales, expenses, and profit/loss insights, including rejection loss tracking.
 -   **Efficiency Tools**: "Copy Yesterday" feature for production and deliveries, WhatsApp sharing, and A5 receipt generation.
--   **Advanced Features**: Expiry tracking, professional invoicing with letterhead, comprehensive claim management, and Google Drive auto-sync for documents.
+-   **Advanced Features**: Expiry tracking, professional invoicing with letterhead, comprehensive claim management with detailed product breakdown, and Google Drive auto-sync for all documents.
 
 The system aims to streamline operations, reduce manual data entry, and provide actionable financial insights for dessert businesses.
+
+## Recent Changes (October 2025)
+
+### Claims Enhancement with Product Breakdown
+-   Added detailed product breakdown API endpoint (`/api/claims/:vendorId/details`) showing per-invoice product details
+-   Enhanced Claims UI with Dialog component featuring filter toggle (Ringkasan vs Per Invois) for flexible viewing
+-   Implemented filterable view modes: Summary view (grouped totals) and Individual Invoice view (product-level breakdown)
+-   Vendor cross-checking capability: vendors can verify exact products and quantities per invoice
+
+### Google Drive Integration & Sync Dashboard
+-   Created comprehensive Google Drive sync infrastructure with `driveSyncLogs` schema
+-   Built API endpoints for PDF upload (`/api/google-drive/upload`), file listing, and sync tracking
+-   Developed Drive Sync dashboard page (`/drive-sync`) with summary metrics and document list
+-   Implemented error handling with proper null-safety and fallback states
+-   Added sidebar menu item with Cloud icon for easy access to synced documents
+-   Auto-sync tracking: all generated invoices and claim statements logged with metadata (file type, vendor, Drive links)
 
 ## User Preferences
 
