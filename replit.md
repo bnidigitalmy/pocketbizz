@@ -40,11 +40,13 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 -   **Context-Aware Shopping Cart System**: Streamlined production-to-purchase workflow that eliminates repetitive actions. When production planning detects insufficient stock, items are automatically added to a shopping cart with exact shortage quantities and production context (which product needs the material). Features include:
     - Auto-capture of production shortages with precise quantities and usage units
     - Production batch tracking (productionBatchId reference for historical linking)
-    - Shopping list integration displaying cart items with product badges showing production context
-    - Bulk operations: Select All and Mark as Purchased buttons
-    - Transaction-based bulk purchase using Drizzle's inArray operator for atomic stock updates and cart cleanup
-    - WhatsApp sharing and thermal printing with cart data and production references
-    - Single-click workflow: shortage detected → auto-add to cart → shopping list → bulk confirm → stock updated
+    - **Unified Shopping List**: Merged display of cart items (production) + low stock items with clear tags ("Produksi: [Product]" vs "Stok Rendah/Habis")
+    - Bulk operations: Unified Select All covering both categories, bulk purchase mutation handling cart + low stock items in single transaction
+    - **Professional Purchase Orders**: Business profile header integration (name, address, phone, email, registration) for WhatsApp sharing and thermal printing
+    - WhatsApp format includes business header, item tags, quantities, and cost breakdown
+    - Thermal print (80mm) optimized with business letterhead, dashed separators, and professional layout
+    - User instruction reminder to share/print BEFORE confirming purchase (list clears after confirmation)
+    - Single-click workflow: shortage detected → auto-add to cart → unified list with tags → share/print with header → bulk confirm → stock updated
 -   **Production Planning System**: Intelligent production planning with multi-step workflow (select product/quantity → preview materials → confirm). Features include automatic material calculation from recipes, real-time stock validation with visual indicators, insufficient stock alerts, shopping cart auto-add for missing items, and automatic stock deduction upon confirmation. Supports batch tracking with expiry dates and notes.
 -   **Finished Goods Inventory with FIFO Batch Tracking**: Two-tier inventory system separating raw materials (Stock page) and finished products (Finished Products page). Production creates batches with `remainingQty` tracking. Delivery and Sales automatically deduct from finished goods using FIFO (First-In-First-Out) logic based on expiry dates. Features include:
     - Batch-level inventory with individual expiry tracking
