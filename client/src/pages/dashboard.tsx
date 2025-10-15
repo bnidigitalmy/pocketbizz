@@ -19,7 +19,8 @@ import {
   AlertCircle,
   ShoppingCart,
   Box,
-  ArrowRight
+  ArrowRight,
+  Coins
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -183,6 +184,14 @@ export default function Dashboard() {
       icon: BarChart3,
       color: "text-chart-4",
       testId: "stat-profit"
+    },
+    {
+      title: "Komisyen Bulan Ini",
+      value: `RM ${stats?.monthlyCommission || "0.00"}`,
+      subtitle: new Date().toLocaleString('ms-MY', { month: 'long', year: 'numeric' }),
+      icon: Coins,
+      color: "text-purple-600 dark:text-purple-400",
+      testId: "stat-monthly-commission"
     },
   ];
 

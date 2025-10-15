@@ -80,6 +80,7 @@ export interface IStorage {
   // Deliveries
   getDeliveries(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getDelivery(id: string): Promise<any>;
+  getLastDeliveryForVendor(vendorId: string): Promise<any | null>;
   checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null>;
   createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
   updateDeliveryStatus(id: string, status: string): Promise<void>;
@@ -434,6 +435,28 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getLastDeliveryForVendor(vendorId: string): Promise<any | null> {
+    const [lastDelivery] = await db
+      .select()
+      .from(deliveries)
+      .where(eq(deliveries.vendorId, vendorId))
+      .orderBy(desc(deliveries.deliveryDate))
+      .limit(1);
+    
+    if (!lastDelivery) return null;
+    
+    // Get items for this delivery
+    const items = await db
+      .select()
+      .from(deliveryItems)
+      .where(eq(deliveryItems.deliveryId, lastDelivery.id));
+    
+    return {
+      ...lastDelivery,
+      items
+    };
+  }
+
   async checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null> {
     const [existing] = await db
       .select()
@@ -664,6 +687,14 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
+    // Current month's commission projection
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const monthlyCommission = await db.select({
+      total: sql<string>`COALESCE(SUM(${deliveries.commissionAmount}), 0)`,
+    })
+      .from(deliveries)
+      .where(gte(deliveries.deliveryDate, firstDayOfMonth));
+
     return {
       todayProduction: productionQty,
       todaySales: todaySalesValue.toFixed(2),
@@ -674,6 +705,7 @@ export class DatabaseStorage implements IStorage {
       todayProfit: todayProfit.toFixed(2),
       todayRejectionsCount: todayRejections[0]?.count || 0,
       todayRejectionsValue: parseFloat(todayRejections[0]?.value || "0").toFixed(2),
+      monthlyCommission: parseFloat(monthlyCommission[0]?.total || "0").toFixed(2),
       // Production-Delivery-Sales Flow
       todayProductionQty: productionQty,
       todayDeliveredQty: deliveredQty,

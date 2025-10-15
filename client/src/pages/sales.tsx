@@ -62,12 +62,24 @@ export default function Sales() {
     queryKey: ["/api/products"],
   });
 
+  // Smart defaults: Remember last selected product and vendor
+  const getLastSaleDefaults = () => {
+    try {
+      return {
+        productId: localStorage.getItem('pocketbizz_last_sale_product') || "",
+        vendorId: localStorage.getItem('pocketbizz_last_sale_vendor') || "none",
+      };
+    } catch {
+      return { productId: "", vendorId: "none" };
+    }
+  };
+
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
     defaultValues: {
-      vendorId: "none",
+      vendorId: getLastSaleDefaults().vendorId,
       vendorName: "",
-      productId: "",
+      productId: getLastSaleDefaults().productId,
       productName: "",
       quantity: 1,
       unitPrice: "0",
@@ -98,7 +110,19 @@ export default function Sales() {
       
       return apiRequest("POST", "/api/sales", submitData);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Save last selections for smart defaults
+      try {
+        if (variables.productId) {
+          localStorage.setItem('pocketbizz_last_sale_product', variables.productId);
+        }
+        if (variables.vendorId && variables.vendorId !== 'none') {
+          localStorage.setItem('pocketbizz_last_sale_vendor', variables.vendorId);
+        }
+      } catch (e) {
+        console.error('Failed to save last selections:', e);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({
@@ -106,7 +130,17 @@ export default function Sales() {
         description: "Jualan telah direkod.",
       });
       setDialogOpen(false);
-      form.reset();
+      form.reset({
+        vendorId: variables.vendorId || "none",
+        vendorName: "",
+        productId: variables.productId,
+        productName: "",
+        quantity: 1,
+        unitPrice: "0",
+        totalAmount: "0",
+        saleDate: new Date().toISOString().split('T')[0],
+        isPaid: 0,
+      });
     },
     onError: (error: any) => {
       toast({

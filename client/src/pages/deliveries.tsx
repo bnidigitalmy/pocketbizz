@@ -105,10 +105,19 @@ export default function Deliveries() {
     queryKey: ["/api/business-profile"],
   });
 
+  // Smart defaults: Remember last selected vendor
+  const getLastVendor = () => {
+    try {
+      return localStorage.getItem('pocketbizz_last_delivery_vendor') || "";
+    } catch {
+      return "";
+    }
+  };
+
   const form = useForm<DeliveryFormValues>({
     resolver: zodResolver(deliveryFormSchema),
     defaultValues: {
-      vendorId: "",
+      vendorId: getLastVendor(),
       vendorName: "",
       deliveryDate: new Date().toISOString().split('T')[0],
       status: "delivered",
@@ -137,7 +146,16 @@ export default function Deliveries() {
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Save last selected vendor for smart defaults
+      try {
+        if (variables.vendorId) {
+          localStorage.setItem('pocketbizz_last_delivery_vendor', variables.vendorId);
+        }
+      } catch (e) {
+        console.error('Failed to save last vendor:', e);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({
@@ -147,7 +165,14 @@ export default function Deliveries() {
       setDialogOpen(false);
       setDuplicateWarning(null);
       setPendingDeliveryData(null);
-      form.reset();
+      form.reset({
+        vendorId: variables.vendorId, // Keep last vendor
+        vendorName: "",
+        deliveryDate: new Date().toISOString().split('T')[0],
+        status: "delivered",
+        totalAmount: "0",
+        items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }],
+      });
       setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
     onError: (error: any) => {
@@ -197,6 +222,46 @@ export default function Deliveries() {
         title: "Ralat!",
         description: error.message || "Gagal mengemaskini tolakan.",
         variant: "destructive",
+      });
+    },
+  });
+
+  const fetchLastDeliveryMutation = useMutation({
+    mutationFn: async (vendorId: string) => {
+      const response = await fetch(`/api/deliveries/last/${vendorId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Tiada rekod penghantaran lepas untuk vendor ini");
+        }
+        throw new Error("Gagal mendapatkan penghantaran lepas");
+      }
+      return response.json();
+    },
+    onSuccess: (lastDelivery) => {
+      // Populate form with last delivery data (but update date to today)
+      const itemsData = lastDelivery.items.map((item: any) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        retailPrice: item.retailPrice || "0",
+        rejectedQty: 0,
+        rejectionReason: "",
+      }));
+      
+      form.setValue("items", itemsData);
+      setItems(itemsData);
+      
+      toast({
+        title: "Berjaya!",
+        description: "Penghantaran lepas telah disalin. Sila semak dan kemaskini tarikh.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Maklumat",
+        description: error.message,
+        variant: "default",
       });
     },
   });
@@ -447,6 +512,22 @@ export default function Deliveries() {
                     </FormItem>
                   )}
                 />
+
+                {/* Auto-fill from last delivery button */}
+                {form.watch("vendorId") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchLastDeliveryMutation.mutate(form.getValues("vendorId"))}
+                    disabled={fetchLastDeliveryMutation.isPending}
+                    className="w-full"
+                    data-testid="button-repeat-last-delivery"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    {fetchLastDeliveryMutation.isPending ? "Memuat..." : "Ulang Penghantaran Lepas"}
+                  </Button>
+                )}
 
                 <FormField
                   control={form.control}

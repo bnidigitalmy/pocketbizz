@@ -14,6 +14,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -92,6 +102,7 @@ export default function Stock() {
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [replenishDialogOpen, setReplenishDialogOpen] = useState(false);
   const [replenishingItem, setReplenishingItem] = useState<StockItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
   const [filters, setFilters] = useState<Record<string, any>>({});
 
   const { data: stockItems = [], isLoading } = useQuery<StockItem[]>({
@@ -233,10 +244,8 @@ export default function Stock() {
     setDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Adakah anda pasti mahu memadam item stok ini?")) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (item: StockItem) => {
+    setItemToDelete(item);
   };
 
   const handleReplenish = (item: StockItem) => {
@@ -419,7 +428,7 @@ export default function Stock() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => handleDelete(item)}
                             data-testid={`button-delete-stock-${item.id}`}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -755,6 +764,34 @@ export default function Stock() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Padam Item Stok</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adakah anda pasti mahu memadam <span className="font-semibold">{itemToDelete?.name}</span>? 
+              Tindakan ini tidak boleh dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemToDelete) {
+                  deleteMutation.mutate(itemToDelete.id);
+                  setItemToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Mempadam..." : "Padam"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

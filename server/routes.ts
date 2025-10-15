@@ -827,6 +827,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/deliveries/last/:vendorId", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      const lastDelivery = await storage.getLastDeliveryForVendor(vendorId);
+      
+      if (!lastDelivery) {
+        return res.status(404).json({ error: "No previous delivery found for this vendor" });
+      }
+      
+      res.json(lastDelivery);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch last delivery" });
+    }
+  });
+
   app.post("/api/deliveries", async (req, res) => {
     try {
       const deliverySchema = insertDeliverySchema.extend({
