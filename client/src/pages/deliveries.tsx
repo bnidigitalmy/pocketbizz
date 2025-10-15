@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,11 +64,34 @@ export default function Deliveries() {
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<any>(null);
+  const [pendingDeliveryData, setPendingDeliveryData] = useState<any>(null);
   const { toast } = useToast();
 
-  const { data: deliveries, isLoading } = useQuery({
+  const { 
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["/api/deliveries"],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await fetch(`/api/deliveries?limit=20&offset=${pageParam}`);
+      if (!response.ok) throw new Error("Failed to fetch deliveries");
+      return response.json();
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.hasMore) {
+        return allPages.reduce((acc, page) => acc + page.data.length, 0);
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
   });
+
+  // Flatten all pages into single array
+  const deliveries = data?.pages.flatMap(page => page.data) || [];
 
   const { data: vendors } = useQuery({
     queryKey: ["/api/vendors"],
@@ -95,8 +118,24 @@ export default function Deliveries() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: DeliveryFormValues) => {
-      return apiRequest("POST", "/api/deliveries", data);
+    mutationFn: async (data: DeliveryFormValues & { force?: boolean }) => {
+      const response = await fetch("/api/deliveries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      
+      if (response.status === 409) {
+        const dupData = await response.json();
+        throw { duplicate: true, data: dupData };
+      }
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create delivery");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
@@ -106,15 +145,22 @@ export default function Deliveries() {
         description: "Penghantaran telah direkod.",
       });
       setDialogOpen(false);
+      setDuplicateWarning(null);
+      setPendingDeliveryData(null);
       form.reset();
       setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
     onError: (error: any) => {
-      toast({
-        title: "Ralat!",
-        description: error.message || "Stok tidak mencukupi atau ralat berlaku.",
-        variant: "destructive",
-      });
+      if (error.duplicate) {
+        setDuplicateWarning(error.data);
+        setPendingDeliveryData(form.getValues());
+      } else {
+        toast({
+          title: "Ralat!",
+          description: error.message || "Stok tidak mencukupi atau ralat berlaku.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -828,6 +874,20 @@ export default function Deliveries() {
               )}
             </Card>
           ))}
+
+          {/* Load More Button */}
+          {hasNextPage && (
+            <div className="flex justify-center mt-6">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                data-testid="button-load-more-deliveries"
+              >
+                {isFetchingNextPage ? "Memuatkan..." : "Muatkan Lagi"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -945,6 +1005,56 @@ export default function Deliveries() {
               data-testid="button-save-rejection"
             >
               {updateRejectionMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Warning Dialog */}
+      <Dialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-500" />
+              Penghantaran Sudah Wujud
+            </DialogTitle>
+            <DialogDescription>
+              {duplicateWarning?.message}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {duplicateWarning?.existingDelivery && (
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <p className="text-sm font-medium">Penghantaran Sedia Ada:</p>
+              <div className="text-sm text-muted-foreground">
+                <p>Invois: {duplicateWarning.existingDelivery.invoiceNumber}</p>
+                <p className="font-mono font-semibold text-foreground">
+                  Jumlah: RM {duplicateWarning.existingDelivery.totalAmount}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDuplicateWarning(null);
+                setPendingDeliveryData(null);
+              }}
+              data-testid="button-cancel-duplicate"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingDeliveryData) {
+                  createMutation.mutate({ ...pendingDeliveryData, force: true });
+                }
+              }}
+              data-testid="button-confirm-duplicate"
+            >
+              Ya, Sambung Juga
             </Button>
           </DialogFooter>
         </DialogContent>

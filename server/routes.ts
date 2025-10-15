@@ -31,13 +31,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ results: [] });
       }
 
-      const [products, vendors, stockItems, sales, deliveries] = await Promise.all([
+      const [products, vendors, stockItems, sales, deliveriesResult] = await Promise.all([
         storage.getProducts(),
         storage.getVendors(),
         storage.getStockItems(),
         storage.getSales(),
-        storage.getDeliveries(),
+        storage.getDeliveries(1000, 0), // Get all for search (up to 1000)
       ]);
+      
+      const deliveries = deliveriesResult.data;
 
       const results = [];
 
@@ -806,8 +808,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deliveries
   app.get("/api/deliveries", async (req, res) => {
     try {
-      const deliveries = await storage.getDeliveries();
-      res.json(deliveries);
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const result = await storage.getDeliveries(limit, offset);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch deliveries" });
     }
@@ -815,8 +820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/deliveries/recent", async (req, res) => {
     try {
-      const deliveries = await storage.getDeliveries();
-      res.json(deliveries.slice(0, 5));
+      const result = await storage.getDeliveries(5, 0);
+      res.json(result.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recent deliveries" });
     }
@@ -833,10 +838,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rejectedQty: z.number().optional(),
           rejectionReason: z.string().optional(),
         })),
+        force: z.boolean().optional(), // Allow bypassing duplicate check
       });
       
       const data = deliverySchema.parse(req.body);
-      const { items, ...deliveryData } = data;
+      const { items, force, ...deliveryData } = data;
+      
+      // Check for duplicate delivery (same vendor + same date)
+      if (!force) {
+        const existingDelivery = await storage.checkDuplicateDelivery(
+          deliveryData.vendorId,
+          deliveryData.deliveryDate
+        );
+        
+        if (existingDelivery) {
+          return res.status(409).json({
+            duplicate: true,
+            existingDelivery: {
+              id: existingDelivery.id,
+              vendorName: existingDelivery.vendorName,
+              totalAmount: existingDelivery.totalAmount,
+              invoiceNumber: existingDelivery.invoiceNumber,
+            },
+            message: `Dah ada penghantaran untuk ${existingDelivery.vendorName} pada ${new Date(existingDelivery.deliveryDate).toLocaleDateString('ms-MY')} (RM ${existingDelivery.totalAmount}). Nak sambung?`
+          });
+        }
+      }
       
       const deliveryItems = items.map(item => ({
         productId: item.productId,
@@ -1027,8 +1054,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Claims
   app.get("/api/claims", async (req, res) => {
     try {
-      const claims = await storage.getClaimsSummary();
-      res.json(claims);
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const result = await storage.getClaimsSummary(limit, offset);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch claims summary" });
     }

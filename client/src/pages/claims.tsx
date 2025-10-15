@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,13 +51,32 @@ export default function Claims() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: claims, isLoading: claimsLoading } = useQuery<ClaimSummary[]>({
+  const {
+    data,
+    isLoading: claimsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["/api/claims"],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await fetch(`/api/claims?limit=20&offset=${pageParam}`);
+      if (!response.ok) throw new Error("Failed to fetch claims");
+      return response.json();
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.hasMore) {
+        return allPages.reduce((acc, page) => acc + page.data.length, 0);
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
   });
 
-  const { data: deliveries } = useQuery<DeliveryWithItems[]>({
-    queryKey: ["/api/deliveries"],
-  });
+  // Flatten all pages into single array
+  const claims = data?.pages.flatMap(page => page.data) || [];
+
+  // No need to fetch deliveries separately - claims summary includes all needed info
 
   const { data: businessProfile } = useQuery({
     queryKey: ["/api/business-profile"],
@@ -423,6 +442,20 @@ export default function Claims() {
         ))}
       </div>
 
+      {/* Load More Button */}
+      {hasNextPage && (
+        <div className="flex justify-center mt-6">
+          <Button
+            variant="outline"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            data-testid="button-load-more-claims"
+          >
+            {isFetchingNextPage ? "Memuatkan..." : "Muatkan Lagi"}
+          </Button>
+        </div>
+      )}
+
       {/* Delivery List with Payment Status */}
       <Card>
         <CardHeader>
@@ -497,9 +530,9 @@ export default function Claims() {
               </Card>
             ))}
 
-            {(!deliveries || deliveries.length === 0) && (
+            {(!filteredClaims || filteredClaims.length === 0) && (
               <div className="text-center py-8 text-muted-foreground">
-                Tiada penghantaran
+                Tiada tuntutan
               </div>
             )}
           </div>

@@ -78,8 +78,9 @@ export interface IStorage {
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   
   // Deliveries
-  getDeliveries(): Promise<any[]>;
+  getDeliveries(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getDelivery(id: string): Promise<any>;
+  checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null>;
   createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
   updateDeliveryStatus(id: string, status: string): Promise<void>;
   updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any>;
@@ -102,7 +103,7 @@ export interface IStorage {
   getMonthlyData(): Promise<any[]>;
   
   // Claims
-  getClaimsSummary(): Promise<any[]>;
+  getClaimsSummary(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getClaimDetailsByVendor(vendorId: string): Promise<any>;
   
   // Business Profile
@@ -344,12 +345,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Deliveries
-  async getDeliveries(): Promise<any[]> {
-    const result = await db.select().from(deliveries).orderBy(desc(deliveries.deliveryDate));
+  async getDeliveries(limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+    // Get total count
+    const totalResult = await db.select({ count: sql<number>`count(*)` }).from(deliveries);
+    const total = Number(totalResult[0]?.count || 0);
+    
+    // Get paginated deliveries
+    const result = await db
+      .select()
+      .from(deliveries)
+      .orderBy(desc(deliveries.deliveryDate))
+      .limit(limit + 1) // Fetch one extra to check if there's more
+      .offset(offset);
+    
+    const hasMore = result.length > limit;
+    const deliveriesToReturn = hasMore ? result.slice(0, limit) : result;
     
     // Get items for each delivery with commission breakdown
     const deliveriesWithItems = await Promise.all(
-      result.map(async (delivery) => {
+      deliveriesToReturn.map(async (delivery) => {
         const items = await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, delivery.id));
         
         // Calculate gross, rejected, net amounts
@@ -380,7 +394,11 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    return deliveriesWithItems;
+    return {
+      data: deliveriesWithItems,
+      hasMore,
+      total
+    };
   }
 
   async getDelivery(id: string): Promise<any> {
@@ -414,6 +432,21 @@ export class DatabaseStorage implements IStorage {
       commission: commission.toFixed(2),
       claimableAmount: claimableAmount.toFixed(2),
     };
+  }
+
+  async checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null> {
+    const [existing] = await db
+      .select()
+      .from(deliveries)
+      .where(
+        and(
+          eq(deliveries.vendorId, vendorId),
+          eq(deliveries.deliveryDate, deliveryDate)
+        )
+      )
+      .limit(1);
+    
+    return existing || null;
   }
 
   async createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {
@@ -762,7 +795,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Claims
-  async getClaimsSummary(): Promise<any[]> {
+  async getClaimsSummary(limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
     // Get all unique vendors from deliveries
     const uniqueVendors = await db.selectDistinct({
       vendorId: deliveries.vendorId,
@@ -794,7 +827,17 @@ export class DatabaseStorage implements IStorage {
     );
 
     // Sort by latest delivery date descending (most recent first)
-    return claimsSummary.sort((a, b) => b.latestDeliveryDate - a.latestDeliveryDate);
+    const sortedClaims = claimsSummary.sort((a, b) => b.latestDeliveryDate - a.latestDeliveryDate);
+    
+    const total = sortedClaims.length;
+    const paginatedClaims = sortedClaims.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+
+    return {
+      data: paginatedClaims,
+      hasMore,
+      total
+    };
   }
 
   async getClaimDetailsByVendor(vendorId: string): Promise<any> {
