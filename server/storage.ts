@@ -325,12 +325,27 @@ export class DatabaseStorage implements IStorage {
       .from(productionBatches)
       .where(eq(productionBatches.batchDate, today));
 
-    // Today's sales
+    // Today's sales (value)
     const todaySales = await db.select({
       total: sql<string>`COALESCE(SUM(${sales.totalAmount}), 0)`,
     })
       .from(sales)
       .where(eq(sales.saleDate, today));
+
+    // Today's sales (quantity)
+    const todaySalesQty = await db.select({
+      total: sql<number>`COALESCE(SUM(${sales.quantity}), 0)`,
+    })
+      .from(sales)
+      .where(eq(sales.saleDate, today));
+
+    // Today's deliveries (quantity delivered to vendors)
+    const todayDeliveries = await db.select({
+      total: sql<number>`COALESCE(SUM(${deliveryItems.quantity}), 0)`,
+    })
+      .from(deliveryItems)
+      .leftJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+      .where(eq(deliveries.deliveryDate, today));
 
     // Today's expenses (Modal Hari Ini)
     const todayExpenses = await db.select({
@@ -379,8 +394,14 @@ export class DatabaseStorage implements IStorage {
     const todayExpValue = parseFloat(todayExpenses[0]?.total || "0");
     const todayProfit = todaySalesValue - todayProdCost - todayExpValue;
 
+    // Calculate flow metrics
+    const productionQty = todayProduction[0]?.total || 0;
+    const deliveredQty = todayDeliveries[0]?.total || 0;
+    const soldQty = todaySalesQty[0]?.total || 0;
+    const balanceQty = productionQty - deliveredQty;
+
     return {
-      todayProduction: todayProduction[0]?.total || 0,
+      todayProduction: productionQty,
       todaySales: todaySalesValue.toFixed(2),
       weekSales: parseFloat(weekSales[0]?.total || "0").toFixed(2),
       netProfit: netProfit.toFixed(2),
@@ -389,6 +410,11 @@ export class DatabaseStorage implements IStorage {
       todayProfit: todayProfit.toFixed(2),
       todayRejectionsCount: todayRejections[0]?.count || 0,
       todayRejectionsValue: parseFloat(todayRejections[0]?.value || "0").toFixed(2),
+      // Production-Delivery-Sales Flow
+      todayProductionQty: productionQty,
+      todayDeliveredQty: deliveredQty,
+      todaySoldQty: soldQty,
+      todayBalanceQty: balanceQty,
       alerts: [],
     };
   }

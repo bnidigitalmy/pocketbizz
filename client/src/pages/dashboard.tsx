@@ -18,7 +18,8 @@ import {
   TrendingDown,
   AlertCircle,
   ShoppingCart,
-  Box
+  Box,
+  ArrowRight
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -36,11 +37,11 @@ interface StockItem {
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
   });
 
-  const { data: recentDeliveries } = useQuery({
+  const { data: recentDeliveries } = useQuery<any>({
     queryKey: ["/api/deliveries/recent"],
   });
 
@@ -249,6 +250,95 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Production Flow */}
+      {stats && (stats.todayProductionQty > 0 || stats.todayDeliveredQty > 0 || stats.todaySoldQty > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Aliran Produksi Hari Ini
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Dari produksi hingga jualan
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              {/* Production */}
+              <div className="flex flex-col items-center justify-center p-4 bg-chart-1/10 rounded-lg">
+                <Package className="h-8 w-8 text-chart-1 mb-2" />
+                <p className="text-2xl font-bold font-mono text-chart-1">
+                  {stats.todayProductionQty}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Dihasilkan
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div className="hidden md:flex items-center justify-center">
+                <ArrowRight className="h-6 w-6 text-muted-foreground" />
+              </div>
+
+              {/* Delivered */}
+              <div className="flex flex-col items-center justify-center p-4 bg-chart-2/10 rounded-lg">
+                <Truck className="h-8 w-8 text-chart-2 mb-2" />
+                <p className="text-2xl font-bold font-mono text-chart-2">
+                  {stats.todayDeliveredQty}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Dihantar
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div className="hidden md:flex items-center justify-center">
+                <ArrowRight className="h-6 w-6 text-muted-foreground" />
+              </div>
+
+              {/* Sold */}
+              <div className="flex flex-col items-center justify-center p-4 bg-chart-3/10 rounded-lg">
+                <Receipt className="h-8 w-8 text-chart-3 mb-2" />
+                <p className="text-2xl font-bold font-mono text-chart-3">
+                  {stats.todaySoldQty}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Terjual
+                </p>
+              </div>
+
+              {/* Balance */}
+              <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
+                <Box className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-2xl font-bold font-mono">
+                  {stats.todayBalanceQty}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Baki (Produksi - Hantar)
+                </p>
+              </div>
+            </div>
+
+            {/* Additional insights */}
+            {stats.todayBalanceQty < 0 && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      Penghantaran melebihi produksi
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      {Math.abs(stats.todayBalanceQty)} unit dihantar dari stok sedia ada
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Interactive Chart */}
       <DashboardChart />
