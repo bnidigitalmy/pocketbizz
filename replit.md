@@ -59,7 +59,15 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 -   **Claims Enhancement**: Detailed product breakdown for claims, filterable views, and vendor cross-checking.
 -   **Google Drive Integration**: Auto-sync for all generated documents.
 -   **Commission Management**: Supports percentage-based and range-based fixed commissions for vendors.
--   **Rejection Tracking**: Tracks returned/expired/damaged products with `rejectedQty` and `rejectionReason`.
+-   **Rejection Tracking & Post-Delivery Updates**: Comprehensive rejection management system for tracking returned/expired/damaged products. Features include:
+    - Initial rejection capture during delivery creation (optional collapsible section)
+    - **Post-Delivery Edit Capability**: Edit existing deliveries to add/update rejections for products that expire/go bad days after delivery (critical business workflow)
+    - Edit dialog shows all delivery items with rejection quantity and reason fields
+    - Backend validation ensures rejectedQty doesn't exceed delivered quantity
+    - Auto-recalculation of claims upon rejection update (commission calculated on net amount after rejections)
+    - Real-time sync between deliveries and claims pages via React Query invalidation
+    - Per-item breakdown: gross → tolakan (orange) → net → komisyen (blue) → boleh dituntut
+    - Rejection data included in invoices and claim statements for full transparency
 -   **Professional Invoicing**: Comprehensive system with business profile management and multi-invoice claim statements.
 -   **Expiry Tracking**: Visual indicators for expiring products.
 
