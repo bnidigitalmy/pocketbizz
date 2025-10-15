@@ -146,6 +146,7 @@ export const vendors = pgTable("vendors", {
 // Deliveries Table
 export const deliveries = pgTable("deliveries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: text("invoice_number").unique(), // Format: INV-YYYYMMDD-XXXX
   vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
   vendorName: text("vendor_name").notNull(),
   deliveryDate: date("delivery_date").notNull(),

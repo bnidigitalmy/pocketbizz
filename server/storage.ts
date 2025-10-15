@@ -417,17 +417,57 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {
-    const [newDelivery] = await db.insert(deliveries).values(delivery).returning();
-    
-    if (items.length > 0) {
-      const itemsWithDeliveryId = items.map(item => ({
-        ...item,
-        deliveryId: newDelivery.id,
-      }));
-      await db.insert(deliveryItems).values(itemsWithDeliveryId);
-    }
-    
-    return newDelivery;
+    // Use transaction with advisory lock to prevent race conditions in invoice number generation
+    return await db.transaction(async (tx) => {
+      // Format: INV-YYYYMMDD-XXXX
+      const date = new Date(delivery.deliveryDate);
+      const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+      
+      // Use PostgreSQL advisory lock to serialize invoice generation per date
+      // Convert date string to integer for advisory lock (e.g., 20251015 -> numeric)
+      const lockId = parseInt(dateStr);
+      
+      // Acquire advisory lock for this date (automatically released at transaction end)
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+      
+      // Now safely find the latest invoice number for this date
+      const latestInvoice = await tx
+        .select()
+        .from(deliveries)
+        .where(sql`${deliveries.invoiceNumber} LIKE ${'INV-' + dateStr + '-%'}`)
+        .orderBy(desc(deliveries.invoiceNumber))
+        .limit(1);
+      
+      let sequenceNumber = 1;
+      if (latestInvoice.length > 0 && latestInvoice[0].invoiceNumber) {
+        // Extract sequence number from INV-YYYYMMDD-XXXX
+        const parts = latestInvoice[0].invoiceNumber.split('-');
+        if (parts.length === 3) {
+          sequenceNumber = parseInt(parts[2]) + 1;
+        }
+      }
+      
+      // Format sequence number with leading zeros (4 digits)
+      const sequenceStr = sequenceNumber.toString().padStart(4, '0');
+      const invoiceNumber = `INV-${dateStr}-${sequenceStr}`;
+      
+      // Insert delivery with generated invoice number
+      const [newDelivery] = await tx.insert(deliveries).values({
+        ...delivery,
+        invoiceNumber,
+      }).returning();
+      
+      // Insert delivery items
+      if (items.length > 0) {
+        const itemsWithDeliveryId = items.map(item => ({
+          ...item,
+          deliveryId: newDelivery.id,
+        }));
+        await tx.insert(deliveryItems).values(itemsWithDeliveryId);
+      }
+      
+      return newDelivery;
+    });
   }
 
   async updateDeliveryStatus(id: string, status: string): Promise<void> {

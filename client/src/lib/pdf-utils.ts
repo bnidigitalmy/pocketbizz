@@ -84,7 +84,7 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   // Left: Invoice metadata
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`No. Invois: ${delivery.id.substring(0, 8).toUpperCase()}`, leftCol, yPos);
+  doc.text(`No. Invois: ${delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase()}`, leftCol, yPos);
   doc.text(`Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, leftCol, yPos + 5);
   
   // Payment status indicator
@@ -225,7 +225,8 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   doc.text('Sila buat pembayaran dalam tempoh 7 hari dari tarikh invois ini.', 20, yPos + 5);
   
   // Save
-  doc.save(`invois-${delivery.vendorName}-${delivery.id.substring(0, 8)}.pdf`);
+  const invoiceNum = delivery.invoiceNumber || delivery.id.substring(0, 8);
+  doc.save(`invois-${delivery.vendorName}-${invoiceNum}.pdf`);
 }
 
 export function generateMiniInvoicePDF(delivery: any, businessProfile?: any) {
@@ -248,7 +249,7 @@ export function generateMiniInvoicePDF(delivery: any, businessProfile?: any) {
   // Invoice details - compact
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`No: ${delivery.id.substring(0, 8).toUpperCase()}`, 10, yPos);
+  doc.text(`No: ${delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase()}`, 10, yPos);
   doc.text(`Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, 10, yPos + 4);
   doc.text(`Kepada: ${delivery.vendorName}`, 10, yPos + 8);
   
@@ -352,7 +353,7 @@ export function generateClaimStatementPDF(
     };
     
     return [
-      delivery.id.substring(0, 8).toUpperCase(),
+      delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase(),
       new Date(delivery.deliveryDate).toLocaleDateString('ms-MY'),
       `RM ${parseFloat(delivery.totalAmount).toFixed(2)}`,
       paymentStatusMap[delivery.paymentStatus] || 'Belum Bayar'
@@ -613,7 +614,7 @@ export function generateThermalInvoicePDF(delivery: any, businessProfile?: any) 
   // Invoice details
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`No: ${delivery.id.substring(0, 8).toUpperCase()}`, margin, yPos);
+  doc.text(`No: ${delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase()}`, margin, yPos);
   yPos += 4;
   doc.text(`Tarikh: ${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, margin, yPos);
   yPos += 4;
@@ -717,7 +718,8 @@ export function generateThermalInvoicePDF(delivery: any, businessProfile?: any) 
   doc.text('Terima kasih!', 29, yPos, { align: 'center' });
   
   // Save
-  doc.save(`thermal-${delivery.vendorName}-${delivery.id.substring(0, 8)}.pdf`);
+  const invoiceNum = delivery.invoiceNumber || delivery.id.substring(0, 8);
+  doc.save(`thermal-${delivery.vendorName}-${invoiceNum}.pdf`);
 }
 
 // 58mm Thermal Printer Format for Claim Statement
@@ -797,7 +799,8 @@ export function generateThermalClaimStatementPDF(
   deliveries.forEach((delivery: any, index: number) => {
     // Invoice number
     doc.setFont('helvetica', 'bold');
-    doc.text(`${index + 1}. ${delivery.id.substring(0, 8).toUpperCase()}`, margin, yPos);
+    const invNum = delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase();
+    doc.text(`${index + 1}. ${invNum}`, margin, yPos);
     yPos += 4;
     
     // Date and amount
