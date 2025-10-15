@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { type BusinessProfile } from "@shared/schema";
 
 interface StockItem {
   id: string;
@@ -57,7 +58,7 @@ export default function ShoppingList() {
     queryKey: ["/api/shopping-cart"],
   });
 
-  const { data: businessProfile } = useQuery({
+  const { data: businessProfile } = useQuery<BusinessProfile | null>({
     queryKey: ["/api/business-profile"],
   });
 
