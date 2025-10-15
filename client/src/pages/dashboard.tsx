@@ -343,6 +343,55 @@ export default function Dashboard() {
       {/* Interactive Chart */}
       <DashboardChart />
 
+      {/* Finished Goods Inventory */}
+      {stats && stats.totalReadyStock > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Box className="h-5 w-5 text-primary" />
+                Inventori Stok Siap
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Produk siap untuk dijual
+              </p>
+            </div>
+            <Link href="/finished-products">
+              <Button variant="outline" size="sm" data-testid="button-view-finished-products">
+                Lihat Stok Siap
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Stok Siap</p>
+                <p className="text-3xl font-bold font-mono" data-testid="stat-ready-stock">
+                  {stats.totalReadyStock}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">unit tersedia</p>
+              </div>
+              
+              {stats.expiringSoonCount > 0 && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                        {stats.expiringSoonCount} batch hampir expired
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        3 hari atau kurang
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (
         <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20" data-testid="alert-low-stock">

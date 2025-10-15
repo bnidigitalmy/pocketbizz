@@ -478,6 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productId,
         productName: product.name,
         quantity,
+        remainingQty: quantity.toString(), // Initialize with full quantity as finished goods
         batchDate,
         expiryDate: expiryDate || null,
         totalCost: (parseFloat(product.totalCostPerBatch) * quantity).toString(),
@@ -513,6 +514,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Production confirmation error:", error);
       res.status(500).json({ error: "Failed to confirm production" });
+    }
+  });
+
+  // Finished Products (Finished Goods Inventory)
+  app.get("/api/finished-products", async (req, res) => {
+    try {
+      const summary = await storage.getFinishedProductsSummary();
+      res.json(summary);
+    } catch (error) {
+      console.error("Finished products summary error:", error);
+      res.status(500).json({ error: "Failed to fetch finished products summary" });
+    }
+  });
+
+  app.get("/api/finished-products/:productId/batches", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const batches = await storage.getBatchesByProduct(productId);
+      res.json(batches);
+    } catch (error) {
+      console.error("Batches by product error:", error);
+      res.status(500).json({ error: "Failed to fetch batches" });
     }
   });
 
@@ -826,6 +849,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deliveryId: "", // Will be set in storage
       }));
       
+      // Deduct from finished goods batches using FIFO
+      for (const item of items) {
+        const deductionResult = await storage.deductFromBatches(item.productId, item.quantity);
+        if (!deductionResult.success) {
+          return res.status(400).json({ 
+            error: `Insufficient finished goods stock for ${item.productName}`,
+            details: deductionResult
+          });
+        }
+      }
+      
       const delivery = await storage.createDelivery(deliveryData, deliveryItems);
       res.json(delivery);
     } catch (error) {
@@ -894,6 +928,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sales", async (req, res) => {
     try {
       const data = insertSaleSchema.parse(req.body);
+      
+      // Deduct from finished goods batches using FIFO if productId is provided
+      if (data.productId && data.quantity) {
+        const deductionResult = await storage.deductFromBatches(data.productId, data.quantity);
+        if (!deductionResult.success) {
+          return res.status(400).json({ 
+            error: `Insufficient finished goods stock for ${data.productName}`,
+            details: deductionResult
+          });
+        }
+      }
+      
       const sale = await storage.createSale(data);
       res.json(sale);
     } catch (error) {

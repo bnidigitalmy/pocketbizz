@@ -64,6 +64,11 @@ export interface IStorage {
   getProductionBatches(): Promise<ProductionBatch[]>;
   createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch>;
   
+  // Finished Products (Finished Goods Inventory)
+  getFinishedProductsSummary(): Promise<any[]>;
+  getBatchesByProduct(productId: string): Promise<any[]>;
+  deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }>;
+  
   // Vendors
   getVendors(): Promise<Vendor[]>;
   getVendor(id: string): Promise<Vendor | undefined>;
@@ -205,6 +210,112 @@ export class DatabaseStorage implements IStorage {
   async createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch> {
     const [newBatch] = await db.insert(productionBatches).values(batch).returning();
     return newBatch;
+  }
+
+  // Finished Products (Finished Goods Inventory)
+  async getFinishedProductsSummary(): Promise<any[]> {
+    // Aggregate batches by product, sum remaining quantities, get nearest expiry
+    const summary = await db
+      .select({
+        productId: productionBatches.productId,
+        productName: productionBatches.productName,
+        totalRemaining: sql<string>`COALESCE(SUM(${productionBatches.remainingQty}), 0)`,
+        nearestExpiry: sql<string>`MIN(${productionBatches.expiryDate})`,
+        batchCount: sql<string>`COUNT(*)`,
+      })
+      .from(productionBatches)
+      .where(sql`${productionBatches.remainingQty} > 0`)
+      .groupBy(productionBatches.productId, productionBatches.productName);
+    
+    return summary;
+  }
+
+  async getBatchesByProduct(productId: string): Promise<any[]> {
+    // Get all batches for a product with expiry status
+    // Order by: non-null expiry dates first (ascending), then null expiry, then by creation date for deterministic ordering
+    const batches = await db
+      .select()
+      .from(productionBatches)
+      .where(
+        and(
+          eq(productionBatches.productId, productId),
+          sql`${productionBatches.remainingQty} > 0`
+        )
+      )
+      .orderBy(
+        sql`CASE WHEN ${productionBatches.expiryDate} IS NULL THEN 1 ELSE 0 END`,
+        productionBatches.expiryDate,
+        productionBatches.createdAt
+      ); // FIFO: earliest expiry first, nulls last, then by creation date
+    
+    return batches;
+  }
+
+  async deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }> {
+    // FIFO deduction with transaction and locking to prevent race conditions and data loss
+    return await db.transaction(async (tx) => {
+      // Step 1: Lock and get batches ordered by FIFO
+      const batches = await tx
+        .select()
+        .from(productionBatches)
+        .where(
+          and(
+            eq(productionBatches.productId, productId),
+            sql`${productionBatches.remainingQty} > 0`
+          )
+        )
+        .orderBy(
+          sql`CASE WHEN ${productionBatches.expiryDate} IS NULL THEN 1 ELSE 0 END`,
+          productionBatches.expiryDate,
+          productionBatches.createdAt
+        )
+        .for('update'); // Row-level lock to prevent concurrent modifications
+      
+      // Step 2: Check total availability before any mutation
+      const totalAvailable = batches.reduce((sum, batch) => sum + parseFloat(batch.remainingQty), 0);
+      
+      if (totalAvailable < quantity) {
+        // Insufficient stock - rollback transaction (automatic on throw)
+        return {
+          success: false,
+          deductions: [],
+        };
+      }
+      
+      // Step 3: Perform FIFO deduction
+      let remainingToDeduct = quantity;
+      const deductions: any[] = [];
+      
+      for (const batch of batches) {
+        if (remainingToDeduct <= 0) break;
+        
+        const batchRemaining = parseFloat(batch.remainingQty);
+        const deductAmount = Math.min(remainingToDeduct, batchRemaining);
+        const newRemaining = batchRemaining - deductAmount;
+        
+        // Update batch remaining quantity within transaction
+        await tx
+          .update(productionBatches)
+          .set({ remainingQty: newRemaining.toString() })
+          .where(eq(productionBatches.id, batch.id));
+        
+        deductions.push({
+          batchId: batch.id,
+          batchDate: batch.batchDate,
+          expiryDate: batch.expiryDate,
+          deductedQty: deductAmount,
+          remainingAfter: newRemaining,
+        });
+        
+        remainingToDeduct -= deductAmount;
+      }
+      
+      // Transaction commits automatically if we return successfully
+      return {
+        success: true,
+        deductions,
+      };
+    });
   }
 
   // Vendors
@@ -400,6 +511,26 @@ export class DatabaseStorage implements IStorage {
     const soldQty = todaySalesQty[0]?.total || 0;
     const balanceQty = productionQty - deliveredQty;
 
+    // Finished Goods Inventory Metrics
+    const totalReadyStock = await db.select({
+      total: sql<string>`COALESCE(SUM(${productionBatches.remainingQty}), 0)`,
+    })
+      .from(productionBatches)
+      .where(sql`${productionBatches.remainingQty} > 0`);
+
+    const expiringSoon = await db.select({
+      count: sql<number>`COUNT(*)`,
+    })
+      .from(productionBatches)
+      .where(
+        and(
+          sql`${productionBatches.remainingQty} > 0`,
+          sql`${productionBatches.expiryDate} IS NOT NULL`,
+          sql`${productionBatches.expiryDate} <= CURRENT_DATE + INTERVAL '3 days'`,
+          sql`${productionBatches.expiryDate} >= CURRENT_DATE`
+        )
+      );
+
     return {
       todayProduction: productionQty,
       todaySales: todaySalesValue.toFixed(2),
@@ -415,6 +546,9 @@ export class DatabaseStorage implements IStorage {
       todayDeliveredQty: deliveredQty,
       todaySoldQty: soldQty,
       todayBalanceQty: balanceQty,
+      // Finished Goods Inventory
+      totalReadyStock: parseFloat(totalReadyStock[0]?.total || "0"),
+      expiringSoonCount: expiringSoon[0]?.count || 0,
       alerts: [],
     };
   }

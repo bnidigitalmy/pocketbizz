@@ -16,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Production from "@/pages/production";
+import FinishedProducts from "@/pages/finished-products";
 import Stock from "@/pages/stock";
 import ShoppingList from "@/pages/shopping-list";
 import Vendors from "@/pages/vendors";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/products" component={Products} />
       <Route path="/production" component={Production} />
+      <Route path="/finished-products" component={FinishedProducts} />
       <Route path="/stock" component={Stock} />
       <Route path="/shopping-list" component={ShoppingList} />
       <Route path="/vendors" component={Vendors} />

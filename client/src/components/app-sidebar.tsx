@@ -3,6 +3,7 @@ import {
   Cake,
   ChefHat,
   Package,
+  Box,
   ShoppingCart,
   Truck,
   DollarSign,
@@ -42,6 +43,11 @@ const menuItems = [
     title: "Produksi",
     url: "/production",
     icon: ChefHat,
+  },
+  {
+    title: "Stok Siap",
+    url: "/finished-products",
+    icon: Box,
   },
   {
     title: "Stok Gudang",

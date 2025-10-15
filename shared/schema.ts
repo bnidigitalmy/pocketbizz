@@ -126,6 +126,7 @@ export const productionBatches = pgTable("production_batches", {
   productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
+  remainingQty: decimal("remaining_qty", { precision: 10, scale: 2 }).notNull().default("0"), // Tracks remaining finished goods in this batch
   batchDate: date("batch_date").notNull(),
   expiryDate: date("expiry_date"),
   totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
