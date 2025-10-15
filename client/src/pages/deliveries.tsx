@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer, Edit } from "lucide-react";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer, Edit, Filter, X } from "lucide-react";
 import { generateInvoicePDF, generateMiniInvoicePDF, generateThermalInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -59,6 +59,11 @@ export default function Deliveries() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<any>(null);
   const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+  const [filterVendor, setFilterVendor] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
   const { toast } = useToast();
 
   const { data: deliveries, isLoading } = useQuery({
@@ -149,6 +154,33 @@ export default function Deliveries() {
       });
     },
   });
+
+  // Filter deliveries based on selected filters
+  const filteredDeliveries = useMemo(() => {
+    if (!deliveries) return [];
+    
+    return deliveries.filter((delivery: any) => {
+      // Filter by vendor
+      if (filterVendor !== "all" && delivery.vendorId !== filterVendor) {
+        return false;
+      }
+      
+      // Filter by status
+      if (filterStatus !== "all" && delivery.status !== filterStatus) {
+        return false;
+      }
+      
+      // Filter by date range
+      if (filterDateFrom && delivery.deliveryDate < filterDateFrom) {
+        return false;
+      }
+      if (filterDateTo && delivery.deliveryDate > filterDateTo) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [deliveries, filterVendor, filterStatus, filterDateFrom, filterDateTo]);
 
   const handleVendorChange = (vendorId: string) => {
     const vendor = vendors?.find((v: any) => v.id === vendorId);
@@ -552,6 +584,99 @@ export default function Deliveries() {
         </div>
       </div>
 
+      {/* Filters */}
+      {deliveries && deliveries.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              data-testid="button-toggle-filters"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? "Sembunyikan" : "Tapis"}
+            </Button>
+            {(filterVendor !== "all" || filterStatus !== "all" || filterDateFrom || filterDateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterVendor("all");
+                  setFilterStatus("all");
+                  setFilterDateFrom("");
+                  setFilterDateTo("");
+                }}
+                data-testid="button-clear-filters"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Reset
+              </Button>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {filteredDeliveries.length} daripada {deliveries.length} penghantaran
+            </span>
+          </div>
+
+          {showFilters && (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor</label>
+                <Select value={filterVendor} onValueChange={setFilterVendor}>
+                  <SelectTrigger data-testid="select-filter-vendor">
+                    <SelectValue placeholder="Semua vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Vendor</SelectItem>
+                    {vendors?.map((vendor: any) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger data-testid="select-filter-status">
+                    <SelectValue placeholder="Semua status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="delivered">Dihantar</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="claimed">Dibayar</SelectItem>
+                    <SelectItem value="rejected">Ditolak</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Dari Tarikh</label>
+                <Input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  data-testid="input-filter-date-from"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Hingga Tarikh</label>
+                <Input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  data-testid="input-filter-date-to"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {!deliveries || deliveries.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -562,9 +687,29 @@ export default function Deliveries() {
             <p className="text-sm text-muted-foreground mb-4">Rekod penghantaran pertama anda</p>
           </CardContent>
         </Card>
+      ) : filteredDeliveries.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Filter className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="font-medium mb-1">Tiada Penghantaran Ditemui</h3>
+            <p className="text-sm text-muted-foreground mb-4">Cuba reset penapis untuk melihat semua</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFilterVendor("all");
+                setFilterStatus("all");
+              }}
+            >
+              Reset Penapis
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
-          {deliveries.map((delivery: any) => (
+          {filteredDeliveries.map((delivery: any) => (
             <Card key={delivery.id} className="hover-elevate" data-testid={`delivery-card-${delivery.id}`}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">

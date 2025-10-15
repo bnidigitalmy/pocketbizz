@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X } from "lucide-react";
 import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
 
 interface ClaimSummary {
@@ -47,6 +47,9 @@ export default function Claims() {
   const { toast } = useToast();
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'summary' | 'individual'>('summary');
+  const [filterVendor, setFilterVendor] = useState<string>("all");
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: claims, isLoading: claimsLoading } = useQuery<ClaimSummary[]>({
     queryKey: ["/api/claims"],
@@ -85,6 +88,29 @@ export default function Claims() {
       });
     },
   });
+
+  // Filter claims based on selected filters
+  const filteredClaims = useMemo(() => {
+    if (!claims) return [];
+    
+    return claims.filter((claim: ClaimSummary) => {
+      // Filter by vendor name
+      if (filterVendor !== "all" && claim.vendorId !== filterVendor) {
+        return false;
+      }
+      
+      // Filter by payment status (check if vendor has deliveries with that payment status)
+      if (filterPaymentStatus !== "all") {
+        const vendorDeliveries = deliveries?.filter(d => d.vendorId === claim.vendorId) || [];
+        const hasMatchingStatus = vendorDeliveries.some(d => d.paymentStatus === filterPaymentStatus);
+        if (!hasMatchingStatus) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [claims, deliveries, filterVendor, filterPaymentStatus]);
 
   const handlePaymentStatusChange = (deliveryId: string, newStatus: string) => {
     updatePaymentMutation.mutate({ id: deliveryId, paymentStatus: newStatus });
@@ -235,9 +261,79 @@ export default function Claims() {
         </p>
       </div>
 
+      {/* Filters */}
+      {claims && claims.length > 0 && (
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              data-testid="button-toggle-filters-claims"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? "Sembunyikan" : "Tapis"}
+            </Button>
+            {(filterVendor !== "all" || filterPaymentStatus !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterVendor("all");
+                  setFilterPaymentStatus("all");
+                }}
+                data-testid="button-clear-filters-claims"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Reset
+              </Button>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {filteredClaims.length} daripada {claims.length} vendor
+            </span>
+          </div>
+
+          {showFilters && (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor</label>
+                <Select value={filterVendor} onValueChange={setFilterVendor}>
+                  <SelectTrigger data-testid="select-filter-vendor-claims">
+                    <SelectValue placeholder="Semua vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Vendor</SelectItem>
+                    {claims.map((claim: ClaimSummary) => (
+                      <SelectItem key={claim.vendorId} value={claim.vendorId}>
+                        {claim.vendorName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Status Bayaran</label>
+                <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                  <SelectTrigger data-testid="select-filter-payment-claims">
+                    <SelectValue placeholder="Semua status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="pending">Belum Bayar</SelectItem>
+                    <SelectItem value="partial">Bayar Separa</SelectItem>
+                    <SelectItem value="settled">Selesai</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Vendor Claims Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {claims?.map((claim) => (
+        {filteredClaims.map((claim) => (
           <Card key={claim.vendorId} className="hover-elevate" data-testid={`card-claim-${claim.vendorId}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">

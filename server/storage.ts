@@ -770,10 +770,16 @@ export class DatabaseStorage implements IStorage {
     })
       .from(deliveries);
 
-    // Calculate detailed claims for each vendor
+    // Calculate detailed claims for each vendor with latest delivery date
     const claimsSummary = await Promise.all(
       uniqueVendors.map(async (vendor) => {
         const details = await this.getClaimDetailsByVendor(vendor.vendorId);
+        
+        // Get latest delivery date for this vendor
+        const latestDelivery = details.deliveries && details.deliveries.length > 0 
+          ? new Date(details.deliveries[0].deliveryDate).getTime() 
+          : 0;
+        
         return {
           vendorId: vendor.vendorId,
           vendorName: vendor.vendorName,
@@ -782,12 +788,13 @@ export class DatabaseStorage implements IStorage {
           pendingAmount: details.pendingAmount,
           settledAmount: details.settledAmount,
           partialAmount: details.partialAmount,
+          latestDeliveryDate: latestDelivery,
         };
       })
     );
 
-    // Sort by total amount descending
-    return claimsSummary.sort((a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount));
+    // Sort by latest delivery date descending (most recent first)
+    return claimsSummary.sort((a, b) => b.latestDeliveryDate - a.latestDeliveryDate);
   }
 
   async getClaimDetailsByVendor(vendorId: string): Promise<any> {

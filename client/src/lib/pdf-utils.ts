@@ -126,7 +126,7 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   
   autoTable(doc, {
     startY: yPos,
-    head: [['Produk', 'Qty', 'RP', 'Harga', 'Jumlah', 'Tolakan']],
+    head: [['Produk', 'Qty', 'Harga Jualan', 'Harga', 'Jumlah', 'Tolakan']],
     body: tableData,
     theme: 'grid',
     headStyles: { 
@@ -222,7 +222,7 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
   doc.text('Terima kasih atas perniagaan anda!', 20, yPos);
-  doc.text('Sila buat pembayaran dalam tempoh 7 hari dari tarikh invois ini.', 20, yPos + 5);
+  doc.text('Nota: Tuntutan tertakluk kepada jualan sebenar dan keadaan produk.', 20, yPos + 5);
   
   // Save
   const invoiceNum = delivery.invoiceNumber || delivery.id.substring(0, 8);
