@@ -14,6 +14,7 @@ import {
   stockItems,
   recipeItems,
   categories,
+  shoppingCart,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -42,9 +43,11 @@ import {
   type InsertRecipeItem,
   type Category,
   type InsertCategory,
+  type ShoppingCart,
+  type InsertShoppingCart,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Products
@@ -132,6 +135,13 @@ export interface IStorage {
   getRecipeItems(productId: string): Promise<RecipeItem[]>;
   createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem>;
   deleteRecipeItems(productId: string): Promise<void>;
+  
+  // Shopping Cart
+  addToShoppingCart(item: InsertShoppingCart): Promise<ShoppingCart>;
+  getShoppingCartItems(): Promise<ShoppingCart[]>;
+  removeFromCart(id: string): Promise<void>;
+  clearCart(): Promise<void>;
+  bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -904,6 +914,59 @@ export class DatabaseStorage implements IStorage {
   
   async deleteRecipeItems(productId: string): Promise<void> {
     await db.delete(recipeItems).where(eq(recipeItems.productId, productId));
+  }
+  
+  // Shopping Cart
+  async addToShoppingCart(item: InsertShoppingCart): Promise<ShoppingCart> {
+    const result = await db.insert(shoppingCart).values(item).returning();
+    return result[0];
+  }
+  
+  async getShoppingCartItems(): Promise<ShoppingCart[]> {
+    return await db.select().from(shoppingCart).orderBy(desc(shoppingCart.createdAt));
+  }
+  
+  async removeFromCart(id: string): Promise<void> {
+    await db.delete(shoppingCart).where(eq(shoppingCart.id, id));
+  }
+  
+  async clearCart(): Promise<void> {
+    await db.delete(shoppingCart);
+  }
+  
+  async bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void> {
+    // Start transaction
+    await db.transaction(async (tx) => {
+      // Get all cart items using inArray
+      const items = await tx.select().from(shoppingCart).where(
+        inArray(shoppingCart.id, cartItemIds)
+      );
+      
+      // Update stock for each item
+      for (const item of items) {
+        const stockItem = await tx.select().from(stockItems).where(
+          eq(stockItems.id, item.stockItemId)
+        ).limit(1);
+        
+        if (stockItem.length > 0) {
+          const currentQty = parseFloat(stockItem[0].currentQuantity);
+          const shortage = parseFloat(item.shortageQty);
+          const newQty = currentQty + shortage;
+          
+          await tx.update(stockItems)
+            .set({ 
+              currentQuantity: newQty.toString(),
+              updatedAt: new Date()
+            })
+            .where(eq(stockItems.id, item.stockItemId));
+        }
+      }
+      
+      // Remove purchased items from cart using inArray
+      await tx.delete(shoppingCart).where(
+        inArray(shoppingCart.id, cartItemIds)
+      );
+    });
   }
 }
 

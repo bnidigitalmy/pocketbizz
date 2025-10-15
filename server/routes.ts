@@ -1146,6 +1146,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Shopping Cart Routes
+  app.post("/api/shopping-cart", async (req, res) => {
+    try {
+      const { insertShoppingCartSchema } = await import("@shared/schema");
+      const data = insertShoppingCartSchema.parse(req.body);
+      const item = await storage.addToShoppingCart(data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid shopping cart data", message: error.message });
+    }
+  });
+
+  app.get("/api/shopping-cart", async (req, res) => {
+    try {
+      const items = await storage.getShoppingCartItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch shopping cart items" });
+    }
+  });
+
+  app.delete("/api/shopping-cart/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.removeFromCart(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove item from cart" });
+    }
+  });
+
+  app.delete("/api/shopping-cart", async (req, res) => {
+    try {
+      await storage.clearCart();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear cart" });
+    }
+  });
+
+  app.post("/api/shopping-cart/purchase", async (req, res) => {
+    try {
+      const { cartItemIds } = req.body;
+      
+      if (!Array.isArray(cartItemIds) || cartItemIds.length === 0) {
+        return res.status(400).json({ error: "Cart item IDs are required" });
+      }
+      
+      await storage.bulkPurchaseAndUpdateStock(cartItemIds);
+      res.json({ success: true, message: "Stock updated and cart items removed" });
+    } catch (error: any) {
+      console.error("Bulk purchase error:", error);
+      res.status(500).json({ error: "Failed to complete purchase", message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

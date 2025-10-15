@@ -166,19 +166,58 @@ export default function Production() {
     previewMutation.mutate();
   };
 
+  const addToCartMutation = useMutation({
+    mutationFn: async (items: any[]) => {
+      // Add each item to shopping cart
+      for (const item of items) {
+        const response = await fetch("/api/shopping-cart", {
+          method: "POST",
+          body: JSON.stringify({
+            stockItemId: item.stockItemId,
+            stockItemName: item.stockItemName,
+            shortageQty: item.shortage.toString(),
+            unit: item.stockUnit,
+            productionBatchId: null, // Will be set after production batch is created
+            productName: productionPlan?.product?.name || null,
+            notes: `Untuk produksi ${productionPlan?.product?.name}`,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to add item to cart");
+        }
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Berjaya!",
+        description: "Item telah ditambah ke senarai belian",
+      });
+      // Navigate to shopping list
+      setDialogOpen(false);
+      setLocation("/stock?tab=shopping");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error.message || "Gagal menambah ke senarai belian",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddToShoppingList = () => {
     if (!productionPlan) return;
     
     const insufficientItems = productionPlan.materialsNeeded.filter(m => !m.isSufficient);
     
-    toast({
-      title: "Menambah ke Senarai Belian",
-      description: `${insufficientItems.length} bahan akan ditambah`,
-    });
+    if (insufficientItems.length === 0) return;
     
-    // Navigate to stock page (shopping list tab)
-    setDialogOpen(false);
-    setLocation("/stock?tab=shopping");
+    addToCartMutation.mutate(insufficientItems);
   };
 
   const handleConfirm = () => {

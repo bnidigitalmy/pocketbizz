@@ -236,6 +236,19 @@ export const vendorCommissions = pgTable("vendor_commissions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Shopping Cart Table (items to purchase with production context)
+export const shoppingCart = pgTable("shopping_cart", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stockItemId: varchar("stock_item_id").notNull().references(() => stockItems.id, { onDelete: "cascade" }),
+  stockItemName: text("stock_item_name").notNull(), // Denormalized for easy display
+  shortageQty: decimal("shortage_qty", { precision: 10, scale: 2 }).notNull(), // Exact shortage quantity
+  unit: text("unit").notNull(), // Unit of measurement
+  productionBatchId: varchar("production_batch_id").references(() => productionBatches.id, { onDelete: "set null" }), // Optional: link to production batch
+  productName: text("product_name"), // Optional: product name if related to production
+  notes: text("notes"), // Optional notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const stockItemsRelations = relations(stockItems, ({ many }) => ({
   recipeItems: many(recipeItems),
@@ -282,6 +295,17 @@ export const vendorCommissionsRelations = relations(vendorCommissions, ({ one })
   vendor: one(vendors, {
     fields: [vendorCommissions.vendorId],
     references: [vendors.id],
+  }),
+}));
+
+export const shoppingCartRelations = relations(shoppingCart, ({ one }) => ({
+  stockItem: one(stockItems, {
+    fields: [shoppingCart.stockItemId],
+    references: [stockItems.id],
+  }),
+  productionBatch: one(productionBatches, {
+    fields: [shoppingCart.productionBatchId],
+    references: [productionBatches.id],
   }),
 }));
 
@@ -387,6 +411,11 @@ export const insertVendorCommissionSchema = createInsertSchema(vendorCommissions
   updatedAt: true,
 });
 
+export const insertShoppingCartSchema = createInsertSchema(shoppingCart).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type StockItem = typeof stockItems.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
@@ -429,3 +458,6 @@ export type InsertGoogleDriveSyncLog = z.infer<typeof insertGoogleDriveSyncLogSc
 
 export type VendorCommission = typeof vendorCommissions.$inferSelect;
 export type InsertVendorCommission = z.infer<typeof insertVendorCommissionSchema>;
+
+export type ShoppingCart = typeof shoppingCart.$inferSelect;
+export type InsertShoppingCart = z.infer<typeof insertShoppingCartSchema>;

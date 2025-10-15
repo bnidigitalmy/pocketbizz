@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, AlertTriangle, CheckCircle2, Printer, ShoppingCart, Share2 } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle2, Printer, ShoppingCart, Share2, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 interface StockItem {
   id: string;
@@ -17,8 +18,21 @@ interface StockItem {
   notes: string | null;
 }
 
+interface CartItem {
+  id: string;
+  stockItemId: string;
+  stockItemName: string;
+  shortageQty: string;
+  unit: string;
+  productionBatchId: string | null;
+  productName: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 export default function ShoppingList() {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [checkedCartItems, setCheckedCartItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const { data: lowStockItems = [], isLoading } = useQuery<StockItem[]>({
@@ -27,6 +41,10 @@ export default function ShoppingList() {
 
   const { data: allStockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock"],
+  });
+  
+  const { data: cartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
+    queryKey: ["/api/shopping-cart"],
   });
 
   // Find out of stock items (quantity = 0 or negative)
@@ -48,13 +66,65 @@ export default function ShoppingList() {
     }
     setCheckedItems(newChecked);
   };
+  
+  const handleToggleCartItem = (itemId: string) => {
+    const newChecked = new Set(checkedCartItems);
+    if (newChecked.has(itemId)) {
+      newChecked.delete(itemId);
+    } else {
+      newChecked.add(itemId);
+    }
+    setCheckedCartItems(newChecked);
+  };
+  
+  const handleSelectAllCart = () => {
+    if (checkedCartItems.size === cartItems.length) {
+      setCheckedCartItems(new Set());
+    } else {
+      setCheckedCartItems(new Set(cartItems.map(item => item.id)));
+    }
+  };
+  
+  const bulkPurchaseMutation = useMutation({
+    mutationFn: async () => {
+      const cartItemIds = Array.from(checkedCartItems);
+      const response = await fetch("/api/shopping-cart/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartItemIds }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to complete purchase");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Berjaya!",
+        description: "Stok telah dikemaskini dan item dikeluarkan dari senarai",
+      });
+      setCheckedCartItems(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/shopping-cart"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stock"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error.message || "Gagal mengemaskini stok",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleShareWhatsApp = () => {
-    if (allItemsToBuy.length === 0) {
+    if (allItemsToBuy.length === 0 && cartItems.length === 0) {
       toast({
         title: "Tiada item untuk dikongsi",
         description: "Senarai belian kosong",
@@ -67,27 +137,50 @@ export default function ShoppingList() {
     let message = "📋 *SENARAI BELIAN STOK*\n";
     message += `📅 ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
     
-    allItemsToBuy.forEach((item, index) => {
-      const currentQty = parseFloat(item.currentQuantity);
-      const threshold = parseFloat(item.lowStockThreshold);
-      const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
-      const isOutOfStock = currentQty <= 0;
-      
-      message += `${index + 1}. ${isOutOfStock ? '🔴 ' : '⚠️ '}*${item.name}*\n`;
-      message += `   • Stok: ${currentQty.toFixed(1)} ${item.unit}\n`;
-      message += `   • Beli: ${qtyNeeded.toFixed(1)} ${item.unit}\n`;
-      message += `   • Harga: RM ${item.purchasePrice}/${item.unit}\n`;
-      if (item.notes) {
-        message += `   • Nota: ${item.notes}\n`;
-      }
+    // Cart items (production shortages) - show first with production context
+    if (cartItems.length > 0) {
+      message += "🎯 *KEPERLUAN PRODUKSI*\n";
+      cartItems.forEach((item, index) => {
+        const shortage = parseFloat(item.shortageQty);
+        message += `${index + 1}. 🔴 *${item.stockItemName}*\n`;
+        message += `   • Kurang: ${shortage.toFixed(1)} ${item.unit}\n`;
+        if (item.productName) {
+          message += `   • Untuk: ${item.productName}\n`;
+        }
+        if (item.notes) {
+          message += `   • Nota: ${item.notes}\n`;
+        }
+        message += `\n`;
+      });
       message += `\n`;
-    });
+    }
     
-    message += `💰 *JUMLAH ANGGARAN: RM ${totalEstimatedCost.toFixed(2)}*\n\n`;
+    // General low stock items
+    if (allItemsToBuy.length > 0) {
+      message += "📦 *STOK RENDAH/HABIS*\n";
+      allItemsToBuy.forEach((item, index) => {
+        const currentQty = parseFloat(item.currentQuantity);
+        const threshold = parseFloat(item.lowStockThreshold);
+        const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
+        const isOutOfStock = currentQty <= 0;
+        
+        message += `${index + 1}. ${isOutOfStock ? '🔴 ' : '⚠️ '}*${item.name}*\n`;
+        message += `   • Stok: ${currentQty.toFixed(1)} ${item.unit}\n`;
+        message += `   • Beli: ${qtyNeeded.toFixed(1)} ${item.unit}\n`;
+        message += `   • Harga: RM ${item.purchasePrice}/${item.unit}\n`;
+        if (item.notes) {
+          message += `   • Nota: ${item.notes}\n`;
+        }
+        message += `\n`;
+      });
+    }
+    
+    message += `\n💰 *JUMLAH ANGGARAN: RM ${totalEstimatedCost.toFixed(2)}*\n\n`;
     message += `📊 Ringkasan:\n`;
+    message += `• Produksi: ${cartItems.length} item\n`;
     message += `• Habis stok: ${outOfStockItems.length} item\n`;
     message += `• Stok rendah: ${lowStockItems.length} item\n`;
-    message += `• Jumlah item: ${allItemsToBuy.length} item`;
+    message += `• Jumlah: ${cartItems.length + allItemsToBuy.length} item`;
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -201,6 +294,86 @@ export default function ShoppingList() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Production Shopping Cart */}
+      {cartItems.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-blue-600" />
+                  Keperluan Produksi
+                </CardTitle>
+                <CardDescription>
+                  Item yang kurang untuk produksi. Pilih dan sahkan bila dah beli!
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllCart}
+                  data-testid="button-select-all-cart"
+                >
+                  {checkedCartItems.size === cartItems.length ? "Deselect All" : "Select All"}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => bulkPurchaseMutation.mutate()}
+                  disabled={checkedCartItems.size === 0 || bulkPurchaseMutation.isPending}
+                  data-testid="button-mark-purchased"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {bulkPurchaseMutation.isPending ? "Mengemaskini..." : `Sahkan Pembelian (${checkedCartItems.size})`}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {cartItems.map((item) => {
+                const shortage = parseFloat(item.shortageQty);
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-3 p-4 rounded-lg border ${
+                      checkedCartItems.has(item.id)
+                        ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300'
+                        : 'bg-white dark:bg-card'
+                    }`}
+                    data-testid={`cart-item-${item.id}`}
+                  >
+                    <Checkbox
+                      checked={checkedCartItems.has(item.id)}
+                      onCheckedChange={() => handleToggleCartItem(item.id)}
+                      data-testid={`checkbox-cart-${item.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold">{item.stockItemName}</h4>
+                        {item.productName && (
+                          <Badge variant="outline" className="text-xs">
+                            {item.productName}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                        <div>Kurang: <span className="font-mono font-semibold text-destructive">{shortage.toFixed(1)} {item.unit}</span></div>
+                        {item.notes && <div className="text-xs italic">{item.notes}</div>}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Shopping List */}
       <Card>
