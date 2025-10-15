@@ -57,6 +57,10 @@ export default function ShoppingList() {
     queryKey: ["/api/shopping-cart"],
   });
 
+  const { data: businessProfile } = useQuery({
+    queryKey: ["/api/business-profile"],
+  });
+
   // Find out of stock items (quantity = 0 or negative)
   const outOfStockItems = allStockItems.filter(item => parseFloat(item.currentQuantity) <= 0);
 
@@ -212,7 +216,18 @@ export default function ShoppingList() {
     }
 
     // Format message for WhatsApp - Unified list with tags
-    let message = "📋 *SENARAI BELIAN STOK*\n";
+    let message = "";
+    
+    // Add business header if available
+    if (businessProfile) {
+      message += `*${businessProfile.businessName}*\n`;
+      if (businessProfile.address) message += `${businessProfile.address}\n`;
+      if (businessProfile.phone) message += `📞 ${businessProfile.phone}\n`;
+      if (businessProfile.email) message += `📧 ${businessProfile.email}\n`;
+      message += `\n${"=".repeat(30)}\n\n`;
+    }
+    
+    message += "📋 *PESANAN PEMBELIAN STOK*\n";
     message += `📅 ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
     
     unifiedItems.forEach((item, index) => {
@@ -233,7 +248,8 @@ export default function ShoppingList() {
     });
     
     const totalCost = unifiedItems.reduce((sum, item) => sum + (item.estimatedCost || 0), 0);
-    message += `\n💰 *JUMLAH ANGGARAN: RM ${totalCost.toFixed(2)}*\n`;
+    message += `\n${"=".repeat(30)}\n`;
+    message += `💰 *JUMLAH ANGGARAN: RM ${totalCost.toFixed(2)}*\n`;
     message += `📊 *JUMLAH ITEM: ${unifiedItems.length}*`;
 
     // Encode message for URL
@@ -295,7 +311,22 @@ export default function ShoppingList() {
 
       {/* Print Header - Only visible when printing */}
       <div className="hidden print:block mb-6">
-        <h1 className="text-3xl font-bold mb-2">📋 Senarai Belian Stok</h1>
+        {businessProfile && (
+          <div className="mb-6 pb-4 border-b-2 border-dashed">
+            <h2 className="text-2xl font-bold">{businessProfile.businessName}</h2>
+            {businessProfile.registrationNumber && (
+              <p className="text-sm text-muted-foreground">No. Pendaftaran: {businessProfile.registrationNumber}</p>
+            )}
+            {businessProfile.address && (
+              <p className="text-sm">{businessProfile.address}</p>
+            )}
+            <div className="flex gap-4 mt-1">
+              {businessProfile.phone && <p className="text-sm">Tel: {businessProfile.phone}</p>}
+              {businessProfile.email && <p className="text-sm">Email: {businessProfile.email}</p>}
+            </div>
+          </div>
+        )}
+        <h1 className="text-3xl font-bold mb-2">📋 PESANAN PEMBELIAN STOK</h1>
         <p className="text-sm text-muted-foreground">
           Tarikh: {new Date().toLocaleDateString('ms-MY', { 
             weekday: 'long', 
@@ -348,6 +379,25 @@ export default function ShoppingList() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Info Reminder */}
+      {unifiedItems.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 print:hidden">
+          <div className="flex gap-3">
+            <div className="flex-shrink-0">
+              <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                💡 Arahan Penggunaan
+              </h3>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>PENTING:</strong> Klik butang <strong>WhatsApp</strong> atau <strong>Cetak</strong> dahulu untuk hantar ke pekerja/supplier. Lepas sahkan pembelian, senarai akan dikosongkan.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Unified Shopping List */}
       <Card>
