@@ -551,24 +551,62 @@ export default function Claims() {
                       <CardContent className="pt-0">
                         <div className="space-y-2">
                           {delivery.items?.map((item: any, itemIdx: number) => (
-                            <div key={itemIdx} className="flex justify-between p-2 bg-muted/50 rounded">
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">{item.productName}</div>
-                                {item.rejectedQuantity > 0 && (
-                                  <div className="text-xs text-orange-600 dark:text-orange-400">
-                                    Tolak: {item.rejectedQuantity} unit
-                                    {item.rejectionReason && ` (${item.rejectionReason})`}
+                            <div key={itemIdx} className="p-3 bg-muted/50 rounded border">
+                              {/* Product Header */}
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1">
+                                  <div className="font-medium">{item.productName}</div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">
+                                    {item.quantity}x @ RM {parseFloat(item.unitPrice).toFixed(2)}
                                   </div>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-mono">
-                                  {item.quantity}x @ RM {parseFloat(item.unitPrice).toFixed(2)}
-                                </div>
-                                <div className="text-sm font-semibold font-mono">
-                                  RM {parseFloat(item.totalPrice).toFixed(2)}
                                 </div>
                               </div>
+
+                              {/* Commission Breakdown */}
+                              {item.itemGross && (
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Jumlah Kasar:</span>
+                                    <span className="font-mono">RM {item.itemGross}</span>
+                                  </div>
+                                  
+                                  {parseFloat(item.itemRejected || '0') > 0 && (
+                                    <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                                      <span>Tolakan ({item.rejectedQty || item.rejectedQuantity} unit):</span>
+                                      <span className="font-mono">- RM {item.itemRejected}</span>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Jumlah Bersih:</span>
+                                    <span className="font-mono">RM {item.itemNet}</span>
+                                  </div>
+                                  
+                                  {parseFloat(item.itemCommission || '0') > 0 && (
+                                    <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                                      <span>Komisyen:</span>
+                                      <span className="font-mono">- RM {item.itemCommission}</span>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-between pt-1 border-t mt-1">
+                                    <span className="font-semibold">Boleh Dituntut:</span>
+                                    <span className="font-mono font-semibold text-primary">
+                                      RM {item.itemClaimable || item.totalPrice}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Fallback for items without commission data */}
+                              {!item.itemGross && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-semibold">Jumlah:</span>
+                                  <span className="font-mono font-semibold">
+                                    RM {parseFloat(item.totalPrice).toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
