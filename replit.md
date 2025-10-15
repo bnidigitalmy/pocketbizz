@@ -23,6 +23,7 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - **Quick Actions FAB**: Floating action button with expandable actions for mobile-first navigation (Dashboard)
     - **Enhanced Toasts**: Rich toast notifications with icons, undo actions, and custom action buttons
     - **Interactive Dashboard Charts**: Recharts area chart with time range selector (7d/30d/90d/6m), trend indicators with percentage deltas, dual-area visualization for sales and profit tracking
+    - **Production Flow Visualization**: Real-time dashboard card showing Production → Delivered → Sold flow with visual indicators, balance tracking (production - delivered), and alerts when deliveries exceed daily production
     - **Optimized Theme**: Sophisticated warm-neutral palette (hues 28-42) with rich chocolate browns, warm gold accents (42°), and full cohesion across light/dark modes
 
 ### Technical Implementations
