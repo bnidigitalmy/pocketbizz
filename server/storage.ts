@@ -797,7 +797,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(deliveries.vendorId, vendorId))
       .orderBy(desc(deliveries.deliveryDate));
 
-    // Get items for each delivery with detailed calculation
+    // Get items for each delivery with detailed per-item calculation
     const deliveriesWithItems = await Promise.all(
       vendorDeliveries.map(async (delivery) => {
         const items = await db.select()
@@ -820,9 +820,29 @@ export class DatabaseStorage implements IStorage {
         const commission = await this.calculateCommission(vendorId, netAmount);
         const claimableAmount = netAmount - commission;
 
+        // Calculate per-item commission and claimable amounts
+        const itemsWithCommission = items.map(item => {
+          const itemGross = item.quantity * parseFloat(item.unitPrice);
+          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+          const itemNet = itemGross - itemRejected;
+          
+          // Proportionally distribute commission based on item's net amount
+          const itemCommission = netAmount > 0 ? (itemNet / netAmount) * commission : 0;
+          const itemClaimable = itemNet - itemCommission;
+          
+          return {
+            ...item,
+            itemGross: itemGross.toFixed(2),
+            itemRejected: itemRejected.toFixed(2),
+            itemNet: itemNet.toFixed(2),
+            itemCommission: itemCommission.toFixed(2),
+            itemClaimable: itemClaimable.toFixed(2),
+          };
+        });
+
         return {
           ...delivery,
-          items,
+          items: itemsWithCommission,
           grossAmount: grossAmount.toFixed(2),
           rejectedAmount: rejectedAmount.toFixed(2),
           netAmount: netAmount.toFixed(2),
