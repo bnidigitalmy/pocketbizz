@@ -136,15 +136,15 @@ export default function Claims() {
   };
 
   const getPaymentStatusBadge = (status: string) => {
-    const variants: { [key: string]: { label: string; className: string; icon: any } } = {
-      pending: { label: "Belum Bayar", className: "bg-orange-500", icon: Clock },
-      partial: { label: "Bayar Separa", className: "bg-blue-500", icon: AlertCircle },
-      settled: { label: "Selesai", className: "bg-green-600", icon: CheckCircle2 },
+    const configs: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any } } = {
+      pending: { label: "Belum Bayar", variant: "secondary", icon: Clock },
+      partial: { label: "Bayar Separa", variant: "outline", icon: AlertCircle },
+      settled: { label: "Selesai", variant: "default", icon: CheckCircle2 },
     };
-    const config = variants[status] || variants.pending;
+    const config = configs[status] || configs.pending;
     const Icon = config.icon;
     return (
-      <Badge className={`${config.className} text-white`}>
+      <Badge variant={config.variant}>
         <Icon className="h-3 w-3 mr-1" />
         {config.label}
       </Badge>

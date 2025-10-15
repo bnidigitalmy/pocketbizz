@@ -970,6 +970,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sales", async (req, res) => {
     try {
       const data = insertSaleSchema.parse(req.body);
+      const force = req.body.force === true;
+      
+      // Check for duplicate sale (same product + vendor on same date)
+      if (!force && data.productId && data.saleDate) {
+        const duplicate = await storage.checkDuplicateSale(
+          data.productId, 
+          data.vendorId || null, 
+          data.saleDate
+        );
+        
+        if (duplicate) {
+          return res.status(409).json({
+            error: "Duplicate sale detected",
+            duplicate: {
+              productName: duplicate.productName,
+              vendorName: duplicate.vendorName,
+              quantity: duplicate.quantity,
+              saleDate: duplicate.saleDate,
+              totalAmount: duplicate.totalAmount
+            }
+          });
+        }
+      }
       
       // Deduct from finished goods batches using FIFO if productId is provided
       if (data.productId && data.quantity) {

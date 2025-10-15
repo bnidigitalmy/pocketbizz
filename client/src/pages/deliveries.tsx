@@ -873,31 +873,41 @@ export default function Deliveries() {
               </CardHeader>
               {delivery.items && delivery.items.length > 0 && (
                 <CardContent className="pt-0">
-                  <div className="space-y-2">
-                    {delivery.items.map((item: any, index: number) => (
-                      <div key={index} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
-                          <span className="flex-1">{item.productName}</span>
-                          <span className="text-muted-foreground">{item.quantity}x</span>
-                          <span className="font-mono ml-2">RM {item.totalPrice}</span>
-                        </div>
-                        {item.rejectedQty > 0 && (
-                          <div className="ml-2 pl-3 border-l-2 border-destructive/50">
-                            <div className="flex items-center gap-2 text-xs">
-                              <Badge variant="destructive" className="h-5">
-                                Ditolak: {item.rejectedQty} unit
-                              </Badge>
-                              {item.rejectionReason && (
-                                <span className="text-muted-foreground italic">
-                                  {item.rejectionReason}
-                                </span>
-                              )}
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="w-full justify-start mb-2 text-muted-foreground hover:text-foreground" data-testid={`button-toggle-items-${delivery.id}`}>
+                        <ChevronDown className="h-4 w-4 mr-2" />
+                        {delivery.items.length} produk
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-2 mb-4">
+                        {delivery.items.map((item: any, index: number) => (
+                          <div key={index} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                              <span className="flex-1">{item.productName}</span>
+                              <span className="text-muted-foreground">{item.quantity}x</span>
+                              <span className="font-mono ml-2">RM {item.totalPrice}</span>
                             </div>
+                            {item.rejectedQty > 0 && (
+                              <div className="ml-2 pl-3 border-l-2 border-destructive/50">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <Badge variant="destructive" className="h-5">
+                                    Ditolak: {item.rejectedQty} unit
+                                  </Badge>
+                                  {item.rejectionReason && (
+                                    <span className="text-muted-foreground italic">
+                                      {item.rejectionReason}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                   <div className="space-y-2 mt-4">
                     <Button 
                       variant="outline" 

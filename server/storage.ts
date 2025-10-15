@@ -89,6 +89,7 @@ export interface IStorage {
   
   // Sales
   getSales(): Promise<Sale[]>;
+  checkDuplicateSale(productId: string, vendorId: string | null, saleDate: string): Promise<Sale | null>;
   createSale(sale: InsertSale): Promise<Sale>;
   markSalePaid(id: string): Promise<void>;
   
@@ -552,6 +553,25 @@ export class DatabaseStorage implements IStorage {
   // Sales
   async getSales(): Promise<Sale[]> {
     return await db.select().from(sales).orderBy(desc(sales.saleDate));
+  }
+
+  async checkDuplicateSale(productId: string, vendorId: string | null, saleDate: string): Promise<Sale | null> {
+    const conditions = [
+      eq(sales.productId, productId),
+      eq(sales.saleDate, saleDate),
+    ];
+
+    if (vendorId) {
+      conditions.push(eq(sales.vendorId, vendorId));
+    }
+
+    const existing = await db
+      .select()
+      .from(sales)
+      .where(and(...conditions))
+      .limit(1);
+
+    return existing.length > 0 ? existing[0] : null;
   }
 
   async createSale(sale: InsertSale): Promise<Sale> {

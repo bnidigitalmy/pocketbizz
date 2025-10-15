@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -48,6 +58,9 @@ type SaleFormValues = z.infer<typeof saleFormSchema>;
 export default function Sales() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateData, setDuplicateData] = useState<any>(null);
+  const [pendingSaleData, setPendingSaleData] = useState<SaleFormValues | null>(null);
   const { toast } = useToast();
 
   const { data: sales, isLoading } = useQuery({
@@ -90,7 +103,7 @@ export default function Sales() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: SaleFormValues) => {
+    mutationFn: async (data: SaleFormValues & { force?: boolean }) => {
       // Convert "none" to null for vendorId (optional field) and ensure vendorName is also null
       const submitData: any = {
         productId: data.productId,
@@ -106,6 +119,11 @@ export default function Sales() {
       if (data.vendorId && data.vendorId !== "none") {
         submitData.vendorId = data.vendorId;
         submitData.vendorName = data.vendorName;
+      }
+      
+      // Add force flag if retrying after duplicate confirmation
+      if (data.force) {
+        submitData.force = true;
       }
       
       return apiRequest("POST", "/api/sales", submitData);
@@ -143,6 +161,14 @@ export default function Sales() {
       });
     },
     onError: (error: any) => {
+      // Handle duplicate sale detection (409)
+      if (error?.status === 409 && error?.data?.duplicate) {
+        setPendingSaleData(form.getValues());
+        setDuplicateData(error.data.duplicate);
+        setDuplicateDialogOpen(true);
+        return;
+      }
+      
       toast({
         title: "Ralat!",
         description: error?.message || "Stok tidak mencukupi atau ralat berlaku.",
@@ -484,6 +510,44 @@ export default function Sales() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Duplicate Sale Confirmation Dialog */}
+      <AlertDialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Jualan Kembar Dikesan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Jualan untuk produk ini sudah direkod pada tarikh yang sama:
+              <div className="mt-3 p-3 bg-muted rounded-md space-y-1">
+                <p><strong>Produk:</strong> {duplicateData?.productName}</p>
+                {duplicateData?.vendorName && (
+                  <p><strong>Vendor:</strong> {duplicateData?.vendorName}</p>
+                )}
+                <p><strong>Kuantiti:</strong> {duplicateData?.quantity} unit</p>
+                <p><strong>Tarikh:</strong> {duplicateData?.saleDate && new Date(duplicateData.saleDate).toLocaleDateString('ms-MY')}</p>
+                <p><strong>Jumlah:</strong> RM {duplicateData?.totalAmount}</p>
+              </div>
+              <p className="mt-3">Adakah anda pasti mahu meneruskan jualan ini?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-duplicate-sale">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-confirm-duplicate-sale"
+              onClick={() => {
+                if (pendingSaleData) {
+                  createMutation.mutate({ ...pendingSaleData, force: true });
+                }
+                setDuplicateDialogOpen(false);
+              }}
+            >
+              Ya, Teruskan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
