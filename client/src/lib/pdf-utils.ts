@@ -104,12 +104,13 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   
   yPos += 20;
   
-  // Items table
+  // Items table with Retail Price column
   const tableData = delivery.items?.map((item: any) => {
     const row = [
       item.productName,
       item.quantity.toString(),
-      `RM ${parseFloat(item.unitPrice).toFixed(2)}`,
+      item.retailPrice ? `RM ${parseFloat(item.retailPrice).toFixed(2)}` : '-', // Retail Price for reference
+      `RM ${parseFloat(item.unitPrice).toFixed(2)}`, // Price to vendor
       `RM ${parseFloat(item.totalPrice).toFixed(2)}`
     ];
     
@@ -125,7 +126,7 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   
   autoTable(doc, {
     startY: yPos,
-    head: [['Produk', 'Kuantiti', 'Harga/Unit', 'Jumlah', 'Tolakan']],
+    head: [['Produk', 'Qty', 'RP', 'Harga', 'Jumlah', 'Tolakan']],
     body: tableData,
     theme: 'grid',
     headStyles: { 
@@ -137,11 +138,12 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
       fontSize: 9
     },
     columnStyles: {
-      0: { cellWidth: 70 },
-      1: { cellWidth: 25, halign: 'center' },
-      2: { cellWidth: 30, halign: 'right' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 30, halign: 'center', textColor: [200, 100, 50] }
+      0: { cellWidth: 50 },  // Product name - narrower
+      1: { cellWidth: 15, halign: 'center' },  // Qty
+      2: { cellWidth: 25, halign: 'right' },   // RP (Retail Price)
+      3: { cellWidth: 25, halign: 'right' },   // Harga (Price to vendor)
+      4: { cellWidth: 25, halign: 'right' },   // Jumlah (Total)
+      5: { cellWidth: 30, halign: 'center', textColor: [200, 100, 50] }  // Tolakan
     },
     styles: { 
       font: 'helvetica',
@@ -150,22 +152,69 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
     },
   });
   
-  // Total section
+  // Commission Breakdown Section
   const finalY = (doc as any).lastAutoTable.finalY || yPos;
   yPos = finalY + 10;
   
-  // Total box
-  doc.setFillColor(245, 245, 245);
-  doc.rect(110, yPos - 5, 80, 15, 'F');
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(110, yPos - 5, 80, 15);
+  // Breakdown box - right aligned
+  const breakdownX = 100;
+  const breakdownWidth = 90;
   
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
-  doc.text('JUMLAH KESELURUHAN:', 115, yPos + 3);
+  doc.text('RINGKASAN:', breakdownX, yPos);
+  yPos += 7;
+  
+  // Line items
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  
+  // Jumlah Kasar (Gross)
+  doc.text('Jumlah Kasar:', breakdownX, yPos);
+  doc.text(`RM ${delivery.grossAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
+  yPos += 5;
+  
+  // Tolakan (Rejection)
+  if (parseFloat(delivery.rejectedAmount || '0') > 0) {
+    doc.setTextColor(200, 100, 50);
+    doc.text('Tolakan:', breakdownX, yPos);
+    doc.text(`- RM ${delivery.rejectedAmount}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
+    doc.setTextColor(0);
+    yPos += 5;
+  }
+  
+  // Jumlah Bersih (Net)
+  doc.text('Jumlah Bersih:', breakdownX, yPos);
+  doc.text(`RM ${delivery.netAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
+  yPos += 5;
+  
+  // Komisyen (Commission)
+  if (parseFloat(delivery.commission || '0') > 0) {
+    doc.setTextColor(100, 100, 200);
+    doc.text('Komisyen:', breakdownX, yPos);
+    doc.text(`- RM ${delivery.commission}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
+    doc.setTextColor(0);
+    yPos += 7;
+  } else {
+    yPos += 2;
+  }
+  
+  // Separator line
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(200, 200, 200);
+  doc.line(breakdownX, yPos, breakdownX + breakdownWidth, yPos);
+  yPos += 7;
+  
+  // Jumlah Boleh Dituntut (Claimable Amount) - highlighted
+  doc.setFillColor(217, 97, 118, 0.1);
+  doc.rect(breakdownX - 2, yPos - 6, breakdownWidth + 4, 10, 'F');
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(217, 97, 118);
-  doc.text(`RM ${parseFloat(delivery.totalAmount).toFixed(2)}`, 115, yPos + 9, { align: 'left' });
+  doc.text('JUMLAH BOLEH DITUNTUT:', breakdownX, yPos);
+  doc.text(`RM ${delivery.claimableAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
   
   // Footer
   yPos += 30;

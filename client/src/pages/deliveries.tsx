@@ -46,6 +46,7 @@ const deliveryFormSchema = insertDeliverySchema.extend({
     productName: z.string(),
     quantity: z.coerce.number().min(1, "Kuantiti mestilah lebih dari 0"),
     unitPrice: z.string(),
+    retailPrice: z.string().optional().default("0"), // Retail price for invoice reference
     rejectedQty: z.coerce.number().min(0).optional().default(0),
     rejectionReason: z.string().optional().default(""),
   })).min(1, "Sila tambah sekurang-kurangnya satu item"),
@@ -55,7 +56,7 @@ type DeliveryFormValues = z.infer<typeof deliveryFormSchema>;
 
 export default function Deliveries() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+  const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
   const { toast } = useToast();
 
   const { data: deliveries, isLoading } = useQuery({
@@ -82,7 +83,7 @@ export default function Deliveries() {
       deliveryDate: new Date().toISOString().split('T')[0],
       status: "delivered",
       totalAmount: "0",
-      items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }],
+      items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }],
     },
   });
 
@@ -99,7 +100,7 @@ export default function Deliveries() {
       });
       setDialogOpen(false);
       form.reset();
-      setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+      setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
     onError: (error: any) => {
       toast({
@@ -140,6 +141,7 @@ export default function Deliveries() {
         productId,
         productName: product.name,
         unitPrice: product.suggestedPrice,
+        retailPrice: product.sellingPrice, // Capture retail price for invoice reference
       };
       form.setValue("items", currentItems);
       calculateTotal();
@@ -148,8 +150,8 @@ export default function Deliveries() {
 
   const addItem = () => {
     const current = form.getValues("items");
-    form.setValue("items", [...current, { productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
-    setItems([...items, { productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+    form.setValue("items", [...current, { productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
+    setItems([...items, { productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
   };
 
   const removeItem = (index: number) => {

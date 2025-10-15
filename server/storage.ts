@@ -347,11 +347,36 @@ export class DatabaseStorage implements IStorage {
   async getDeliveries(): Promise<any[]> {
     const result = await db.select().from(deliveries).orderBy(desc(deliveries.deliveryDate));
     
-    // Get items for each delivery
+    // Get items for each delivery with commission breakdown
     const deliveriesWithItems = await Promise.all(
       result.map(async (delivery) => {
         const items = await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, delivery.id));
-        return { ...delivery, items };
+        
+        // Calculate gross, rejected, net amounts
+        let grossAmount = 0;
+        let rejectedAmount = 0;
+        
+        items.forEach(item => {
+          const itemGross = item.quantity * parseFloat(item.unitPrice);
+          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+          
+          grossAmount += itemGross;
+          rejectedAmount += itemRejected;
+        });
+        
+        const netAmount = grossAmount - rejectedAmount;
+        const commission = await this.calculateCommission(delivery.vendorId, netAmount);
+        const claimableAmount = netAmount - commission;
+        
+        return { 
+          ...delivery, 
+          items,
+          grossAmount: grossAmount.toFixed(2),
+          rejectedAmount: rejectedAmount.toFixed(2),
+          netAmount: netAmount.toFixed(2),
+          commission: commission.toFixed(2),
+          claimableAmount: claimableAmount.toFixed(2),
+        };
       })
     );
     
@@ -363,7 +388,32 @@ export class DatabaseStorage implements IStorage {
     if (!delivery) return undefined;
     
     const items = await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, id));
-    return { ...delivery, items };
+    
+    // Calculate gross, rejected, net amounts, and commission
+    let grossAmount = 0;
+    let rejectedAmount = 0;
+    
+    items.forEach(item => {
+      const itemGross = item.quantity * parseFloat(item.unitPrice);
+      const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+      
+      grossAmount += itemGross;
+      rejectedAmount += itemRejected;
+    });
+    
+    const netAmount = grossAmount - rejectedAmount;
+    const commission = await this.calculateCommission(delivery.vendorId, netAmount);
+    const claimableAmount = netAmount - commission;
+    
+    return { 
+      ...delivery, 
+      items,
+      grossAmount: grossAmount.toFixed(2),
+      rejectedAmount: rejectedAmount.toFixed(2),
+      netAmount: netAmount.toFixed(2),
+      commission: commission.toFixed(2),
+      claimableAmount: claimableAmount.toFixed(2),
+    };
   }
 
   async createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {

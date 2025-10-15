@@ -162,7 +162,8 @@ export const deliveryItems = pgTable("delivery_items", {
   productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(), // Price charged to vendor
+  retailPrice: decimal("retail_price", { precision: 10, scale: 2 }), // Retail/suggested price for reference
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   rejectedQty: integer("rejected_qty").default(0), // Number of items rejected by vendor
   rejectionReason: text("rejection_reason"), // Reason for rejection (optional)
