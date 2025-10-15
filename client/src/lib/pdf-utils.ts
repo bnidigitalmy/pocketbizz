@@ -344,62 +344,112 @@ export function generateClaimStatementPDF(
   
   yPos += 20;
   
-  // Statement table
-  const tableData = deliveries.map((delivery: any) => {
+  // Iterate through each delivery and show per-item breakdown
+  deliveries.forEach((delivery: any, index: number) => {
+    // Check for page break
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    // Invoice header
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(217, 97, 118);
+    const invNum = delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase();
+    doc.text(`Invois ${invNum}`, 20, yPos);
+    
     const paymentStatusMap: {[key: string]: string} = {
       'pending': 'Belum Bayar',
       'partial': 'Sebahagian',
       'settled': 'Selesai'
     };
+    const status = paymentStatusMap[delivery.paymentStatus] || 'Belum Bayar';
     
-    return [
-      delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase(),
-      new Date(delivery.deliveryDate).toLocaleDateString('ms-MY'),
-      `RM ${parseFloat(delivery.totalAmount).toFixed(2)}`,
-      paymentStatusMap[delivery.paymentStatus] || 'Belum Bayar'
-    ];
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')} | ${status}`, 20, yPos + 5);
+    yPos += 10;
+    
+    // Items table with commission breakdown
+    const itemsData = delivery.items?.map((item: any) => {
+      const hasCommission = item.itemGross && item.itemNet && item.itemClaimable;
+      
+      if (hasCommission) {
+        // Show detailed commission breakdown
+        const rejectedQty = item.rejectedQty || item.rejectedQuantity || 0;
+        const hasRejection = parseFloat(item.itemRejected || '0') > 0;
+        
+        return [
+          `${item.productName}\n${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)}`,
+          `Kasar: RM ${item.itemGross}\n` + 
+            (hasRejection ? `Tolakan (${rejectedQty}): -RM ${item.itemRejected}\n` : '') +
+            `Bersih: RM ${item.itemNet}` + 
+            (parseFloat(item.itemCommission || '0') > 0 ? `\nKomisyen: -RM ${item.itemCommission}` : ''),
+          `RM ${item.itemClaimable}`
+        ];
+      } else {
+        // Fallback for old items without commission data
+        return [
+          `${item.productName}\n${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)}`,
+          '',
+          `RM ${parseFloat(item.totalPrice).toFixed(2)}`
+        ];
+      }
+    }) || [];
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Produk', 'Pengiraan', 'Boleh Dituntut']],
+      body: itemsData,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        fontSize: 9,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+      },
+      styles: { 
+        font: 'helvetica',
+        lineWidth: 0.1,
+        lineColor: [200, 200, 200],
+        cellPadding: 2
+      },
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 5;
+    
+    // Delivery claimable total
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    const deliveryClaimable = delivery.claimableAmount || delivery.totalAmount;
+    doc.text(`Boleh Dituntut Invois: RM ${parseFloat(deliveryClaimable).toFixed(2)}`, 130, yPos, { align: 'right' });
+    yPos += 8;
   });
   
-  autoTable(doc, {
-    startY: yPos,
-    head: [['No. Invois', 'Tarikh', 'Jumlah', 'Status Bayaran']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: { 
-      fillColor: [217, 97, 118],
-      fontSize: 10,
-      fontStyle: 'bold'
-    },
-    bodyStyles: {
-      fontSize: 9
-    },
-    columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 40, halign: 'right' },
-      3: { cellWidth: 50, halign: 'center' }
-    },
-    styles: { 
-      font: 'helvetica',
-      lineWidth: 0.1,
-      lineColor: [200, 200, 200]
-    },
-  });
+  // Calculate totals using claimable amounts
+  yPos += 5;
   
-  // Calculate totals
-  const finalY = (doc as any).lastAutoTable.finalY || yPos;
-  yPos = finalY + 10;
-  
-  const totalAmount = deliveries.reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+  const totalAmount = deliveries.reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   const settledAmount = deliveries
     .filter(d => d.paymentStatus === 'settled')
-    .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    .reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   const partialAmount = deliveries
     .filter(d => d.paymentStatus === 'partial')
-    .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    .reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   const pendingAmount = deliveries
     .filter(d => d.paymentStatus === 'pending')
-    .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    .reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   // Outstanding = total - fully settled (partial + pending still owed)
   const outstandingAmount = totalAmount - settledAmount;
   
@@ -797,28 +847,71 @@ export function generateThermalClaimStatementPDF(
   
   doc.setFont('helvetica', 'normal');
   deliveries.forEach((delivery: any, index: number) => {
-    // Invoice number
+    // Invoice number header
     doc.setFont('helvetica', 'bold');
     const invNum = delivery.invoiceNumber || delivery.id.substring(0, 8).toUpperCase();
     doc.text(`${index + 1}. ${invNum}`, margin, yPos);
-    yPos += 4;
+    yPos += 3.5;
     
-    // Date and amount
+    // Date and status on same line
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.text(`${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')}`, margin + 3, yPos);
-    yPos += 3;
-    doc.text(`RM ${parseFloat(delivery.totalAmount).toFixed(2)}`, margin + 3, yPos);
-    yPos += 3;
-    
-    // Payment status
     const statusMap: {[key: string]: string} = {
-      'pending': 'Belum Bayar',
+      'pending': 'Belum',
       'partial': 'Separa',
       'settled': 'Selesai'
     };
-    const status = statusMap[delivery.paymentStatus] || 'Belum Bayar';
-    doc.text(`[${status}]`, margin + 3, yPos);
+    const status = statusMap[delivery.paymentStatus] || 'Belum';
+    doc.text(`${new Date(delivery.deliveryDate).toLocaleDateString('ms-MY')} [${status}]`, margin + 3, yPos);
+    yPos += 3.5;
+    
+    // Items with commission breakdown
+    if (delivery.items && delivery.items.length > 0) {
+      doc.setFontSize(6);
+      delivery.items.forEach((item: any) => {
+        const hasCommission = item.itemGross && item.itemClaimable;
+        
+        // Product name
+        doc.setFont('helvetica', 'bold');
+        doc.text(`  ${item.productName}`, margin + 3, yPos);
+        yPos += 2.5;
+        
+        doc.setFont('helvetica', 'normal');
+        
+        if (hasCommission) {
+          // Show commission breakdown
+          const rejectedQty = item.rejectedQty || item.rejectedQuantity || 0;
+          
+          doc.text(`    ${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)}`, margin + 3, yPos);
+          yPos += 2.5;
+          
+          if (rejectedQty > 0) {
+            doc.text(`    Tolak: ${rejectedQty} = -RM ${item.itemRejected}`, margin + 3, yPos);
+            yPos += 2.5;
+          }
+          
+          if (parseFloat(item.itemCommission || '0') > 0) {
+            doc.text(`    Komisyen: -RM ${item.itemCommission}`, margin + 3, yPos);
+            yPos += 2.5;
+          }
+          
+          doc.setFont('helvetica', 'bold');
+          doc.text(`    Boleh dituntut: RM ${item.itemClaimable}`, margin + 3, yPos);
+          doc.setFont('helvetica', 'normal');
+          yPos += 3;
+        } else {
+          // Simple fallback
+          doc.text(`    ${item.quantity}x @ RM ${parseFloat(item.unitPrice).toFixed(2)} = RM ${parseFloat(item.totalPrice).toFixed(2)}`, margin + 3, yPos);
+          yPos += 3;
+        }
+      });
+    }
+    
+    // Invoice claimable total
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    const deliveryClaimable = delivery.claimableAmount || delivery.totalAmount;
+    doc.text(`  Boleh dituntut: RM ${parseFloat(deliveryClaimable).toFixed(2)}`, margin + 3, yPos);
     yPos += 4;
     
     doc.setFontSize(8);
@@ -830,11 +923,11 @@ export function generateThermalClaimStatementPDF(
   doc.line(margin, yPos, 58 - margin, yPos);
   yPos += 5;
   
-  // Summary
-  const totalAmount = deliveries.reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+  // Summary using claimable amounts
+  const totalAmount = deliveries.reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   const settledAmount = deliveries
     .filter(d => d.paymentStatus === 'settled')
-    .reduce((sum, d) => sum + parseFloat(d.totalAmount), 0);
+    .reduce((sum, d) => sum + parseFloat(d.claimableAmount || d.totalAmount), 0);
   const outstandingAmount = totalAmount - settledAmount;
   
   doc.setFontSize(9);
