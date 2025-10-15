@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer } from "lucide-react";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer, Edit } from "lucide-react";
 import { generateInvoicePDF, generateMiniInvoicePDF, generateThermalInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,8 @@ type DeliveryFormValues = z.infer<typeof deliveryFormSchema>;
 
 export default function Deliveries() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<any>(null);
   const [items, setItems] = useState([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
   const { toast } = useToast();
 
@@ -120,6 +122,30 @@ export default function Deliveries() {
       toast({
         title: "Berjaya!",
         description: "Status telah dikemaskini.",
+      });
+    },
+  });
+
+  const updateRejectionMutation = useMutation({
+    mutationFn: async ({ itemId, rejectedQty, rejectionReason }: { itemId: string; rejectedQty: number; rejectionReason: string }) => {
+      return apiRequest("PATCH", `/api/delivery-items/${itemId}/rejection`, { 
+        rejectedQty, 
+        rejectionReason 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      toast({
+        title: "Berjaya!",
+        description: "Tolakan telah dikemaskini. Tuntutan akan dikira semula.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error.message || "Gagal mengemaskini tolakan.",
+        variant: "destructive",
       });
     },
   });
@@ -604,6 +630,18 @@ export default function Deliveries() {
                     <Button 
                       variant="outline" 
                       size="sm"
+                      onClick={() => {
+                        setSelectedDelivery(delivery);
+                        setEditDialogOpen(true);
+                      }}
+                      data-testid={`button-edit-delivery-${delivery.id}`}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Tolakan
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
                       onClick={() => generateInvoicePDF(delivery, businessProfile)}
                       data-testid={`button-download-invoice-${delivery.id}`}
                     >
@@ -644,6 +682,125 @@ export default function Deliveries() {
           ))}
         </div>
       )}
+
+      {/* Edit Delivery Rejection Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Tolakan Penghantaran</DialogTitle>
+            <DialogDescription>
+              Kemaskini kuantiti dan sebab tolakan untuk produk yang expired/rosak selepas penghantaran.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDelivery && (
+            <div className="space-y-4 mt-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">{selectedDelivery.vendorName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedDelivery.invoiceNumber} - {new Date(selectedDelivery.deliveryDate).toLocaleDateString('ms-MY')}
+                </p>
+              </div>
+
+              {selectedDelivery.items?.map((item: any, index: number) => (
+                <Card key={item.id || index} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">{item.productName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Kuantiti dihantar: {item.quantity} unit @ RM {item.unitPrice}
+                        </p>
+                      </div>
+                      <p className="font-mono font-semibold">RM {item.totalPrice}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Kuantiti Ditolak</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max={item.quantity}
+                          defaultValue={item.rejectedQty || 0}
+                          onChange={(e) => {
+                            const updatedItems = [...(selectedDelivery.items || [])];
+                            updatedItems[index] = {
+                              ...updatedItems[index],
+                              rejectedQty: parseInt(e.target.value) || 0
+                            };
+                            setSelectedDelivery({
+                              ...selectedDelivery,
+                              items: updatedItems
+                            });
+                          }}
+                          className="mt-1"
+                          data-testid={`input-edit-rejected-qty-${index}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Sebab Tolakan</label>
+                        <Input
+                          type="text"
+                          placeholder="Cth: Expired, Rosak"
+                          defaultValue={item.rejectionReason || ""}
+                          onChange={(e) => {
+                            const updatedItems = [...(selectedDelivery.items || [])];
+                            updatedItems[index] = {
+                              ...updatedItems[index],
+                              rejectionReason: e.target.value
+                            };
+                            setSelectedDelivery({
+                              ...selectedDelivery,
+                              items: updatedItems
+                            });
+                          }}
+                          className="mt-1"
+                          data-testid={`input-edit-rejection-reason-${index}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              data-testid="button-cancel-edit"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedDelivery?.items) return;
+                
+                try {
+                  // Update each item's rejection data
+                  for (const item of selectedDelivery.items) {
+                    await updateRejectionMutation.mutateAsync({
+                      itemId: item.id,
+                      rejectedQty: item.rejectedQty || 0,
+                      rejectionReason: item.rejectionReason || ""
+                    });
+                  }
+                  setEditDialogOpen(false);
+                  setSelectedDelivery(null);
+                } catch (error) {
+                  // Error already handled in mutation
+                }
+              }}
+              disabled={updateRejectionMutation.isPending}
+              data-testid="button-save-rejection"
+            >
+              {updateRejectionMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
