@@ -626,10 +626,11 @@ export default function Deliveries() {
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
+                  <div className="space-y-2 mt-4">
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="w-full"
                       onClick={() => {
                         setSelectedDelivery(delivery);
                         setEditDialogOpen(true);
@@ -639,42 +640,44 @@ export default function Deliveries() {
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Tolakan
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => generateInvoicePDF(delivery, businessProfile)}
-                      data-testid={`button-download-invoice-${delivery.id}`}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Invois
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => generateMiniInvoicePDF(delivery, businessProfile)}
-                      data-testid={`button-download-mini-${delivery.id}`}
-                    >
-                      <Receipt className="h-4 w-4 mr-2" />
-                      Resit A5
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => generateThermalInvoicePDF(delivery, businessProfile)}
-                      data-testid={`button-thermal-invoice-${delivery.id}`}
-                    >
-                      <Printer className="h-4 w-4 mr-2" />
-                      Thermal 58mm
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => shareDeliveryViaWhatsApp(delivery)}
-                      data-testid={`button-share-delivery-${delivery.id}`}
-                    >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      WhatsApp
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => generateInvoicePDF(delivery, businessProfile)}
+                        data-testid={`button-download-invoice-${delivery.id}`}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Invois
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => generateMiniInvoicePDF(delivery, businessProfile)}
+                        data-testid={`button-download-mini-${delivery.id}`}
+                      >
+                        <Receipt className="h-4 w-4 mr-2" />
+                        Resit A5
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => generateThermalInvoicePDF(delivery, businessProfile)}
+                        data-testid={`button-thermal-invoice-${delivery.id}`}
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Thermal 58mm
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => shareDeliveryViaWhatsApp(delivery)}
+                        data-testid={`button-share-delivery-${delivery.id}`}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        WhatsApp
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               )}
