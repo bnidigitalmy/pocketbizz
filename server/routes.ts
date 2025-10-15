@@ -969,8 +969,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/sales", async (req, res) => {
     try {
-      const data = insertSaleSchema.parse(req.body);
+      // Extract force flag (it's not part of schema, so remove it before validation)
       const force = req.body.force === true;
+      const { force: _, ...bodyWithoutForce } = req.body; // Remove force from body
+      
+      // Coerce numeric string fields to numbers (HTML forms send numbers as strings)
+      if (bodyWithoutForce.quantity) bodyWithoutForce.quantity = Number(bodyWithoutForce.quantity);
+      if (bodyWithoutForce.isPaid) bodyWithoutForce.isPaid = Number(bodyWithoutForce.isPaid);
+      
+      const data = insertSaleSchema.parse(bodyWithoutForce);
       
       // Check for duplicate sale (same product + vendor on same date)
       if (!force && data.productId && data.saleDate) {
@@ -1007,7 +1014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const sale = await storage.createSale(data);
       res.json(sale);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[ERROR] POST /api/sales failed:', error);
       res.status(400).json({ error: "Invalid sale data" });
     }
   });
