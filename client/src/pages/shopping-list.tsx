@@ -30,9 +30,19 @@ interface CartItem {
   createdAt: string;
 }
 
+type UnifiedItem = {
+  id: string;
+  type: 'cart' | 'stock';
+  name: string;
+  quantity: string;
+  unit: string;
+  tag?: string; // For production context
+  notes?: string | null;
+  estimatedCost?: number;
+};
+
 export default function ShoppingList() {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-  const [checkedCartItems, setCheckedCartItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const { data: lowStockItems = [], isLoading } = useQuery<StockItem[]>({
@@ -57,6 +67,37 @@ export default function ShoppingList() {
     self.findIndex(i => i.id === item.id) === index
   );
 
+  // Create unified list for selection, WhatsApp, and print
+  const unifiedItems: UnifiedItem[] = [
+    // Cart items (production)
+    ...cartItems.map(item => ({
+      id: `cart-${item.id}`,
+      type: 'cart' as const,
+      name: item.stockItemName,
+      quantity: item.shortageQty,
+      unit: item.unit,
+      tag: item.productName ? `Produksi: ${item.productName}` : 'Produksi',
+      notes: item.notes,
+    })),
+    // Low stock items
+    ...allItemsToBuy.map(item => {
+      const currentQty = parseFloat(item.currentQuantity);
+      const threshold = parseFloat(item.lowStockThreshold);
+      const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
+      const isOutOfStock = currentQty <= 0;
+      return {
+        id: `stock-${item.id}`,
+        type: 'stock' as const,
+        name: item.name,
+        quantity: qtyNeeded.toFixed(1),
+        unit: item.unit,
+        tag: isOutOfStock ? 'Habis Stok' : 'Stok Rendah',
+        notes: item.notes,
+        estimatedCost: qtyNeeded * parseFloat(item.purchasePrice),
+      };
+    }),
+  ];
+
   const handleToggleItem = (itemId: string) => {
     const newChecked = new Set(checkedItems);
     if (newChecked.has(itemId)) {
@@ -67,48 +108,85 @@ export default function ShoppingList() {
     setCheckedItems(newChecked);
   };
   
-  const handleToggleCartItem = (itemId: string) => {
-    const newChecked = new Set(checkedCartItems);
-    if (newChecked.has(itemId)) {
-      newChecked.delete(itemId);
+  const handleSelectAll = () => {
+    if (checkedItems.size === unifiedItems.length) {
+      setCheckedItems(new Set());
     } else {
-      newChecked.add(itemId);
-    }
-    setCheckedCartItems(newChecked);
-  };
-  
-  const handleSelectAllCart = () => {
-    if (checkedCartItems.size === cartItems.length) {
-      setCheckedCartItems(new Set());
-    } else {
-      setCheckedCartItems(new Set(cartItems.map(item => item.id)));
+      setCheckedItems(new Set(unifiedItems.map(item => item.id)));
     }
   };
   
   const bulkPurchaseMutation = useMutation({
     mutationFn: async () => {
-      const cartItemIds = Array.from(checkedCartItems);
-      const response = await fetch("/api/shopping-cart/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cartItemIds }),
-      });
+      // Separate cart items and stock items from checked items
+      const cartItemIds: string[] = [];
+      const stockItemsToUpdate: Array<{id: string, quantity: string}> = [];
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to complete purchase");
+      checkedItems.forEach(itemId => {
+        if (itemId.startsWith('cart-')) {
+          cartItemIds.push(itemId.replace('cart-', ''));
+        } else if (itemId.startsWith('stock-')) {
+          const stockId = itemId.replace('stock-', '');
+          const stockItem = allItemsToBuy.find(s => s.id === stockId);
+          if (stockItem) {
+            const currentQty = parseFloat(stockItem.currentQuantity);
+            const threshold = parseFloat(stockItem.lowStockThreshold);
+            const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
+            stockItemsToUpdate.push({
+              id: stockId,
+              quantity: qtyNeeded.toFixed(1),
+            });
+          }
+        }
+      });
+
+      // Update cart items if any
+      if (cartItemIds.length > 0) {
+        const response = await fetch("/api/shopping-cart/purchase", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cartItemIds }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to complete cart purchase");
+        }
+      }
+
+      // Update stock items if any
+      if (stockItemsToUpdate.length > 0) {
+        for (const item of stockItemsToUpdate) {
+          const stockItem = allItemsToBuy.find(s => s.id === item.id);
+          if (stockItem) {
+            const newQty = parseFloat(stockItem.currentQuantity) + parseFloat(item.quantity);
+            const response = await fetch(`/api/stock/${item.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                currentQuantity: newQty.toString(),
+              }),
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to update ${stockItem.name}`);
+            }
+          }
+        }
       }
       
-      return await response.json();
+      return { cartItemIds, stockItemsToUpdate };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const totalUpdated = data.cartItemIds.length + data.stockItemsToUpdate.length;
       toast({
         title: "Berjaya!",
-        description: "Stok telah dikemaskini dan item dikeluarkan dari senarai",
+        description: `${totalUpdated} item telah dikemaskini`,
       });
-      setCheckedCartItems(new Set());
+      setCheckedItems(new Set());
       queryClient.invalidateQueries({ queryKey: ["/api/shopping-cart"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stock/low"] });
     },
     onError: (error: any) => {
       toast({
@@ -124,7 +202,7 @@ export default function ShoppingList() {
   };
 
   const handleShareWhatsApp = () => {
-    if (allItemsToBuy.length === 0 && cartItems.length === 0) {
+    if (unifiedItems.length === 0) {
       toast({
         title: "Tiada item untuk dikongsi",
         description: "Senarai belian kosong",
@@ -133,54 +211,30 @@ export default function ShoppingList() {
       return;
     }
 
-    // Format message for WhatsApp
+    // Format message for WhatsApp - Unified list with tags
     let message = "📋 *SENARAI BELIAN STOK*\n";
     message += `📅 ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
     
-    // Cart items (production shortages) - show first with production context
-    if (cartItems.length > 0) {
-      message += "🎯 *KEPERLUAN PRODUKSI*\n";
-      cartItems.forEach((item, index) => {
-        const shortage = parseFloat(item.shortageQty);
-        message += `${index + 1}. 🔴 *${item.stockItemName}*\n`;
-        message += `   • Kurang: ${shortage.toFixed(1)} ${item.unit}\n`;
-        if (item.productName) {
-          message += `   • Untuk: ${item.productName}\n`;
-        }
-        if (item.notes) {
-          message += `   • Nota: ${item.notes}\n`;
-        }
-        message += `\n`;
-      });
+    unifiedItems.forEach((item, index) => {
+      const qty = parseFloat(item.quantity);
+      const icon = item.tag?.includes('Produksi') ? '🎯' : 
+                   item.tag?.includes('Habis') ? '🔴' : '⚠️';
+      
+      message += `${index + 1}. ${icon} *${item.name}*\n`;
+      message += `   📦 Beli: ${qty.toFixed(1)} ${item.unit}\n`;
+      message += `   🏷️ ${item.tag}\n`;
+      if (item.estimatedCost) {
+        message += `   💰 RM ${item.estimatedCost.toFixed(2)}\n`;
+      }
+      if (item.notes) {
+        message += `   📝 ${item.notes}\n`;
+      }
       message += `\n`;
-    }
+    });
     
-    // General low stock items
-    if (allItemsToBuy.length > 0) {
-      message += "📦 *STOK RENDAH/HABIS*\n";
-      allItemsToBuy.forEach((item, index) => {
-        const currentQty = parseFloat(item.currentQuantity);
-        const threshold = parseFloat(item.lowStockThreshold);
-        const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
-        const isOutOfStock = currentQty <= 0;
-        
-        message += `${index + 1}. ${isOutOfStock ? '🔴 ' : '⚠️ '}*${item.name}*\n`;
-        message += `   • Stok: ${currentQty.toFixed(1)} ${item.unit}\n`;
-        message += `   • Beli: ${qtyNeeded.toFixed(1)} ${item.unit}\n`;
-        message += `   • Harga: RM ${item.purchasePrice}/${item.unit}\n`;
-        if (item.notes) {
-          message += `   • Nota: ${item.notes}\n`;
-        }
-        message += `\n`;
-      });
-    }
-    
-    message += `\n💰 *JUMLAH ANGGARAN: RM ${totalEstimatedCost.toFixed(2)}*\n\n`;
-    message += `📊 Ringkasan:\n`;
-    message += `• Produksi: ${cartItems.length} item\n`;
-    message += `• Habis stok: ${outOfStockItems.length} item\n`;
-    message += `• Stok rendah: ${lowStockItems.length} item\n`;
-    message += `• Jumlah: ${cartItems.length + allItemsToBuy.length} item`;
+    const totalCost = unifiedItems.reduce((sum, item) => sum + (item.estimatedCost || 0), 0);
+    message += `\n💰 *JUMLAH ANGGARAN: RM ${totalCost.toFixed(2)}*\n`;
+    message += `📊 *JUMLAH ITEM: ${unifiedItems.length}*`;
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -295,101 +349,47 @@ export default function ShoppingList() {
         </Card>
       </div>
 
-      {/* Production Shopping Cart */}
-      {cartItems.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-blue-600" />
-                  Keperluan Produksi
-                </CardTitle>
-                <CardDescription>
-                  Item yang kurang untuk produksi. Pilih dan sahkan bila dah beli!
-                </CardDescription>
-              </div>
+      {/* Unified Shopping List */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Senarai Belian
+              </CardTitle>
+              <CardDescription>
+                {unifiedItems.length > 0 
+                  ? `${unifiedItems.length} item perlu dibeli. Pilih dan sahkan bila dah beli!` 
+                  : "Tiada item yang perlu dibeli. Stok mencukupi! 🎉"}
+              </CardDescription>
+            </div>
+            {unifiedItems.length > 0 && (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleSelectAllCart}
-                  data-testid="button-select-all-cart"
+                  onClick={handleSelectAll}
+                  data-testid="button-select-all"
                 >
-                  {checkedCartItems.size === cartItems.length ? "Deselect All" : "Select All"}
+                  {checkedItems.size === unifiedItems.length ? "Deselect All" : "Select All"}
                 </Button>
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() => bulkPurchaseMutation.mutate()}
-                  disabled={checkedCartItems.size === 0 || bulkPurchaseMutation.isPending}
+                  disabled={checkedItems.size === 0 || bulkPurchaseMutation.isPending}
                   data-testid="button-mark-purchased"
                 >
                   <Check className="h-4 w-4 mr-2" />
-                  {bulkPurchaseMutation.isPending ? "Mengemaskini..." : `Sahkan Pembelian (${checkedCartItems.size})`}
+                  {bulkPurchaseMutation.isPending ? "Mengemaskini..." : `Sahkan Pembelian (${checkedItems.size})`}
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {cartItems.map((item) => {
-                const shortage = parseFloat(item.shortageQty);
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center gap-3 p-4 rounded-lg border ${
-                      checkedCartItems.has(item.id)
-                        ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300'
-                        : 'bg-white dark:bg-card'
-                    }`}
-                    data-testid={`cart-item-${item.id}`}
-                  >
-                    <Checkbox
-                      checked={checkedCartItems.has(item.id)}
-                      onCheckedChange={() => handleToggleCartItem(item.id)}
-                      data-testid={`checkbox-cart-${item.id}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{item.stockItemName}</h4>
-                        {item.productName && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.productName}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
-                        <div>Kurang: <span className="font-mono font-semibold text-destructive">{shortage.toFixed(1)} {item.unit}</span></div>
-                        {item.notes && <div className="text-xs italic">{item.notes}</div>}
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <AlertTriangle className="h-5 w-5 text-blue-600" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Shopping List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Senarai Item
-          </CardTitle>
-          <CardDescription>
-            {allItemsToBuy.length > 0 
-              ? `${allItemsToBuy.length} item perlu dibeli. Tick bila dah beli!` 
-              : "Tiada item yang perlu dibeli. Stok mencukupi! 🎉"}
-          </CardDescription>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {allItemsToBuy.length === 0 ? (
+          {unifiedItems.length === 0 ? (
             <div className="text-center py-12">
               <CheckCircle2 className="h-16 w-16 mx-auto text-green-600 dark:text-green-400 mb-4" />
               <p className="text-lg font-medium">Semua Stok Mencukupi!</p>
@@ -399,12 +399,10 @@ export default function ShoppingList() {
             </div>
           ) : (
             <div className="space-y-3">
-              {allItemsToBuy.map((item) => {
-                const currentQty = parseFloat(item.currentQuantity);
-                const threshold = parseFloat(item.lowStockThreshold);
-                const isOutOfStock = currentQty <= 0;
-                const qtyNeeded = Math.max(0, (threshold * 2) - currentQty);
-                const estimatedCost = qtyNeeded * parseFloat(item.purchasePrice);
+              {unifiedItems.map((item) => {
+                const qty = parseFloat(item.quantity);
+                const isProduction = item.type === 'cart';
+                const isOutOfStock = item.tag?.includes('Habis');
 
                 return (
                   <div 
@@ -430,29 +428,32 @@ export default function ShoppingList() {
                         <span className={`font-medium ${checkedItems.has(item.id) ? 'line-through text-muted-foreground' : ''}`}>
                           {item.name}
                         </span>
-                        {isOutOfStock && (
-                          <Badge variant="destructive" className="print:text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Habis
-                          </Badge>
-                        )}
+                        <Badge 
+                          variant={isProduction ? "default" : isOutOfStock ? "destructive" : "secondary"}
+                          className="text-xs"
+                        >
+                          {item.tag}
+                        </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <div>Stok Semasa: <span className="font-medium">{currentQty.toFixed(1)} {item.unit}</span></div>
-                        <div>Cadangan Beli: <span className="font-medium text-primary">{qtyNeeded.toFixed(1)} {item.unit}</span></div>
-                        <div>Harga: <span className="font-medium">RM {item.purchasePrice}/{item.unit}</span></div>
+                        <div>Beli: <span className="font-medium text-primary">{qty.toFixed(1)} {item.unit}</span></div>
+                        {item.estimatedCost && (
+                          <div>Anggaran: <span className="font-medium">RM {item.estimatedCost.toFixed(2)}</span></div>
+                        )}
                         {item.notes && (
                           <div className="text-xs italic">Nota: {item.notes}</div>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <div className="text-lg font-semibold">
-                        RM {estimatedCost.toFixed(2)}
+                    {item.estimatedCost && (
+                      <div className="text-right">
+                        <div className="text-lg font-semibold">
+                          RM {item.estimatedCost.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">kos</div>
                       </div>
-                      <div className="text-xs text-muted-foreground">anggaran</div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -462,11 +463,11 @@ export default function ShoppingList() {
                   <div>
                     <p className="text-sm text-muted-foreground">Jumlah Anggaran Kos</p>
                     <p className="text-xs text-muted-foreground">
-                      ({checkedItems.size} daripada {allItemsToBuy.length} item dibeli)
+                      ({checkedItems.size} daripada {unifiedItems.length} item dipilih)
                     </p>
                   </div>
                   <div className="text-2xl font-bold">
-                    RM {totalEstimatedCost.toFixed(2)}
+                    RM {unifiedItems.reduce((sum, item) => sum + (item.estimatedCost || 0), 0).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -480,17 +481,19 @@ export default function ShoppingList() {
         💡 Tip: Klik "Cetak" untuk dapatkan senarai dalam format yang cantik untuk dibawa pergi beli barang, atau "WhatsApp" untuk hantar ke pekerja
       </div>
 
-      {/* Print Styles */}
+      {/* Print Styles - Thermal Printer Optimized */}
       <style>{`
         @media print {
           @page {
-            size: A4;
-            margin: 1.5cm;
+            size: 80mm auto; /* Thermal printer width */
+            margin: 5mm;
           }
           
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            font-size: 12px;
+            line-height: 1.4;
           }
           
           .container {
@@ -504,62 +507,128 @@ export default function ShoppingList() {
             display: none !important;
           }
           
-          /* Optimize card spacing for print */
-          .space-y-6 > * + * {
-            margin-top: 1rem !important;
-          }
-          
-          /* Make cards print-friendly - target actual card divs */
-          .rounded-lg.border {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            border: 1px solid #ddd !important;
-            box-shadow: none !important;
-          }
-          
-          /* Shopping list item containers */
-          .space-y-3 > div {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-          
-          /* Adjust text sizes for print */
-          .text-3xl {
-            font-size: 1.5rem !important;
-          }
-          
-          .text-2xl {
-            font-size: 1.25rem !important;
-          }
-          
-          .text-lg {
-            font-size: 1rem !important;
-          }
-          
-          /* Ensure checkboxes print as boxes */
+          /* Thermal printer header */
           .hidden.print\\:block {
+            display: block !important;
+            text-align: center;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+          }
+          
+          .hidden.print\\:block h1 {
+            font-size: 18px !important;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          
+          .hidden.print\\:block p {
+            font-size: 11px !important;
+          }
+          
+          /* Summary cards - stacked for thermal */
+          .grid.md\\:grid-cols-3 {
             display: block !important;
           }
           
-          /* Grid responsive for print */
-          .grid {
-            display: grid !important;
-            gap: 0.5rem !important;
+          .grid.md\\:grid-cols-3 > * {
+            margin-bottom: 8px !important;
+            padding: 6px !important;
+            border: 1px solid #333 !important;
           }
           
-          .md\\:grid-cols-3 {
-            grid-template-columns: repeat(3, 1fr) !important;
+          /* Shopping list items - compact thermal format */
+          .space-y-3 > div {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            border-bottom: 1px dashed #ccc !important;
+            padding: 8px 0 !important;
+            margin: 0 !important;
+            background: white !important;
           }
           
-          /* Shopping list items */
-          .space-y-3 > * + * {
-            margin-top: 0.5rem !important;
+          .space-y-3 > div:last-child {
+            border-bottom: 2px solid #333 !important;
           }
           
-          /* Preserve background colors for badges */
-          [class*="bg-red"], [class*="bg-amber"], [class*="bg-green"] {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
+          /* Checkbox area */
+          .space-y-3 .hidden.print\\:block {
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            font-size: 16px;
+            display: inline-block !important;
+            width: 20px;
+          }
+          
+          /* Item text */
+          .space-y-3 .flex-1 {
+            font-size: 12px !important;
+          }
+          
+          .space-y-3 .flex-1 > div:first-child {
+            font-size: 13px !important;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          
+          /* Badge in thermal */
+          .space-y-3 .text-xs {
+            font-size: 10px !important;
+            padding: 2px 6px !important;
+            border: 1px solid #333 !important;
+            border-radius: 3px !important;
+            background: white !important;
+            color: #333 !important;
+          }
+          
+          /* Cost display */
+          .space-y-3 .text-right {
+            font-size: 13px !important;
+            font-weight: bold;
+          }
+          
+          .space-y-3 .text-right .text-xs {
+            font-size: 9px !important;
+            border: none !important;
+          }
+          
+          /* Total section */
+          .border-t {
+            border-top: 2px double #333 !important;
+            padding-top: 12px !important;
+            margin-top: 8px !important;
+          }
+          
+          .border-t .text-2xl {
+            font-size: 20px !important;
+            font-weight: bold !important;
+          }
+          
+          .border-t .text-sm {
+            font-size: 11px !important;
+          }
+          
+          .border-t .text-xs {
+            font-size: 10px !important;
+          }
+          
+          /* Remove card styling for thermal */
+          .rounded-lg.border {
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+          
+          /* Footer separator */
+          .text-center.text-sm.text-muted-foreground {
+            display: block !important;
+            border-top: 2px dashed #333;
+            padding-top: 8px;
+            margin-top: 12px;
+            font-size: 10px !important;
+            text-align: center;
           }
         }
       `}</style>
