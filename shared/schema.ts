@@ -129,6 +129,7 @@ export const productionBatches = pgTable("production_batches", {
   batchDate: date("batch_date").notNull(),
   expiryDate: date("expiry_date"),
   totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"), // Optional notes for production batch
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

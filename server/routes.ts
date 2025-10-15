@@ -354,6 +354,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Production Planning - Preview materials needed and check stock
+  app.post("/api/production/plan-preview", async (req, res) => {
+    try {
+      const { productId, quantity } = req.body;
+      
+      if (!productId || !quantity) {
+        return res.status(400).json({ error: "Product ID and quantity are required" });
+      }
+
+      // Get product details
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Get recipe items for this product
+      const recipeItems = await storage.getRecipeItems(productId);
+      if (recipeItems.length === 0) {
+        return res.status(400).json({ error: "No recipe found for this product" });
+      }
+
+      // Calculate materials needed based on quantity
+      const materialsNeeded = [];
+      let allStockSufficient = true;
+
+      for (const item of recipeItems) {
+        const stockItem = await storage.getStockItem(item.stockItemId);
+        if (!stockItem) continue;
+
+        // Calculate quantity needed for production
+        const quantityNeeded = parseFloat(item.quantityNeeded) * quantity;
+        
+        // Convert to stock item's unit for comparison
+        const { convertUnit } = await import("@shared/schema");
+        const convertedQuantity = convertUnit(
+          quantityNeeded, 
+          item.usageUnit.toLowerCase(), 
+          stockItem.unit.toLowerCase()
+        );
+
+        const currentStock = parseFloat(stockItem.currentQuantity);
+        const isSufficient = currentStock >= convertedQuantity;
+        const shortage = isSufficient ? 0 : convertedQuantity - currentStock;
+
+        if (!isSufficient) {
+          allStockSufficient = false;
+        }
+
+        materialsNeeded.push({
+          stockItemId: item.stockItemId,
+          stockItemName: stockItem.name,
+          quantityNeeded: quantityNeeded,
+          usageUnit: item.usageUnit,
+          currentStock: currentStock,
+          stockUnit: stockItem.unit,
+          isSufficient,
+          shortage: shortage,
+          convertedQuantity: convertedQuantity
+        });
+      }
+
+      res.json({
+        product: {
+          id: product.id,
+          name: product.name,
+          unitsPerBatch: product.unitsPerBatch,
+          totalCostPerBatch: product.totalCostPerBatch
+        },
+        quantity,
+        materialsNeeded,
+        allStockSufficient,
+        totalProductionCost: parseFloat(product.totalCostPerBatch) * quantity
+      });
+    } catch (error) {
+      console.error("Production plan preview error:", error);
+      res.status(500).json({ error: "Failed to generate production plan" });
+    }
+  });
+
+  // Production Planning - Confirm production and deduct stock
+  app.post("/api/production/confirm", async (req, res) => {
+    try {
+      const { productId, quantity, batchDate, expiryDate, notes, materialsNeeded } = req.body;
+
+      if (!productId || !quantity || !batchDate) {
+        return res.status(400).json({ error: "Product ID, quantity, and batch date are required" });
+      }
+
+      // Get product details
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Verify stock availability again before deduction
+      const recipeItems = await storage.getRecipeItems(productId);
+      const { convertUnit } = await import("@shared/schema");
+
+      for (const item of recipeItems) {
+        const stockItem = await storage.getStockItem(item.stockItemId);
+        if (!stockItem) {
+          return res.status(400).json({ error: `Stock item not found: ${item.stockItemId}` });
+        }
+
+        const quantityNeeded = parseFloat(item.quantityNeeded) * quantity;
+        const convertedQuantity = convertUnit(
+          quantityNeeded,
+          item.usageUnit.toLowerCase(),
+          stockItem.unit.toLowerCase()
+        );
+
+        const currentStock = parseFloat(stockItem.currentQuantity);
+        if (currentStock < convertedQuantity) {
+          return res.status(400).json({ 
+            error: `Insufficient stock for ${stockItem.name}. Required: ${convertedQuantity} ${stockItem.unit}, Available: ${currentStock} ${stockItem.unit}` 
+          });
+        }
+      }
+
+      // Create production batch
+      const batchData = {
+        productId,
+        productName: product.name,
+        quantity,
+        batchDate,
+        expiryDate: expiryDate || null,
+        totalCost: (parseFloat(product.totalCostPerBatch) * quantity).toString(),
+        notes: notes || null
+      };
+
+      const batch = await storage.createProductionBatch(batchData);
+
+      // Deduct stock for each material
+      for (const item of recipeItems) {
+        const stockItem = await storage.getStockItem(item.stockItemId);
+        if (!stockItem) continue;
+
+        const quantityNeeded = parseFloat(item.quantityNeeded) * quantity;
+        const convertedQuantity = convertUnit(
+          quantityNeeded,
+          item.usageUnit.toLowerCase(),
+          stockItem.unit.toLowerCase()
+        );
+
+        const newQuantity = parseFloat(stockItem.currentQuantity) - convertedQuantity;
+
+        await storage.updateStockItem(item.stockItemId, {
+          currentQuantity: newQuantity.toString()
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        batch,
+        message: "Production batch created and stock deducted successfully"
+      });
+    } catch (error) {
+      console.error("Production confirmation error:", error);
+      res.status(500).json({ error: "Failed to confirm production" });
+    }
+  });
+
   // Vendors
   app.get("/api/vendors", async (req, res) => {
     try {

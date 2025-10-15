@@ -36,6 +36,7 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 ### Feature Specifications
 -   **Stock Management System**: Comprehensive inventory with CRUD, recipe builder with auto-cost and profit margin intelligence, flexible pricing, unit conversion, and variable package size/pricing.
 -   **Stock Replenishment & Shopping List**: Tools for adding stock, low stock alerts, dedicated shopping list with WhatsApp sharing and optimized print format.
+-   **Production Planning System**: Intelligent production planning with multi-step workflow (select product/quantity → preview materials → confirm). Features include automatic material calculation from recipes, real-time stock validation with visual indicators, insufficient stock alerts, shopping list integration for missing items, and automatic stock deduction upon confirmation. Supports batch tracking with expiry dates and notes.
 -   **Claims Enhancement**: Detailed product breakdown for claims, filterable views, and vendor cross-checking.
 -   **Google Drive Integration**: Auto-sync for all generated documents.
 -   **Commission Management**: Supports percentage-based and range-based fixed commissions for vendors.
