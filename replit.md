@@ -18,13 +18,16 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - **Skeleton Loaders**: Replaced spinners with skeleton screens for better perceived performance
     - **Empty States**: Comprehensive component with helpful illustrations and CTAs for all empty scenarios
     - **Keyboard Shortcuts**: Global (Cmd+K, ?) and page-specific (N for new) shortcuts with help dialog
-    - **Smart Filters**: Quick filter chips and advanced filtering with useMemo optimization (integrated in Stock page)
+    - **Smart Filters**: Quick filter chips and advanced filtering with useMemo optimization (integrated in Stock, Deliveries, and Claims pages)
     - **Swipe Gestures**: Touch-friendly swipe actions (swipe-to-mark-paid on Sales page)
     - **Quick Actions FAB**: Floating action button with expandable actions for mobile-first navigation (Dashboard)
     - **Enhanced Toasts**: Rich toast notifications with icons, undo actions, and custom action buttons
     - **Interactive Dashboard Charts**: Recharts area chart with time range selector (7d/30d/90d/6m), trend indicators with percentage deltas, dual-area visualization for sales and profit tracking
     - **Production Flow Visualization**: Real-time dashboard card showing Production → Delivered → Sold flow with visual indicators, balance tracking (production - delivered), and alerts when deliveries exceed daily production
     - **Optimized Theme**: Sophisticated warm-neutral palette (hues 28-42) with rich chocolate browns, warm gold accents (42°), and full cohesion across light/dark modes
+    - **Advanced Filtering System**: Deliveries page with vendor, status, and date range filters; Claims page with vendor and payment status filters; collapsible filter UI with toggle, real-time count display, and reset functionality
+    - **Improved Delivery Card Layout**: 5-button layout with full-width Edit Tolakan button and 2x2 grid for action buttons (Invois, Resit A5, Thermal 58mm, WhatsApp) ensuring all buttons visible on mobile
+    - **Intelligent Sorting**: Deliveries sorted by deliveryDate DESC (latest first); Claims sorted by latest delivery date per vendor for better financial tracking
 
 ### Technical Implementations
 -   **Frontend**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for server state, React Hook Form with Zod for form management, Context API for theme. Key patterns include component composition, custom hooks, and centralized API handling.
@@ -68,7 +71,7 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - Real-time sync between deliveries and claims pages via React Query invalidation
     - Per-item breakdown: gross → tolakan (orange) → net → komisyen (blue) → boleh dituntut
     - Rejection data included in invoices and claim statements for full transparency
--   **Professional Invoicing**: Comprehensive system with business profile management and multi-invoice claim statements.
+-   **Professional Invoicing**: Comprehensive system with business profile management and multi-invoice claim statements. Invoice PDFs use "Harga Jualan" column header (instead of "RP") for clarity and include consignment-appropriate footer note: "Nota: Tuntutan tertakluk kepada jualan sebenar dan keadaan produk".
 -   **Expiry Tracking**: Visual indicators for expiring products.
 
 ### System Design Choices
