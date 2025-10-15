@@ -101,6 +101,13 @@ export default function Deliveries() {
       form.reset();
       setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error.message || "Stok tidak mencukupi atau ralat berlaku.",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateStatusMutation = useMutation({

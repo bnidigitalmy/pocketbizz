@@ -108,6 +108,13 @@ export default function Sales() {
       setDialogOpen(false);
       form.reset();
     },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error?.message || "Stok tidak mencukupi atau ralat berlaku.",
+        variant: "destructive",
+      });
+    },
   });
 
   const markPaidMutation = useMutation({
