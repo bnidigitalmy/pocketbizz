@@ -11,6 +11,7 @@ import { InstallPWA } from "@/components/install-pwa";
 import { GlobalSearch } from "@/components/global-search";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { RenewalReminder } from "@/components/renewal-reminder";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -121,6 +122,7 @@ export default function App() {
           <InstallPWA />
           <KeyboardShortcuts />
           <UpgradePrompt />
+          <RenewalReminder />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
