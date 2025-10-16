@@ -50,13 +50,14 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
 -   **Expiry Tracking**: Visual indicators for expiring products.
 -   **Subscription System**:
     -   **Free Trial**: 7-day auto-activated trial with product limits (10 max) and disabled Google Drive sync, enforced by middleware.
+    -   **Trial Expiry System**: Automatic trial disabling on expiry (sets `isOnTrial=0` on user load and blocked requests), upgrade prompt dialog with dismissible option for active trials and forced upgrade for expired trials.
     -   **Authentication**: Secure registration/login with bcrypt and session-based auth.
     -   **Duration-Based Pricing**: 3/6/12 month packages with progressive discounts (10% for 6m, 20% for 12m).
     -   **Three-Tier Plans**: Basic, Pro, Premium.
     -   **Early Bird Tracking**: Discounted initial subscription for first 100 users, transitioning to loyalty rate.
-    -   **ToyyibPay Integration**: Malaysian payment gateway with callback/webhook handling.
-    -   **Promo Codes**: Support for percentage/fixed discounts.
-    -   **Billing History**: Comprehensive transaction tracking.
+    -   **ToyyibPay Integration**: Malaysian payment gateway with callback/webhook handling, pending bills table for metadata storage, payment verification via `getBillTransactions` API.
+    -   **Promo Codes**: Support for percentage/fixed discounts with usage tracking.
+    -   **Billing History**: Comprehensive transaction tracking with ToyyibPay reference codes.
     -   **Feature Gating**: Middleware-based access control based on trial/paid status and subscription tier.
     -   **Expiry Tracking**: Fixed subscription end dates with renewal reminders.
     -   **Admin Panel**: Full subscription management and analytics.

@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { deliveryItems, earlyBirdTracking } from "@shared/schema";
+import { deliveryItems, earlyBirdTracking, billingHistory } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
@@ -28,6 +28,11 @@ async function loadUser(req: Request, res: Response, next: NextFunction) {
   if (req.session.userId) {
     const user = await storage.getUserById(req.session.userId);
     if (user) {
+      // Auto-disable expired trials
+      if (user.isOnTrial && user.trialEndsAt && new Date(user.trialEndsAt) < new Date()) {
+        await storage.updateUser(user.id, { isOnTrial: 0 });
+        user.isOnTrial = 0;
+      }
       req.user = user;
     }
   }
@@ -57,11 +62,11 @@ async function getUserActiveSubscription(userId: string) {
   return activeSub;
 }
 
-// Helper: Check if user is on trial and if it's expired
+// Helper: Check if user's trial has expired (regardless of isOnTrial flag)
 function isTrialExpired(user: any): boolean {
-  if (!user.isOnTrial) return false;
   if (!user.trialEndsAt) return false;
   
+  // Trial is expired if trialEndsAt is in the past
   return new Date(user.trialEndsAt) < new Date();
 }
 
@@ -83,13 +88,21 @@ async function getUserProductLimit(user: any): Promise<number> {
   return 0;
 }
 
-// Middleware: Block expired trial users
+// Middleware: Block expired trial users and auto-disable trial
 async function blockExpiredTrial(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ message: "Unauthorized - please login" });
   }
   
   if (isTrialExpired(req.user)) {
+    // Auto-disable trial access
+    await storage.updateUser(req.user.id, {
+      isOnTrial: 0,
+    });
+    
+    // Update req.user to reflect changes
+    req.user.isOnTrial = 0;
+    
     return res.status(403).json({ 
       message: "Your trial has expired. Please upgrade to continue using PocketBizz.",
       trialExpired: true 
