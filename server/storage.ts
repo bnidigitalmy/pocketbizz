@@ -7,6 +7,7 @@ import {
   deliveries,
   deliveryItems,
   sales,
+  salesItems,
   expenses,
   businessProfile,
   googleDriveSyncLog,
@@ -29,6 +30,8 @@ import {
   type InsertDeliveryItem,
   type Sale,
   type InsertSale,
+  type SalesItem,
+  type InsertSalesItem,
   type Expense,
   type InsertExpense,
   type BusinessProfile,
@@ -103,11 +106,11 @@ export interface IStorage {
   updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any>;
   updateDeliveryItemRejection(itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void>;
   
-  // Sales
-  getSales(): Promise<Sale[]>;
-  checkDuplicateSale(productId: string, vendorId: string | null, saleDate: string): Promise<Sale | null>;
-  createSale(sale: InsertSale): Promise<Sale>;
-  markSalePaid(id: string): Promise<void>;
+  // POS Sales
+  getSales(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
+  getSale(id: string): Promise<any>;
+  createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale>;
+  generateReceiptNumber(): Promise<string>;
   
   // Expenses
   getExpenses(): Promise<Expense[]>;
