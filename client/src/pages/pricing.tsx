@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ type SubscriptionPlan = {
 };
 
 export default function Pricing() {
+  const [, setLocation] = useLocation();
   const [selectedDuration, setSelectedDuration] = useState<3 | 6 | 12>(6);
   
   const { data: plans, isLoading } = useQuery<SubscriptionPlan[]>({
@@ -37,6 +39,16 @@ export default function Pricing() {
 
   const earlyBirdSlotsRemaining = earlyBirdData?.remaining ?? 0;
   const earlyBirdDiscount = 70; // 70% off early bird discount
+  
+  const handleSelectPlan = (plan: SubscriptionPlan) => {
+    // Navigate to checkout with plan details
+    const params = new URLSearchParams({
+      planId: plan.id,
+      planName: plan.name,
+      duration: selectedDuration.toString(),
+    });
+    setLocation(`/checkout?${params.toString()}`);
+  };
 
   const planIcons = {
     basic: Star,
@@ -269,15 +281,7 @@ export default function Pricing() {
                   variant={isPro ? "default" : "outline"}
                   size="lg"
                   data-testid={`button-choose-${plan.name}`}
-                  onClick={() => {
-                    // TODO: Implement checkout flow
-                    console.log('Selected plan:', {
-                      planId: plan.id,
-                      planName: plan.name,
-                      durationMonths: selectedDuration,
-                      price: hasEarlyBird ? earlyBirdPrice : price,
-                    });
-                  }}
+                  onClick={() => handleSelectPlan(plan)}
                 >
                   Choose {plan.displayName}
                 </Button>

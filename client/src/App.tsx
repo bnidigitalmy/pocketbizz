@@ -28,6 +28,8 @@ import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import DriveSync from "@/pages/drive-sync";
 import Pricing from "@/pages/pricing";
+import Checkout from "@/pages/checkout";
+import PaymentCallback from "@/pages/payment-callback";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -48,6 +50,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/drive-sync" component={DriveSync} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/checkout" component={Checkout} />
+      <Route path="/payment/callback" component={PaymentCallback} />
       <Route component={NotFound} />
     </Switch>
   );
