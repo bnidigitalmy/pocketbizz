@@ -54,6 +54,9 @@ import {
   userSubscriptions,
   type UserSubscription,
   type InsertUserSubscription,
+  promoCodes,
+  type PromoCode,
+  type InsertPromoCode,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -173,6 +176,10 @@ export interface IStorage {
   getUserSubscriptions(userId: string): Promise<UserSubscription[]>;
   getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined>;
   createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
+  
+  // Promo Codes
+  getPromoCodeByCode(code: string): Promise<PromoCode | undefined>;
+  getPromoCodeUsageCount(promoCodeId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1300,6 +1307,21 @@ export class DatabaseStorage implements IStorage {
   async createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription> {
     const [newSubscription] = await db.insert(userSubscriptions).values(subscription).returning();
     return newSubscription;
+  }
+  
+  // Promo Codes
+  async getPromoCodeByCode(code: string): Promise<PromoCode | undefined> {
+    const [promo] = await db.select()
+      .from(promoCodes)
+      .where(eq(promoCodes.code, code.toUpperCase()));
+    return promo || undefined;
+  }
+  
+  async getPromoCodeUsageCount(promoCodeId: string): Promise<number> {
+    const [promo] = await db.select()
+      .from(promoCodes)
+      .where(eq(promoCodes.id, promoCodeId));
+    return promo?.currentUses || 0;
   }
 }
 

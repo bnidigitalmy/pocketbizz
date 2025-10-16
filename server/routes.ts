@@ -362,6 +362,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ==================== TOYYIBPAY / SUBSCRIPTION ROUTES ====================
+  
+  // Create ToyyibPay bill for subscription payment
+  app.post("/api/subscription/create-bill", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        planId: z.string(),
+        durationMonths: z.number().refine(val => [3, 6, 12].includes(val), {
+          message: "Duration must be 3, 6, or 12 months"
+        }),
+        promoCode: z.string().optional(),
+      });
+      
+      const { planId, durationMonths, promoCode } = schema.parse(req.body);
+      
+      // Get subscription plan
+      const plan = await storage.getSubscriptionPlanById(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      // Calculate base price for duration
+      const monthlyPrice = parseFloat(plan.monthlyPrice);
+      let totalPrice = monthlyPrice * durationMonths;
+      
+      // Apply duration discount
+      if (durationMonths === 6) {
+        const discount = parseFloat(plan.discount6Months || "10");
+        totalPrice = totalPrice * (1 - discount / 100);
+      } else if (durationMonths === 12) {
+        const discount = parseFloat(plan.discount12Months || "20");
+        totalPrice = totalPrice * (1 - discount / 100);
+      }
+      
+      // Apply promo code if provided
+      let appliedPromo = null;
+      if (promoCode) {
+        const promo = await storage.getPromoCodeByCode(promoCode);
+        if (promo && promo.isActive) {
+          // Check usage limit
+          const usageCount = await storage.getPromoCodeUsageCount(promo.id);
+          if (usageCount < (promo.maxUses || Infinity)) {
+            // Check expiry
+            if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
+              // Apply discount
+              if (promo.discountType === 'percentage') {
+                totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
+              } else {
+                totalPrice = totalPrice - parseFloat(promo.discountValue);
+              }
+              appliedPromo = promo;
+            }
+          }
+        }
+      }
+      
+      // Ensure minimum price
+      totalPrice = Math.max(totalPrice, 1);
+      
+      // Type assertion for req.user (requireAuth ensures it exists)
+      const user = req.user!;
+      
+      // Generate unique order reference
+      const orderRef = `SUB-${user.id.slice(0, 8)}-${Date.now()}`;
+      
+      // Import ToyyibPay helper
+      const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
+      
+      // Create bill
+      const billParams = {
+        billName: `${plan.displayName} - ${durationMonths} months`,
+        billDescription: `PocketBizz ${plan.displayName} subscription for ${durationMonths} months`,
+        billAmount: rmToCents(totalPrice),
+        billTo: user.name,
+        billEmail: user.email,
+        billPhone: user.phone || '0000000000',
+        billExternalReferenceNo: orderRef,
+        billReturnUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/payment/callback`,
+        billCallbackUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/subscription/webhook`,
+        billExpiryDays: 7, // Bill expires in 7 days
+      };
+      
+      const billResponse = await createBill(billParams);
+      
+      if (!billResponse.BillCode) {
+        return res.status(500).json({ message: "Failed to create payment bill" });
+      }
+      
+      // Store bill reference in session or temporary table
+      // For now, we'll return it to frontend
+      
+      res.json({
+        billCode: billResponse.BillCode,
+        billUrl: getBillUrl(billResponse.BillCode),
+        orderRef,
+        totalAmount: totalPrice,
+        planName: plan.displayName,
+        durationMonths,
+        promoApplied: appliedPromo ? {
+          code: appliedPromo.code,
+          discountType: appliedPromo.discountType,
+          discountValue: appliedPromo.discountValue,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error("Create bill error:", error);
+      res.status(400).json({ message: error.message || "Failed to create payment bill" });
+    }
+  });
+  
+  // ToyyibPay webhook callback (server-side notification)
+  app.get("/api/subscription/webhook", async (req, res) => {
+    try {
+      const { refno, status, billcode, order_id, amount, reason } = req.query;
+      
+      console.log('ToyyibPay webhook received:', {
+        refno,
+        status,
+        billcode,
+        order_id,
+        amount,
+        reason,
+      });
+      
+      if (!billcode || !status) {
+        return res.status(400).send('Invalid callback parameters');
+      }
+      
+      // Verify payment with ToyyibPay API
+      const { getBillTransactions, centsToRm } = await import('./toyyibpay');
+      const transactions = await getBillTransactions(billcode as string, status as string);
+      
+      if (transactions.length === 0) {
+        console.error('No transactions found for billcode:', billcode);
+        return res.status(200).send('OK'); // Still acknowledge to prevent retries
+      }
+      
+      const transaction = transactions[0];
+      
+      // Only process successful payments
+      if (transaction.billpaymentStatus === '1' && status === '1') {
+        // Extract subscription details from order reference
+        const orderRef = order_id as string;
+        
+        // Parse order reference to get user ID and timestamp
+        // Format: SUB-{userId}-{timestamp}
+        const parts = orderRef.split('-');
+        if (parts.length < 3) {
+          console.error('Invalid order reference format:', orderRef);
+          return res.status(200).send('OK');
+        }
+        
+        const userIdPrefix = parts[1];
+        
+        // Find user by ID prefix (first 8 chars)
+        // In production, you'd store the bill metadata in a temporary table
+        // For now, we'll respond with success and handle subscription creation
+        // via the return URL callback where we have full context
+        
+        console.log('Payment verified successfully:', {
+          orderRef,
+          amount: transaction.billpaymentAmount,
+          channel: transaction.billpaymentChannel,
+          invoiceNo: transaction.billpaymentInvoiceNo,
+        });
+      }
+      
+      // Always return 200 OK to acknowledge webhook
+      res.status(200).send('OK');
+    } catch (error: any) {
+      console.error('Webhook processing error:', error);
+      res.status(200).send('OK'); // Acknowledge even on error to prevent retries
+    }
+  });
+  
   // Global Search - Search across all entities
   app.get("/api/search", async (req, res) => {
     try {
