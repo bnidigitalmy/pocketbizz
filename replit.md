@@ -52,6 +52,12 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
     -   **Free Trial**: 7-day auto-activated trial with product limits (10 max) and disabled Google Drive sync, enforced by middleware.
     -   **Trial Expiry System**: Automatic trial disabling on expiry (sets `isOnTrial=0` on user load and blocked requests), upgrade prompt dialog with dismissible option for active trials and forced upgrade for expired trials.
     -   **Subscription Expiry Tracking**: Auto-expiry system that checks `subscriptionEndsAt` on every user load, marks expired subscriptions as 'expired' status, with date-based fallback checks in `getUserActiveSubscription` for stale data protection.
+    -   **Renewal System**: Complete subscription renewal flow with:
+        -   **RenewalReminder Banner**: Non-modal fixed banner appearing 14 days before expiry for active paid users, shows days remaining, dismissible for 24h, navigates to /pricing?renew=true
+        -   **Renewal Endpoint**: `/api/subscription/renew` with fallback logic (active subscription or most recent for expired users)
+        -   **Renewal Tracking**: Database columns `is_renewal` and `renewal_subscription_id` in pending_bills table
+        -   **Webhook Processing**: Extends `subscriptionEndsAt` from current end date (or now if expired), reactivates expired subscriptions, updates cumulative `totalPaid`
+        -   **Reactivation Flow**: Expired subscriptions automatically reactivated (status='expired' → 'active') upon successful renewal payment
     -   **Authentication**: Secure registration/login with bcrypt and session-based auth.
     -   **Duration-Based Pricing**: 3/6/12 month packages with progressive discounts (10% for 6m, 20% for 12m).
     -   **Three-Tier Plans**: Basic, Pro, Premium.
@@ -60,7 +66,6 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
     -   **Promo Codes**: Support for percentage/fixed discounts with usage tracking.
     -   **Billing History**: Comprehensive transaction tracking with ToyyibPay reference codes.
     -   **Feature Gating**: Middleware-based access control based on trial/paid status and subscription tier.
-    -   **Expiry Tracking**: Fixed subscription end dates with renewal reminders.
     -   **Admin Panel**: Full subscription management and analytics.
 
 ### System Design Choices
