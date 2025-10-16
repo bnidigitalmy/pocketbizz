@@ -450,8 +450,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create payment bill" });
       }
       
-      // Store bill reference in session or temporary table
-      // For now, we'll return it to frontend
+      // Calculate total discount amount for metadata
+      const discountAmount = (monthlyPrice * durationMonths) - totalPrice;
+      
+      // Store bill metadata in pending_bills table for webhook processing
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7); // Bill expires in 7 days
+      
+      await storage.createPendingBill({
+        userId: user.id,
+        billCode: billResponse.BillCode,
+        orderRef,
+        planId: plan.id,
+        planName: plan.displayName,
+        durationMonths,
+        totalAmount: totalPrice.toString(),
+        promoCodeId: appliedPromo?.id,
+        promoCode: appliedPromo?.code,
+        discountApplied: discountAmount.toString(),
+        expiresAt: expiryDate,
+      });
       
       res.json({
         billCode: billResponse.BillCode,
@@ -508,6 +526,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).send('Invalid callback parameters');
       }
       
+      // Check if already processed to prevent duplicate subscriptions
+      const existingBill = await storage.getPendingBillByBillCode(billcode as string);
+      if (!existingBill) {
+        console.error('No pending bill found for billcode:', billcode);
+        return res.status(200).send('OK');
+      }
+      
+      if (existingBill.isProcessed) {
+        console.log('Bill already processed:', billcode);
+        return res.status(200).send('OK');
+      }
+      
       // Verify payment with ToyyibPay API
       const { getBillTransactions, centsToRm } = await import('./toyyibpay');
       const transactions = await getBillTransactions(billcode as string, status as string);
@@ -521,29 +551,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Only process successful payments
       if (transaction.billpaymentStatus === '1' && status === '1') {
-        // Extract subscription details from order reference
-        const orderRef = order_id as string;
+        // Calculate subscription dates
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + existingBill.durationMonths);
         
-        // Parse order reference to get user ID and timestamp
-        // Format: SUB-{userId}-{timestamp}
-        const parts = orderRef.split('-');
-        if (parts.length < 3) {
-          console.error('Invalid order reference format:', orderRef);
-          return res.status(200).send('OK');
+        // Create billing history record
+        const billingRecord = await db.insert(billingHistory).values({
+          userId: existingBill.userId,
+          amount: existingBill.totalAmount,
+          currency: 'MYR',
+          status: 'succeeded',
+          toyyibpayBillCode: billcode as string,
+          toyyibpayTransactionId: refno as string,
+          paymentMethod: transaction.billpaymentChannel,
+          description: `${existingBill.planName} - ${existingBill.durationMonths} months subscription`,
+          paidAt: new Date(),
+        }).returning();
+        
+        // Create user subscription
+        const newSubscription = await storage.createUserSubscription({
+          userId: existingBill.userId,
+          planId: existingBill.planId,
+          planName: existingBill.planName,
+          status: 'active',
+          durationMonths: existingBill.durationMonths,
+          subscriptionStartsAt: startDate,
+          subscriptionEndsAt: endDate,
+          totalPaid: existingBill.totalAmount,
+          toyyibpayBillCode: billcode as string,
+          paymentMethod: transaction.billpaymentChannel,
+        });
+        
+        // Update user: turn off trial
+        await storage.updateUser(existingBill.userId, {
+          isOnTrial: 0,
+          trialEndsAt: null,
+        });
+        
+        // Update early bird tracking if applicable
+        if (existingBill.promoCode?.toUpperCase().includes('EARLYBIRD')) {
+          await db.update(earlyBirdTracking)
+            .set({ 
+              hasSubscribed: 1,
+              subscriptionId: newSubscription.id,
+            })
+            .where(eq(earlyBirdTracking.userId, existingBill.userId));
         }
         
-        const userIdPrefix = parts[1];
+        // Increment promo code usage if applicable
+        if (existingBill.promoCodeId) {
+          await storage.incrementPromoCodeUsage(existingBill.promoCodeId);
+        }
         
-        // Find user by ID prefix (first 8 chars)
-        // In production, you'd store the bill metadata in a temporary table
-        // For now, we'll respond with success and handle subscription creation
-        // via the return URL callback where we have full context
+        // Mark bill as processed
+        await storage.markBillAsProcessed(billcode as string);
         
-        console.log('Payment verified successfully:', {
-          orderRef,
-          amount: transaction.billpaymentAmount,
-          channel: transaction.billpaymentChannel,
-          invoiceNo: transaction.billpaymentInvoiceNo,
+        console.log('Subscription activated successfully:', {
+          userId: existingBill.userId,
+          subscriptionId: newSubscription.id,
+          planName: existingBill.planName,
+          durationMonths: existingBill.durationMonths,
+          amount: existingBill.totalAmount,
+        });
+      } else {
+        // Payment failed - create failed billing record
+        await db.insert(billingHistory).values({
+          userId: existingBill.userId,
+          amount: existingBill.totalAmount,
+          currency: 'MYR',
+          status: 'failed',
+          toyyibpayBillCode: billcode as string,
+          toyyibpayTransactionId: refno as string,
+          description: `${existingBill.planName} - ${existingBill.durationMonths} months subscription (failed)`,
+        }).returning();
+        
+        console.log('Payment failed:', {
+          billcode,
+          status,
+          reason,
         });
       }
       

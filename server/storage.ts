@@ -58,6 +58,9 @@ import {
   type PromoCode,
   type InsertPromoCode,
   earlyBirdTracking,
+  pendingBills,
+  type PendingBill,
+  type InsertPendingBill,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -181,6 +184,12 @@ export interface IStorage {
   // Promo Codes
   getPromoCodeByCode(code: string): Promise<PromoCode | undefined>;
   getPromoCodeUsageCount(promoCodeId: string): Promise<number>;
+  incrementPromoCodeUsage(promoCodeId: string): Promise<void>;
+  
+  // Pending Bills
+  createPendingBill(bill: InsertPendingBill): Promise<PendingBill>;
+  getPendingBillByBillCode(billCode: string): Promise<PendingBill | undefined>;
+  markBillAsProcessed(billCode: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1323,6 +1332,34 @@ export class DatabaseStorage implements IStorage {
       .from(promoCodes)
       .where(eq(promoCodes.id, promoCodeId));
     return promo?.currentUses || 0;
+  }
+  
+  async incrementPromoCodeUsage(promoCodeId: string): Promise<void> {
+    await db.update(promoCodes)
+      .set({ currentUses: sql`${promoCodes.currentUses} + 1` })
+      .where(eq(promoCodes.id, promoCodeId));
+  }
+  
+  // Pending Bills
+  async createPendingBill(bill: InsertPendingBill): Promise<PendingBill> {
+    const [newBill] = await db.insert(pendingBills).values(bill).returning();
+    return newBill;
+  }
+  
+  async getPendingBillByBillCode(billCode: string): Promise<PendingBill | undefined> {
+    const [bill] = await db.select()
+      .from(pendingBills)
+      .where(eq(pendingBills.billCode, billCode));
+    return bill || undefined;
+  }
+  
+  async markBillAsProcessed(billCode: string): Promise<void> {
+    await db.update(pendingBills)
+      .set({ 
+        isProcessed: 1, 
+        processedAt: new Date() 
+      })
+      .where(eq(pendingBills.billCode, billCode));
   }
   
   async getEarlyBirdUsedSlots(): Promise<number> {

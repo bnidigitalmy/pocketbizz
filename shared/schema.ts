@@ -573,6 +573,25 @@ export const earlyBirdTracking = pgTable("early_bird_tracking", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Pending Bills Table (ToyyibPay bill metadata before payment completion)
+export const pendingBills = pgTable("pending_bills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  billCode: text("bill_code").notNull().unique(), // ToyyibPay bill code
+  orderRef: text("order_ref").notNull(), // Our order reference
+  planId: varchar("plan_id").notNull().references(() => subscriptionPlans.id),
+  planName: text("plan_name").notNull(),
+  durationMonths: integer("duration_months").notNull(), // 3, 6, or 12
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  promoCodeId: varchar("promo_code_id").references(() => promoCodes.id, { onDelete: "set null" }),
+  promoCode: text("promo_code"), // Denormalized for easy access
+  discountApplied: decimal("discount_applied", { precision: 10, scale: 2 }).default("0"),
+  isProcessed: integer("is_processed").notNull().default(0), // 1 = processed by webhook, 0 = pending
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(), // Bill expiry (7 days)
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -592,6 +611,11 @@ export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions
 });
 
 export const insertPromoCodeSchema = createInsertSchema(promoCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPendingBillSchema = createInsertSchema(pendingBills).omit({
   id: true,
   createdAt: true,
 });
@@ -625,3 +649,6 @@ export type InsertBillingHistory = z.infer<typeof insertBillingHistorySchema>;
 
 export type EarlyBirdTracking = typeof earlyBirdTracking.$inferSelect;
 export type InsertEarlyBirdTracking = z.infer<typeof insertEarlyBirdTrackingSchema>;
+
+export type PendingBill = typeof pendingBills.$inferSelect;
+export type InsertPendingBill = z.infer<typeof insertPendingBillSchema>;
