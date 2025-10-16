@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Settings,
   Cloud,
+  CreditCard,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -101,6 +102,14 @@ const menuItems = [
   },
 ];
 
+const subscriptionItems = [
+  {
+    title: "Pricing Plans",
+    url: "/pricing",
+    icon: CreditCard,
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { setOpenMobile, isMobile } = useSidebar();
@@ -137,6 +146,28 @@ export function AppSidebar() {
                       href={item.url} 
                       onClick={handleMenuClick}
                       data-testid={`link-${item.url.slice(1) || 'dashboard'}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Subscription</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {subscriptionItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
