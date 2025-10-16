@@ -57,6 +57,7 @@ import {
   promoCodes,
   type PromoCode,
   type InsertPromoCode,
+  earlyBirdTracking,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -1322,6 +1323,12 @@ export class DatabaseStorage implements IStorage {
       .from(promoCodes)
       .where(eq(promoCodes.id, promoCodeId));
     return promo?.currentUses || 0;
+  }
+  
+  async getEarlyBirdUsedSlots(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(earlyBirdTracking);
+    return result[0]?.count || 0;
   }
 }
 

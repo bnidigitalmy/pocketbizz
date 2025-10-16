@@ -472,6 +472,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get early bird slots remaining
+  app.get("/api/subscription/early-bird-slots", async (req, res) => {
+    try {
+      const totalSlots = 100;
+      const usedSlots = await storage.getEarlyBirdUsedSlots();
+      const remaining = Math.max(0, totalSlots - usedSlots);
+      
+      res.json({
+        total: totalSlots,
+        used: usedSlots,
+        remaining,
+      });
+    } catch (error: any) {
+      console.error("Early bird slots error:", error);
+      res.status(500).json({ message: "Failed to get early bird slots" });
+    }
+  });
+  
   // ToyyibPay webhook callback (server-side notification)
   app.get("/api/subscription/webhook", async (req, res) => {
     try {
