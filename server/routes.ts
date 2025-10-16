@@ -17,6 +17,7 @@ import {
   insertCategorySchema,
   convertUnit,
   insertUserSchema,
+  insertSubscriptionPlanSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -135,6 +136,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const { password, ...userWithoutPassword } = req.user;
     res.json({ user: userWithoutPassword });
+  });
+  
+  // ==================== SUBSCRIPTION PLANS ====================
+  
+  // Get all active subscription plans
+  app.get("/api/subscription-plans", async (req, res) => {
+    try {
+      const plans = await storage.getSubscriptionPlans();
+      res.json(plans);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch plans" });
+    }
+  });
+  
+  // Get single subscription plan
+  app.get("/api/subscription-plans/:id", async (req, res) => {
+    try {
+      const plan = await storage.getSubscriptionPlan(req.params.id);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.json(plan);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch plan" });
+    }
+  });
+  
+  // Create subscription plan (admin only)
+  app.post("/api/subscription-plans", requireAuth, async (req, res) => {
+    try {
+      // Check admin permission
+      if (req.user?.isAdmin !== 1) {
+        return res.status(403).json({ message: "Forbidden - admin access required" });
+      }
+      
+      const body = insertSubscriptionPlanSchema.parse(req.body);
+      const plan = await storage.createSubscriptionPlan(body);
+      res.json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to create plan" });
+    }
+  });
+  
+  // Update subscription plan (admin only)
+  app.patch("/api/subscription-plans/:id", requireAuth, async (req, res) => {
+    try {
+      // Check admin permission
+      if (req.user?.isAdmin !== 1) {
+        return res.status(403).json({ message: "Forbidden - admin access required" });
+      }
+      
+      // Validate request body
+      const updateSchema = insertSubscriptionPlanSchema.partial();
+      const body = updateSchema.parse(req.body);
+      
+      const plan = await storage.updateSubscriptionPlan(req.params.id, body);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to update plan" });
+    }
+  });
+  
+  // Delete subscription plan (admin only)
+  app.delete("/api/subscription-plans/:id", requireAuth, async (req, res) => {
+    try {
+      // Check admin permission
+      if (req.user?.isAdmin !== 1) {
+        return res.status(403).json({ message: "Forbidden - admin access required" });
+      }
+      
+      // Check if plan exists before deleting
+      const plan = await storage.getSubscriptionPlan(req.params.id);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      
+      await storage.deleteSubscriptionPlan(req.params.id);
+      res.json({ message: "Plan deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete plan" });
+    }
   });
   
   // Global Search - Search across all entities

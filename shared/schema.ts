@@ -59,6 +59,9 @@ export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claim
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete"]);
+export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
+export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -465,11 +468,6 @@ export type ShoppingCart = typeof shoppingCart.$inferSelect;
 export type InsertShoppingCart = z.infer<typeof insertShoppingCartSchema>;
 
 // ==================== SUBSCRIPTION & BILLING SYSTEM ====================
-
-// Enums for subscription system
-export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete"]);
-export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
-export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
 
 // Users Table (Authentication & Account Management)
 export const users = pgTable("users", {
