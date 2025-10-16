@@ -32,7 +32,7 @@ import {
 const menuItems = [
   {
     title: "Dashboard",
-    url: "/",
+    url: "/dashboard",
     icon: LayoutDashboard,
   },
   {

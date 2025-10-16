@@ -15,6 +15,9 @@ import { RenewalReminder } from "@/components/renewal-reminder";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
+import Landing from "@/pages/landing";
+import AuthLogin from "@/pages/auth-login";
+import AuthRegister from "@/pages/auth-register";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Production from "@/pages/production";
@@ -34,10 +37,24 @@ import Checkout from "@/pages/checkout";
 import PaymentCallback from "@/pages/payment-callback";
 import NotFound from "@/pages/not-found";
 
-function Router() {
+function PublicRouter() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Landing} />
+      <Route path="/auth/login" component={AuthLogin} />
+      <Route path="/auth/register" component={AuthRegister} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/checkout" component={Checkout} />
+      <Route path="/payment/callback" component={PaymentCallback} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function AppRouter() {
+  return (
+    <Switch>
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/products" component={Products} />
       <Route path="/production" component={Production} />
       <Route path="/finished-products" component={FinishedProducts} />
@@ -51,9 +68,6 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/settings" component={Settings} />
       <Route path="/drive-sync" component={DriveSync} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/checkout" component={Checkout} />
-      <Route path="/payment/callback" component={PaymentCallback} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -61,15 +75,15 @@ function Router() {
 
 function Header() {
   const [location, navigate] = useLocation();
-  const isHomePage = location === "/";
+  const isDashboard = location === "/dashboard";
 
   const handleBack = () => {
     // Check if there's history to go back to
-    // If user came from external link (no history), go to home instead
+    // If user came from external link (no history), go to dashboard instead
     if (window.history.length > 1) {
       window.history.back();
     } else {
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
@@ -77,7 +91,7 @@ function Header() {
     <header className="flex items-center gap-2 p-4 border-b bg-background sticky top-0 z-10">
       <div className="flex items-center gap-2">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
-        {!isHomePage && (
+        {!isDashboard && (
           <Button
             variant="ghost"
             size="icon"
@@ -97,27 +111,43 @@ function Header() {
   );
 }
 
-export default function App() {
+function AppContent() {
+  const [location] = useLocation();
+  
+  // Public pages don't need sidebar
+  const publicPaths = ["/", "/auth/login", "/auth/register", "/pricing", "/checkout", "/payment/callback"];
+  const isPublicPage = publicPaths.includes(location);
+
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
+  if (isPublicPage) {
+    return <PublicRouter />;
+  }
+
+  return (
+    <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            <AppRouter />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <Header />
-                <main className="flex-1 overflow-y-auto p-4 md:p-6">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AppContent />
           <Toaster />
           <InstallPWA />
           <KeyboardShortcuts />
