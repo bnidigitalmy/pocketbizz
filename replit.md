@@ -60,6 +60,14 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
 -   **Context-Aware Shopping Cart**: Automatically adds production shortages to a unified shopping list, merges with low stock items, generates professional purchase orders (WhatsApp/thermal print), and provides bulk purchase mutations.
 -   **Production Planning**: Intelligent planning with material calculation, real-time stock validation, shortage alerts, shopping cart auto-add, and automatic stock deduction. Supports batch tracking.
 -   **Finished Goods Inventory with FIFO Batch Tracking**: Two-tier inventory system (raw materials vs. finished products). Production creates batches with `remainingQty`. Deliveries/Sales deduct from finished goods using FIFO based on expiry dates. Includes atomic deductions, pre-validation, rollback on insufficient stock, dashboard metrics, and expiry alerts.
+-   **POS (Point of Sale) System**: Complete transaction-based sales system with:
+    -   **Sales Transactions**: Receipt-based sales with unique receipt numbers (RES-YYYYMMDD-XXXX format)
+    -   **Multiple Items per Sale**: `sales` table for transactions, `salesItems` table for line items
+    -   **Payment Methods**: Support for tunai (cash), online, kredit (credit) via `payment_method` enum
+    -   **Profit Tracking**: Auto-calculate profit per item and per transaction (selling price - cost price)
+    -   **FIFO Stock Deduction**: Integrated with production batches for automatic FIFO-based inventory deduction
+    -   **Customer Tracking**: Optional customer name field for sales records
+    -   **Receipt Generation**: PDF receipt generation with business details and itemized breakdown
 -   **Claims Enhancement**: Detailed product breakdown, filterable views, vendor cross-checking.
 -   **Google Drive Integration**: Auto-sync for generated documents.
 -   **Commission Management**: Percentage and range-based fixed commissions.

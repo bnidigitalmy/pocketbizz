@@ -59,6 +59,7 @@ export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claim
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["tunai", "online", "kredit"]); // Cash, Online, Credit
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete", "expired"]);
 export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
 export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
@@ -173,19 +174,33 @@ export const deliveryItems = pgTable("delivery_items", {
   rejectionReason: text("rejection_reason"), // Reason for rejection (optional)
 });
 
-// Sales Table
+// POS Sales Table (Transactions)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  vendorId: varchar("vendor_id").references(() => vendors.id, { onDelete: "set null" }),
-  vendorName: text("vendor_name"),
-  productId: varchar("product_id").references(() => products.id, { onDelete: "set null" }),
+  receiptNumber: text("receipt_number").notNull().unique(), // Format: RES-YYYYMMDD-XXXX
+  customerName: text("customer_name"), // Optional customer name
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("tunai"), // tunai, online, kredit
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total sale amount
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Total cost (for profit calc)
+  profitAmount: decimal("profit_amount", { precision: 10, scale: 2 }).notNull().default("0"), // totalAmount - totalCost
+  saleDate: date("sale_date").notNull(),
+  notes: text("notes"), // Optional notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Sales Items Table (Items in each sale transaction)
+export const salesItems = pgTable("sales_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id").notNull().references(() => sales.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  saleDate: date("sale_date").notNull(),
-  isPaid: integer("is_paid").notNull().default(0), // 0 = pending, 1 = paid
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(), // Selling price
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Cost price (from product.costPerUnit)
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(), // quantity * unitPrice
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull().default("0"), // quantity * unitCost
+  profitAmount: decimal("profit_amount", { precision: 10, scale: 2 }).notNull().default("0"), // totalPrice - totalCost
+  batchId: varchar("batch_id").references(() => productionBatches.id, { onDelete: "set null" }), // For FIFO tracking
 });
 
 // Expenses Table
@@ -292,7 +307,6 @@ export const productionBatchesRelations = relations(productionBatches, ({ one })
 
 export const vendorsRelations = relations(vendors, ({ many }) => ({
   deliveries: many(deliveries),
-  sales: many(sales),
   commissions: many(vendorCommissions),
 }));
 
@@ -333,14 +347,22 @@ export const deliveryItemsRelations = relations(deliveryItems, ({ one }) => ({
   }),
 }));
 
-export const salesRelations = relations(sales, ({ one }) => ({
-  vendor: one(vendors, {
-    fields: [sales.vendorId],
-    references: [vendors.id],
+export const salesRelations = relations(sales, ({ many }) => ({
+  items: many(salesItems),
+}));
+
+export const salesItemsRelations = relations(salesItems, ({ one }) => ({
+  sale: one(sales, {
+    fields: [salesItems.saleId],
+    references: [sales.id],
   }),
   product: one(products, {
-    fields: [sales.productId],
+    fields: [salesItems.productId],
     references: [products.id],
+  }),
+  batch: one(productionBatches, {
+    fields: [salesItems.batchId],
+    references: [productionBatches.id],
   }),
 }));
 
@@ -392,6 +414,10 @@ export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertSalesItemSchema = createInsertSchema(salesItems).omit({
+  id: true,
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({
@@ -451,6 +477,8 @@ export type InsertDeliveryItem = z.infer<typeof insertDeliveryItemSchema>;
 
 export type Sale = typeof sales.$inferSelect;
 export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type SalesItem = typeof salesItems.$inferSelect;
+export type InsertSalesItem = z.infer<typeof insertSalesItemSchema>;
 
 export type Expense = typeof expenses.$inferSelect;
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
