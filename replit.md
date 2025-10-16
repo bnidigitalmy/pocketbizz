@@ -1,7 +1,9 @@
 # PocketBizz - Universal Small Business Management System
 
 ## Overview
-PocketBizz is a comprehensive, mobile-first business management system designed to empower small businesses with end-to-end workflow management. It covers stock and inventory, production and delivery tracking, financial reporting (including profit/loss and rejection tracking), and efficiency tools. Key capabilities include a robust unit conversion system, stock replenishment, variable package size and pricing management, detailed claims, Google Drive auto-sync for documents, and a commission management system. The system aims to streamline operations, reduce manual data entry, and provide actionable financial insights for various small business types.
+PocketBizz is a comprehensive, mobile-first business management system designed to empower small businesses with end-to-end workflow management. It covers stock and inventory, production and delivery tracking, financial reporting (including profit/loss and rejection tracking), and efficiency tools. Key capabilities include a robust unit conversion system, stock replenishment, variable package size and pricing management, detailed claims, Google Drive auto-sync for documents, and a commission management system. 
+
+**NEW: Subscription Billing System** - Now includes Stripe-powered subscription billing with early bird pricing (RM27/month for first 100 customers transitioning to RM79 loyalty rate), three-tier plans (Basic RM49, Pro RM99, Premium RM199), promo code management, and automated billing with feature gating based on subscription tier.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -36,6 +38,8 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 -   **Type Safety**: Shared TypeScript types (Drizzle Zod) between client and server.
 -   **PDF Generation**: Client-side PDF generation using jsPDF.
 -   **Progressive Web App (PWA)**: Implemented with a web app manifest and service worker for installability and a native-like experience on mobile.
+-   **Authentication & Sessions**: Bcrypt password hashing with express-session using PostgreSQL store (connect-pg-simple) for persistent session management. Session middleware hydrates req.user for all authenticated routes.
+-   **Subscription Billing**: Stripe integration with webhook handling for payment events, subscription lifecycle management, and automated billing history tracking.
 
 ### Feature Specifications
 -   **Stock Management System**: Comprehensive inventory with CRUD, recipe builder with auto-cost and profit margin intelligence, flexible pricing, unit conversion, and variable package size/pricing.
@@ -73,12 +77,22 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - Rejection data included in invoices and claim statements for full transparency
 -   **Professional Invoicing**: Comprehensive system with business profile management and multi-invoice claim statements. Invoice PDFs use "Harga Jualan" column header (instead of "RP") for clarity and include consignment-appropriate footer note: "Nota: Tuntutan tertakluk kepada jualan sebenar dan keadaan produk".
 -   **Expiry Tracking**: Visual indicators for expiring products.
+-   **Subscription System** (2025):
+    - **User Authentication**: Secure registration/login with bcrypt password hashing, session-based auth with PostgreSQL store
+    - **Three-Tier Plans**: Basic (RM49), Pro (RM99), Premium (RM199) with feature differentiation
+    - **Early Bird Pricing**: First 100 users get RM27/month, auto-transition to RM79 loyalty rate after 3 months
+    - **Stripe Integration**: Payment processing, subscription lifecycle management, webhook handling
+    - **Promo Codes**: Support for percentage and fixed-amount discount codes with usage limits
+    - **Billing History**: Complete transaction tracking with invoice URLs and payment status
+    - **Feature Gating**: Middleware protection based on subscription tier (max users, products, features)
+    - **Admin Panel**: Full subscription management, user overview, revenue metrics, promo code generation
 
 ### System Design Choices
 -   **Database**: PostgreSQL (Neon Serverless) with Drizzle ORM.
--   **Schema**: Core entities include Products, Ingredients, Production Batches, Vendors, Deliveries, Delivery Items, Sales, Expenses. Uses UUID primary keys, Decimal types for finance, Enum types, and denormalization.
+-   **Schema**: Core entities include Products, Ingredients, Production Batches, Vendors, Deliveries, Delivery Items, Sales, Expenses. **Subscription entities** include Users, Subscription Plans, User Subscriptions, Promo Codes, Billing History. Uses UUID primary keys, Decimal types for finance, Enum types, and denormalization.
 -   **Cost Calculation Strategy**: Costs are stored at creation time for historical accuracy.
 -   **Delivery Status Workflow**: Four-stage workflow (delivered → claimed → pending → rejected) for payment tracking.
+-   **Subscription Workflow**: Registration → Plan selection → Stripe checkout → Payment → Activation → Feature access → Billing cycle
 -   **Monolithic Architecture**: Single repository for client/server for simplified development and deployment.
 
 ## External Dependencies
@@ -113,4 +127,5 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 
 ### External Services
 -   **Google Fonts**: Poppins, Quicksand, JetBrains Mono
--   **Google Drive API**: For document auto-sync and storage.
+-   **Google Drive API**: For document auto-sync and storage
+-   **Stripe**: Payment processing, subscription management, webhook events for billing automation
