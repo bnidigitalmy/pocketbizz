@@ -2,8 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { deliveryItems } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { deliveryItems, earlyBirdTracking } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
   insertProductionBatchSchema,
@@ -54,7 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const registerSchema = insertUserSchema.omit({
         isAdmin: true,
-        stripeCustomerId: true,
+        toyyibpayUserCode: true,
       });
       const body = registerSchema.parse(req.body);
       
@@ -67,13 +67,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const hashedPassword = await bcrypt.hash(body.password, 10);
       
-      // Create user (explicitly set defaults for security)
+      // Calculate trial end date (7 days from now)
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      
+      // Create user with auto-activated free trial
       const user = await storage.createUser({
         ...body,
         password: hashedPassword,
         isAdmin: 0, // Explicitly prevent privilege escalation
-        stripeCustomerId: null,
+        isOnTrial: 1, // Auto-activate 7-day trial
+        trialEndsAt,
+        toyyibpayUserCode: null,
       });
+      
+      // Track early bird slot (first 100 signups) - atomic slot assignment
+      // TODO: For high-concurrency scenarios, consider using a dedicated counter table
+      // or retry logic to handle unique constraint violations more gracefully
+      try {
+        // Atomic INSERT with auto-calculated slot number using MAX + 1
+        // Only inserts if slot_number <= 100 (enforced in query)
+        await db.execute(sql`
+          INSERT INTO early_bird_tracking (user_id, slot_number, email, has_subscribed, signup_date, created_at)
+          SELECT 
+            ${user.id},
+            COALESCE(MAX(slot_number), 0) + 1,
+            ${user.email},
+            0,
+            NOW(),
+            NOW()
+          FROM early_bird_tracking
+          WHERE (SELECT COUNT(*) FROM early_bird_tracking) < 100
+          HAVING COALESCE(MAX(slot_number), 0) + 1 <= 100
+        `);
+      } catch (earlyBirdError: any) {
+        // Expected errors: unique constraint violation (race condition) or no rows inserted (slots full)
+        // These are safe to ignore - just log for monitoring
+        if (!earlyBirdError.message?.includes('unique') && !earlyBirdError.message?.includes('UNIQUE')) {
+          console.error("Early bird tracking error:", earlyBirdError);
+        }
+      }
       
       // Set session
       req.session.userId = user.id;
@@ -219,6 +252,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Plan deleted successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to delete plan" });
+    }
+  });
+  
+  // Get early bird stats (slots remaining)
+  app.get("/api/early-bird/stats", async (req, res) => {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(earlyBirdTracking);
+      
+      const slotsUsed = Number(result[0]?.count || 0);
+      const slotsRemaining = Math.max(0, 100 - slotsUsed);
+      const isAvailable = slotsRemaining > 0;
+      
+      res.json({
+        slotsUsed,
+        slotsRemaining,
+        totalSlots: 100,
+        isAvailable,
+        discountPercent: 70,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch early bird stats" });
     }
   });
   
