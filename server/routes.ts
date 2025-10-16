@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -16,11 +16,126 @@ import {
   insertStockItemSchema,
   insertCategorySchema,
   convertUnit,
+  insertUserSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
 
+// Auth middleware - adds user object to request if logged in
+async function loadUser(req: Request, res: Response, next: NextFunction) {
+  if (req.session.userId) {
+    const user = await storage.getUserById(req.session.userId);
+    if (user) {
+      req.user = user;
+    }
+  }
+  next();
+}
+
+// Middleware to require authentication
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - please login" });
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Load user for all requests
+  app.use(loadUser);
+  
+  // ==================== AUTHENTICATION ROUTES ====================
+  
+  // Register new user
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const registerSchema = insertUserSchema.omit({
+        isAdmin: true,
+        stripeCustomerId: true,
+      });
+      const body = registerSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(body.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(body.password, 10);
+      
+      // Create user (explicitly set defaults for security)
+      const user = await storage.createUser({
+        ...body,
+        password: hashedPassword,
+        isAdmin: 0, // Explicitly prevent privilege escalation
+        stripeCustomerId: null,
+      });
+      
+      // Set session
+      req.session.userId = user.id;
+      
+      // Return user without password
+      const { password, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Registration failed" });
+    }
+  });
+  
+  // Login
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const loginSchema = z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+      });
+      const { email, password } = loginSchema.parse(req.body);
+      
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Verify password
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Set session
+      req.session.userId = user.id;
+      
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Login failed" });
+    }
+  });
+  
+  // Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+  
+  // Get current user
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const { password, ...userWithoutPassword } = req.user;
+    res.json({ user: userWithoutPassword });
+  });
   
   // Global Search - Search across all entities
   app.get("/api/search", async (req, res) => {

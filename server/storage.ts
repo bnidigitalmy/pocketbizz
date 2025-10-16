@@ -45,6 +45,9 @@ import {
   type InsertCategory,
   type ShoppingCart,
   type InsertShoppingCart,
+  users,
+  type User,
+  type InsertUser,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -145,6 +148,12 @@ export interface IStorage {
   removeFromCart(id: string): Promise<void>;
   clearCart(): Promise<void>;
   bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void>;
+  
+  // Users & Authentication
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1179,6 +1188,30 @@ export class DatabaseStorage implements IStorage {
         inArray(shoppingCart.id, cartItemIds)
       );
     });
+  }
+  
+  // Users & Authentication
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+  
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+  
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+  
+  async updateUser(id: string, userData: Partial<InsertUser>): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ ...userData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
   }
 }
 
