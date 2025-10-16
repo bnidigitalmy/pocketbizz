@@ -3,7 +3,13 @@
 ## Overview
 PocketBizz is a comprehensive, mobile-first business management system designed to empower small businesses with end-to-end workflow management. It covers stock and inventory, production and delivery tracking, financial reporting (including profit/loss and rejection tracking), and efficiency tools. Key capabilities include a robust unit conversion system, stock replenishment, variable package size and pricing management, detailed claims, Google Drive auto-sync for documents, and a commission management system. 
 
-**NEW: Subscription Billing System** - Now includes Stripe-powered subscription billing with early bird pricing (RM27/month for first 100 customers transitioning to RM79 loyalty rate), three-tier plans (Basic RM49, Pro RM99, Premium RM199), promo code management, and automated billing with feature gating based on subscription tier.
+**NEW: Subscription Billing System (October 2025)** - ToyyibPay-powered subscription billing with:
+- **Free 7-Day Trial**: Auto-activated on registration with limited features (10 products max, basic features only)
+- **Duration-Based Pricing**: 3/6/12 month packages with automatic discounts (6m: 10% off, 1y: 20% off)
+- **Early Bird Special**: First 100 signups get 70% off (RM27/month effective rate), auto-transition to RM79 loyalty rate after first subscription period
+- **Three-Tier Plans**: Basic (RM49/month), Pro (RM99/month), Premium (RM199/month) - billed upfront for chosen duration
+- **Malaysian Payment Methods**: FPX, online banking, e-wallets via ToyyibPay
+- **Feature Gating**: Middleware protection based on trial vs paid status and subscription tier
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -77,22 +83,28 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
     - Rejection data included in invoices and claim statements for full transparency
 -   **Professional Invoicing**: Comprehensive system with business profile management and multi-invoice claim statements. Invoice PDFs use "Harga Jualan" column header (instead of "RP") for clarity and include consignment-appropriate footer note: "Nota: Tuntutan tertakluk kepada jualan sebenar dan keadaan produk".
 -   **Expiry Tracking**: Visual indicators for expiring products.
--   **Subscription System** (2025):
+-   **Subscription System** (October 2025 - ToyyibPay):
+    - **Free Trial System**: Auto-activate 7-day trial on registration, limited to 10 products and basic features
     - **User Authentication**: Secure registration/login with bcrypt password hashing, session-based auth with PostgreSQL store
-    - **Three-Tier Plans**: Basic (RM49), Pro (RM99), Premium (RM199) with feature differentiation
-    - **Early Bird Pricing**: First 100 users get RM27/month, auto-transition to RM79 loyalty rate after 3 months
-    - **Stripe Integration**: Payment processing, subscription lifecycle management, webhook handling
-    - **Promo Codes**: Support for percentage and fixed-amount discount codes with usage limits
-    - **Billing History**: Complete transaction tracking with invoice URLs and payment status
-    - **Feature Gating**: Middleware protection based on subscription tier (max users, products, features)
-    - **Admin Panel**: Full subscription management, user overview, revenue metrics, promo code generation
+    - **Duration-Based Pricing**: 3/6/12 month packages with upfront payment
+      - 3 months: Pay full price (e.g., RM147 for Basic = RM49 × 3)
+      - 6 months: 10% discount (e.g., RM270 for Basic = RM49 × 6 × 0.9)
+      - 12 months: 20% discount (e.g., RM480 for Basic = RM49 × 12 × 0.8)
+    - **Three-Tier Plans**: Basic (RM49/month), Pro (RM99/month), Premium (RM199/month)
+    - **Early Bird Tracking**: First 100 signups get 70% off for their first subscription (e.g., RM81 for 3 months), then RM79/month loyalty rate on renewal
+    - **ToyyibPay Integration**: Malaysian payment gateway supporting FPX, online banking, e-wallets, callback/webhook handling
+    - **Promo Codes**: Support for percentage and fixed-amount discount codes with usage limits, early bird auto-application
+    - **Billing History**: Complete transaction tracking with ToyyibPay bill codes, transaction IDs, payment methods
+    - **Feature Gating**: Middleware protection based on trial/paid status and subscription tier (max users, products, features)
+    - **Expiry Tracking**: Fixed subscription end dates with renewal reminders 2 weeks before expiry
+    - **Admin Panel**: Full subscription management, user overview, early bird slot tracking, revenue metrics
 
 ### System Design Choices
 -   **Database**: PostgreSQL (Neon Serverless) with Drizzle ORM.
--   **Schema**: Core entities include Products, Ingredients, Production Batches, Vendors, Deliveries, Delivery Items, Sales, Expenses. **Subscription entities** include Users, Subscription Plans, User Subscriptions, Promo Codes, Billing History. Uses UUID primary keys, Decimal types for finance, Enum types, and denormalization.
+-   **Schema**: Core entities include Products, Ingredients, Production Batches, Vendors, Deliveries, Delivery Items, Sales, Expenses. **Subscription entities** include Users (with trial fields), Subscription Plans (duration-based), User Subscriptions (fixed end dates), Promo Codes, Billing History (ToyyibPay), Early Bird Tracking (first 100 slots). Uses UUID primary keys, Decimal types for finance, Enum types, and denormalization.
 -   **Cost Calculation Strategy**: Costs are stored at creation time for historical accuracy.
 -   **Delivery Status Workflow**: Four-stage workflow (delivered → claimed → pending → rejected) for payment tracking.
--   **Subscription Workflow**: Registration → Plan selection → Stripe checkout → Payment → Activation → Feature access → Billing cycle
+-   **Subscription Workflow**: Registration → 7-day trial activation → Trial expiry prompt → Duration selection (3/6/12m) → ToyyibPay checkout → Payment → Subscription activation → Feature access → Fixed expiry date → Renewal reminder
 -   **Monolithic Architecture**: Single repository for client/server for simplified development and deployment.
 
 ## External Dependencies
@@ -128,4 +140,4 @@ PocketBizz is a monolithic full-stack application. The frontend is built with Re
 ### External Services
 -   **Google Fonts**: Poppins, Quicksand, JetBrains Mono
 -   **Google Drive API**: For document auto-sync and storage
--   **Stripe**: Payment processing, subscription management, webhook events for billing automation
+-   **ToyyibPay**: Malaysian payment gateway for subscription billing, supports FPX/online banking/e-wallets, callback/webhook for payment verification

@@ -477,45 +477,52 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   businessName: text("business_name"), // Optional business name
   phone: text("phone"), // Optional phone number
-  stripeCustomerId: text("stripe_customer_id"), // Stripe customer ID for billing
   isAdmin: integer("is_admin").notNull().default(0), // 1 for admin, 0 for regular user
+  // Free Trial Fields
+  isOnTrial: integer("is_on_trial").notNull().default(1), // 1 = on trial, 0 = paid/expired
+  trialEndsAt: timestamp("trial_ends_at"), // When 7-day trial ends
+  // ToyyibPay Integration
+  toyyibpayUserCode: text("toyyibpay_user_code"), // Optional ToyyibPay user reference
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Subscription Plans Table
+// Subscription Plans Table (Duration-based pricing for ToyyibPay)
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(), // "Basic", "Pro", "Premium"
+  name: text("name").notNull(), // "basic", "pro", "premium"
   displayName: text("display_name").notNull(), // Display name for UI
   description: text("description"), // Plan description
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Price in MYR
+  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(), // Base price per month in MYR
   currency: text("currency").notNull().default("MYR"),
-  interval: text("interval").notNull().default("month"), // "month" or "year"
   features: text("features"), // JSON string of features array
-  stripePriceId: text("stripe_price_id"), // Stripe Price ID
-  stripeProductId: text("stripe_product_id"), // Stripe Product ID
   maxUsers: integer("max_users").default(1), // Max users for this plan
   maxProducts: integer("max_products").default(100), // Max products allowed
+  // Duration Discounts
+  discount6Months: decimal("discount_6_months", { precision: 5, scale: 2 }).default("10.00"), // 10% discount for 6 months
+  discount12Months: decimal("discount_12_months", { precision: 5, scale: 2 }).default("20.00"), // 20% discount for 12 months
   isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
   sortOrder: integer("sort_order").default(0), // For display ordering
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// User Subscriptions Table
+// User Subscriptions Table (Fixed duration model for ToyyibPay)
 export const userSubscriptions = pgTable("user_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   planId: varchar("plan_id").notNull().references(() => subscriptionPlans.id),
-  stripeSubscriptionId: text("stripe_subscription_id"), // Stripe Subscription ID
+  planName: text("plan_name").notNull(), // Denormalized for easy display
   status: subscriptionStatusEnum("status").notNull().default("active"),
-  currentPeriodStart: timestamp("current_period_start"),
-  currentPeriodEnd: timestamp("current_period_end"),
-  cancelAtPeriodEnd: integer("cancel_at_period_end").notNull().default(0), // 1 = will cancel, 0 = auto-renew
-  canceledAt: timestamp("canceled_at"),
+  durationMonths: integer("duration_months").notNull(), // 3, 6, or 12 months
+  subscriptionStartsAt: timestamp("subscription_starts_at").notNull(),
+  subscriptionEndsAt: timestamp("subscription_ends_at").notNull(), // Fixed end date
+  totalPaid: decimal("total_paid", { precision: 10, scale: 2 }).notNull(), // Amount paid upfront
   isEarlyBird: integer("is_early_bird").notNull().default(0), // 1 = early bird customer, 0 = regular
-  earlyBirdEndsAt: timestamp("early_bird_ends_at"), // When early bird pricing ends (3 months)
-  loyaltyRate: decimal("loyalty_rate", { precision: 10, scale: 2 }), // RM79 for early bird after transition
+  earlyBirdEndsAt: timestamp("early_bird_ends_at"), // When early bird pricing ends (after first payment duration)
+  loyaltyMonthlyRate: decimal("loyalty_monthly_rate", { precision: 10, scale: 2 }), // Monthly rate after early bird (e.g., RM79)
+  // ToyyibPay Integration
+  toyyibpayBillCode: text("toyyibpay_bill_code"), // ToyyibPay bill reference
+  paymentMethod: text("payment_method"), // FPX, card, e-wallet, etc.
   metadata: text("metadata"), // JSON for additional data
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -532,11 +539,11 @@ export const promoCodes = pgTable("promo_codes", {
   currentUses: integer("current_uses").notNull().default(0),
   expiresAt: timestamp("expires_at"), // Null = no expiration
   isActive: integer("is_active").notNull().default(1),
-  stripeCouponId: text("stripe_coupon_id"), // Stripe Coupon ID
+  isEarlyBird: integer("is_early_bird").notNull().default(0), // 1 = early bird promo, 0 = regular
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Billing History Table
+// Billing History Table (ToyyibPay transactions)
 export const billingHistory = pgTable("billing_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -544,11 +551,25 @@ export const billingHistory = pgTable("billing_history", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("MYR"),
   status: billingStatusEnum("status").notNull(),
-  stripeInvoiceId: text("stripe_invoice_id"),
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  // ToyyibPay Integration
+  toyyibpayBillCode: text("toyyibpay_bill_code"), // ToyyibPay bill reference
+  toyyibpayTransactionId: text("toyyibpay_transaction_id"), // Transaction ID after payment
+  paymentMethod: text("payment_method"), // FPX, card, e-wallet
   description: text("description"),
-  invoiceUrl: text("invoice_url"), // URL to Stripe invoice
+  receiptUrl: text("receipt_url"), // URL to receipt/invoice
   paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Early Bird Tracking Table (First 100 signups)
+export const earlyBirdTracking = pgTable("early_bird_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  slotNumber: integer("slot_number").notNull().unique(), // 1-100
+  email: text("email").notNull(),
+  signupDate: timestamp("signup_date").defaultNow().notNull(),
+  hasSubscribed: integer("has_subscribed").notNull().default(0), // 1 = subscribed, 0 = trial only
+  subscriptionId: varchar("subscription_id").references(() => userSubscriptions.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -580,6 +601,12 @@ export const insertBillingHistorySchema = createInsertSchema(billingHistory).omi
   createdAt: true,
 });
 
+export const insertEarlyBirdTrackingSchema = createInsertSchema(earlyBirdTracking).omit({
+  id: true,
+  createdAt: true,
+  signupDate: true,
+});
+
 // Type Exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -595,3 +622,6 @@ export type InsertPromoCode = z.infer<typeof insertPromoCodeSchema>;
 
 export type BillingHistory = typeof billingHistory.$inferSelect;
 export type InsertBillingHistory = z.infer<typeof insertBillingHistorySchema>;
+
+export type EarlyBirdTracking = typeof earlyBirdTracking.$inferSelect;
+export type InsertEarlyBirdTracking = z.infer<typeof insertEarlyBirdTrackingSchema>;
