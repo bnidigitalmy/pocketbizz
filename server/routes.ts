@@ -42,6 +42,90 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Helper: Get user's current active subscription
+async function getUserActiveSubscription(userId: string) {
+  const subscriptions = await storage.getUserSubscriptions(userId);
+  const now = new Date();
+  
+  // Find active subscription that hasn't expired
+  const activeSub = subscriptions.find(sub => 
+    sub.status === 'active' && 
+    sub.subscriptionEndsAt && 
+    new Date(sub.subscriptionEndsAt) > now
+  );
+  
+  return activeSub;
+}
+
+// Helper: Check if user is on trial and if it's expired
+function isTrialExpired(user: any): boolean {
+  if (!user.isOnTrial) return false;
+  if (!user.trialEndsAt) return false;
+  
+  return new Date(user.trialEndsAt) < new Date();
+}
+
+// Helper: Get user's product limit based on subscription status
+async function getUserProductLimit(user: any): Promise<number> {
+  // Trial users: 10 products max
+  if (user.isOnTrial) {
+    return 10;
+  }
+  
+  // Paid users: check subscription plan
+  const activeSub = await getUserActiveSubscription(user.id);
+  if (activeSub) {
+    const plan = await storage.getSubscriptionPlanById(activeSub.planId);
+    return plan?.maxProducts || 100; // Default to 100 if plan not found
+  }
+  
+  // Expired trial or no subscription: 0 products (read-only)
+  return 0;
+}
+
+// Middleware: Block expired trial users
+async function blockExpiredTrial(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - please login" });
+  }
+  
+  if (isTrialExpired(req.user)) {
+    return res.status(403).json({ 
+      message: "Your trial has expired. Please upgrade to continue using PocketBizz.",
+      trialExpired: true 
+    });
+  }
+  
+  next();
+}
+
+// Middleware: Block trial users from premium features
+async function requirePaidSubscription(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - please login" });
+  }
+  
+  // Block if on trial
+  if (req.user.isOnTrial) {
+    return res.status(403).json({ 
+      message: "This feature requires a paid subscription. Upgrade to unlock.",
+      requiresUpgrade: true 
+    });
+  }
+  
+  // Verify user has an active paid subscription (not just trial=0)
+  const activeSub = await getUserActiveSubscription(req.user.id);
+  if (!activeSub) {
+    return res.status(403).json({ 
+      message: "Your subscription has expired. Please renew to access premium features.",
+      requiresUpgrade: true,
+      subscriptionExpired: true
+    });
+  }
+  
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Load user for all requests
@@ -390,8 +474,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
+      // Check product limit for trial users
+      if (req.user) {
+        const currentProducts = await storage.getProducts();
+        const userProductCount = currentProducts.length;
+        const productLimit = await getUserProductLimit(req.user);
+        
+        if (productLimit > 0 && userProductCount >= productLimit) {
+          return res.status(403).json({ 
+            message: req.user.isOnTrial 
+              ? `Trial users are limited to ${productLimit} products. Upgrade to add more!`
+              : `Your plan allows up to ${productLimit} products. Upgrade to add more!`,
+            requiresUpgrade: true,
+            currentCount: userProductCount,
+            limit: productLimit
+          });
+        }
+      }
+      
       const productSchema = insertProductSchema.extend({
         unitsPerBatch: z.string(),
         labourCost: z.string(),
@@ -1408,7 +1510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google Drive Sync
-  app.post("/api/google-drive/upload", async (req, res) => {
+  app.post("/api/google-drive/upload", requireAuth, requirePaidSubscription, async (req, res) => {
     try {
       const { pdfBase64, fileName, deliveryId, vendorId, vendorName, fileType } = req.body;
       

@@ -51,6 +51,9 @@ import {
   subscriptionPlans,
   type SubscriptionPlan,
   type InsertSubscriptionPlan,
+  userSubscriptions,
+  type UserSubscription,
+  type InsertUserSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -161,9 +164,15 @@ export interface IStorage {
   // Subscription Plans
   getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   getSubscriptionPlan(id: string): Promise<SubscriptionPlan | undefined>;
+  getSubscriptionPlanById(id: string): Promise<SubscriptionPlan | undefined>; // Alias for consistency
   createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
   updateSubscriptionPlan(id: string, plan: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
   deleteSubscriptionPlan(id: string): Promise<void>;
+  
+  // User Subscriptions
+  getUserSubscriptions(userId: string): Promise<UserSubscription[]>;
+  getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined>;
+  createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1254,6 +1263,43 @@ export class DatabaseStorage implements IStorage {
   
   async deleteSubscriptionPlan(id: string): Promise<void> {
     await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+  }
+  
+  async getSubscriptionPlanById(id: string): Promise<SubscriptionPlan | undefined> {
+    return this.getSubscriptionPlan(id); // Alias for consistency
+  }
+  
+  // User Subscriptions
+  async getUserSubscriptions(userId: string): Promise<UserSubscription[]> {
+    return await db.select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.userId, userId))
+      .orderBy(userSubscriptions.createdAt);
+  }
+  
+  async getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined> {
+    const now = new Date();
+    const [activeSub] = await db.select()
+      .from(userSubscriptions)
+      .where(
+        and(
+          eq(userSubscriptions.userId, userId),
+          eq(userSubscriptions.status, 'active')
+        )
+      )
+      .orderBy(userSubscriptions.subscriptionEndsAt);
+    
+    // Check if subscription is still valid (not expired)
+    if (activeSub && activeSub.subscriptionEndsAt && new Date(activeSub.subscriptionEndsAt) > now) {
+      return activeSub;
+    }
+    
+    return undefined;
+  }
+  
+  async createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription> {
+    const [newSubscription] = await db.insert(userSubscriptions).values(subscription).returning();
+    return newSubscription;
   }
 }
 
