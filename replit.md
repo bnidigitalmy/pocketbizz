@@ -9,6 +9,24 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 PocketBizz is a monolithic full-stack application. The frontend uses React 18, TypeScript, and Vite, while the backend is built with Express.js, TypeScript, and Drizzle ORM backed by Neon Serverless PostgreSQL.
 
+### Routing Structure
+**Public Routes (No Sidebar, No Auth Required):**
+- `/` - Bahasa Melayu landing page (salespage with hero, features, pricing, FAQ)
+- `/auth/login` - Login page
+- `/auth/register` - Registration page with 7-day trial CTA
+- `/pricing` - Full pricing page with plan selection
+- `/checkout` - ToyyibPay checkout flow
+- `/payment/callback` - Payment webhook callback
+
+**Authenticated Routes (With Sidebar, Auth Required):**
+- `/dashboard` - Main dashboard (home for logged-in users)
+- `/products`, `/production`, `/deliveries`, `/sales`, etc. - App features
+
+**Auto-Redirect Logic:**
+- Landing page (`/`) checks user auth and auto-redirects logged-in users to `/dashboard`
+- Auth pages (`/auth/login`, `/auth/register`) redirect to `/dashboard` after successful authentication
+- App routes require authentication (redirect to login if not authenticated)
+
 ### UI/UX Decisions
 The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radix UI) and Tailwind CSS with a custom dessert-themed color palette. Key UX enhancements include:
 - **Global Search**: Cmd/Ctrl+K for system-wide search.
