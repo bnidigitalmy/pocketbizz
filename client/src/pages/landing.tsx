@@ -17,7 +17,8 @@ import {
   Shield,
   Star,
   Crown,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from "lucide-react";
 import type { User } from "@shared/schema";
 import heroImage from "@assets/stock_images/small_business_owner_9704c9ed.jpg";
@@ -82,47 +83,44 @@ export default function Landing() {
     {
       name: "Basic",
       icon: Star,
-      price: "RM 20",
-      period: "/bulan",
-      description: "Perfect untuk perniagaan kecil",
+      monthlyPrice: 20,
+      description: "Sesuai untuk perniagaan kecil",
       features: [
         "Unlimited produk & stok",
         "Penghantaran & tuntutan",
-        "Laporan basic",
+        "Laporan asas",
         "1 pengguna",
-        "Mobile app",
+        "Aplikasi mobile",
       ],
       popular: false,
     },
     {
       name: "Pro",
       icon: Zap,
-      price: "RM 35",
-      period: "/bulan",
+      monthlyPrice: 35,
       description: "Untuk perniagaan sederhana",
       features: [
-        "Semua features Basic",
+        "Semua ciri Basic",
         "Google Drive sync",
-        "Laporan advance",
+        "Laporan terperinci",
         "3 pengguna",
-        "Priority support",
-        "Custom reports",
+        "Sokongan prioriti",
+        "Laporan custom",
       ],
       popular: true,
     },
     {
       name: "Premium",
       icon: Crown,
-      price: "RM 50",
-      period: "/bulan",
+      monthlyPrice: 50,
       description: "Untuk perniagaan besar",
       features: [
-        "Semua features Pro",
+        "Semua ciri Pro",
         "Unlimited pengguna",
-        "API access",
-        "White-label option",
-        "Dedicated support",
-        "Custom integration",
+        "Akses API",
+        "White-label pilihan",
+        "Sokongan dedikasi",
+        "Integrasi custom",
       ],
       popular: false,
     },
@@ -190,18 +188,19 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="container py-20 md:py-32">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <Badge className="text-sm" data-testid="badge-early-bird">
-                🎉 Early Bird: 70% OFF untuk 100 pengguna pertama!
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 lg:py-32">
+        <div className="grid gap-8 md:gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+          <div className="space-y-6 md:space-y-8">
+            <div className="space-y-3 md:space-y-4">
+              <Badge className="text-xs sm:text-sm gap-1.5" data-testid="badge-early-bird">
+                <Sparkles className="h-3 w-3" />
+                Early Bird: 70% OFF untuk 100 pengguna pertama!
               </Badge>
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
                 Sistem Pengurusan Perniagaan{" "}
                 <span className="text-primary">Paling Mudah</span>
               </h1>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-base sm:text-lg md:text-xl text-muted-foreground">
                 Uruskan stok, penghantaran, tuntutan & laporan dalam satu platform. 
                 Direka khas untuk peniaga kecil Malaysia. 100% Bahasa Melayu.
               </p>
@@ -254,8 +253,8 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="container py-20 bg-muted/50">
-        <div className="text-center mb-16 space-y-4">
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4">
           <Badge variant="outline" className="text-sm">
             Features Lengkap
           </Badge>
@@ -287,7 +286,7 @@ export default function Landing() {
       </section>
 
       {/* Benefits Section */}
-      <section className="container py-20">
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
         <div className="grid gap-12 lg:grid-cols-2 items-center">
           <div className="order-2 lg:order-1">
             <img
@@ -341,8 +340,8 @@ export default function Landing() {
       </section>
 
       {/* Pricing Preview Section */}
-      <section className="container py-20 bg-muted/50">
-        <div className="text-center mb-16 space-y-4">
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4">
           <Badge variant="outline" className="text-sm">
             Harga Berpatutan
           </Badge>
@@ -354,7 +353,7 @@ export default function Landing() {
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
+        <div className="grid gap-6 sm:gap-8 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
           {plans.map((plan, index) => {
             const Icon = plan.icon;
             return (
@@ -377,8 +376,14 @@ export default function Landing() {
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-6">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-2xl font-medium text-muted-foreground">Dari</span>
+                      <span className="text-4xl font-bold">RM {plan.monthlyPrice}</span>
+                      <span className="text-muted-foreground">/bulan</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Jimat 10-20% dengan pakej 6-12 bulan
+                    </p>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -417,8 +422,8 @@ export default function Landing() {
       </section>
 
       {/* FAQ Section */}
-      <section className="container py-20">
-        <div className="text-center mb-16 space-y-4">
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4">
           <Badge variant="outline" className="text-sm">
             FAQ
           </Badge>

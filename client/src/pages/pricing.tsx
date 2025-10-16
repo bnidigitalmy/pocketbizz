@@ -121,31 +121,31 @@ export default function Pricing() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
       {/* Early Bird Banner */}
       {earlyBirdSlotsRemaining > 0 && (
         <div className="bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-xl p-6 mb-8 border-2 border-accent" data-testid="banner-early-bird">
           <div className="flex items-center justify-center gap-3 mb-3">
             <Sparkles className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold text-primary">Early Bird Special!</h2>
+            <h2 className="text-2xl font-semibold text-primary">Tawaran Early Bird!</h2>
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg">
-              First 100 subscribers get{" "}
+              100 pengguna pertama dapat{" "}
               <span className="font-bold text-primary text-2xl">{earlyBirdDiscount}% OFF</span>
-              {" "}any plan for their first subscription
+              {" "}untuk mana-mana pakej langganan pertama
             </p>
             <div className="flex items-center justify-center gap-4 mt-4">
               <div className="bg-background rounded-lg px-4 py-2">
-                <p className="text-sm text-muted-foreground">Slots Remaining</p>
+                <p className="text-sm text-muted-foreground">Slot Berbaki</p>
                 <p className="text-3xl font-bold font-mono text-primary" data-testid="text-slots-remaining">
                   {earlyBirdSlotsRemaining}/100
                 </p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Lock in your early bird discount now! Limited to first 100 subscribers only.
+              Rebut diskaun early bird anda sekarang! Terhad untuk 100 pengguna pertama sahaja.
             </p>
           </div>
         </div>
@@ -154,10 +154,10 @@ export default function Pricing() {
       {/* Page Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          Choose Your Perfect Plan
+          Pilih Pakej Yang Sesuai
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Streamline your small business operations with PocketBizz. Flexible duration-based pricing designed for your growth.
+          Permudahkan operasi perniagaan kecil anda dengan PocketBizz. Harga berasaskan tempoh yang fleksibel untuk pertumbuhan anda.
         </p>
       </div>
       
@@ -166,18 +166,18 @@ export default function Pricing() {
         <Tabs value={selectedDuration.toString()} onValueChange={(v) => setSelectedDuration(parseInt(v) as 3 | 6 | 12)}>
           <TabsList className="grid w-full max-w-md grid-cols-3" data-testid="tabs-duration">
             <TabsTrigger value="3" data-testid="tab-3months">
-              3 Months
+              3 Bulan
             </TabsTrigger>
             <TabsTrigger value="6" data-testid="tab-6months">
               <div className="flex flex-col items-center">
-                <span>6 Months</span>
-                <Badge variant="secondary" className="mt-1 text-xs">Save 10%</Badge>
+                <span>6 Bulan</span>
+                <Badge variant="secondary" className="mt-1 text-xs">Jimat 10%</Badge>
               </div>
             </TabsTrigger>
             <TabsTrigger value="12" data-testid="tab-12months">
               <div className="flex flex-col items-center">
-                <span>12 Months</span>
-                <Badge variant="secondary" className="mt-1 text-xs">Save 20%</Badge>
+                <span>12 Bulan</span>
+                <Badge variant="secondary" className="mt-1 text-xs">Jimat 20%</Badge>
               </div>
             </TabsTrigger>
           </TabsList>
@@ -185,7 +185,7 @@ export default function Pricing() {
       </div>
 
       {/* Pricing Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12 sm:mb-16">
         {plans?.sort((a, b) => a.sortOrder - b.sortOrder).map((plan) => {
           const Icon = planIcons[plan.name as keyof typeof planIcons] || Star;
           const colorClass = planColors[plan.name as keyof typeof planColors] || "bg-background";
@@ -204,7 +204,7 @@ export default function Pricing() {
               {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="bg-accent text-accent-foreground">
-                    Most Popular
+                    Paling Popular
                   </Badge>
                 </div>
               )}
@@ -232,7 +232,7 @@ export default function Pricing() {
                         <span className="text-4xl font-bold font-mono text-primary" data-testid={`price-${plan.name}`}>
                           RM{earlyBirdPrice}
                         </span>
-                        <span className="text-muted-foreground">/{selectedDuration} months</span>
+                        <span className="text-muted-foreground">/{selectedDuration} bulan</span>
                       </div>
                     </>
                   ) : (
@@ -240,20 +240,20 @@ export default function Pricing() {
                       <span className="text-4xl font-bold font-mono" data-testid={`price-${plan.name}`}>
                         RM{price}
                       </span>
-                      <span className="text-muted-foreground">/{selectedDuration} months</span>
+                      <span className="text-muted-foreground">/{selectedDuration} bulan</span>
                     </div>
                   )}
                   
                   {/* Savings Badge */}
                   {parseFloat(savings.amount) > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Save RM{savings.amount} ({savings.percentage}%)
+                      Jimat RM{savings.amount} ({savings.percentage}%)
                     </p>
                   )}
                   
                   {/* Monthly Breakdown */}
                   <p className="text-sm text-muted-foreground">
-                    RM{(parseFloat(hasEarlyBird ? earlyBirdPrice : price) / selectedDuration).toFixed(2)}/month
+                    RM{(parseFloat(hasEarlyBird ? earlyBirdPrice : price) / selectedDuration).toFixed(2)}/bulan
                   </p>
                 </div>
               </CardHeader>
@@ -270,13 +270,13 @@ export default function Pricing() {
 
                 <div className="mt-6 pt-6 border-t space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Max Products:</span>
+                    <span className="text-muted-foreground">Had Produk:</span>
                     <span className="font-semibold">
                       {plan.maxProducts >= 999999 ? "Unlimited" : plan.maxProducts}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Max Users:</span>
+                    <span className="text-muted-foreground">Had Pengguna:</span>
                     <span className="font-semibold">
                       {plan.maxUsers >= 999 ? "Unlimited" : plan.maxUsers}
                     </span>
@@ -292,7 +292,7 @@ export default function Pricing() {
                   data-testid={`button-choose-${plan.name}`}
                   onClick={() => handleSelectPlan(plan)}
                 >
-                  Choose {plan.displayName}
+                  Pilih {plan.displayName}
                 </Button>
               </CardFooter>
             </Card>
@@ -302,14 +302,14 @@ export default function Pricing() {
 
       {/* Feature Comparison Table */}
       <div className="mb-12">
-        <h2 className="text-3xl font-bold text-center mb-8">Feature Comparison</h2>
+        <h2 className="text-3xl font-bold text-center mb-8">Perbandingan Ciri</h2>
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left p-4 font-semibold">Features</th>
+                    <th className="text-left p-4 font-semibold">Ciri-ciri</th>
                     <th className="text-center p-4 font-semibold">Basic</th>
                     <th className="text-center p-4 font-semibold">Pro</th>
                     <th className="text-center p-4 font-semibold">Premium</th>
@@ -317,49 +317,49 @@ export default function Pricing() {
                 </thead>
                 <tbody className="divide-y">
                   <tr>
-                    <td className="p-4">Products</td>
+                    <td className="p-4">Produk</td>
                     <td className="text-center p-4">50</td>
                     <td className="text-center p-4">200</td>
                     <td className="text-center p-4">Unlimited</td>
                   </tr>
                   <tr>
-                    <td className="p-4">Users</td>
+                    <td className="p-4">Pengguna</td>
                     <td className="text-center p-4">1</td>
                     <td className="text-center p-4">3</td>
                     <td className="text-center p-4">Unlimited</td>
                   </tr>
                   <tr>
-                    <td className="p-4">Inventory Tracking</td>
+                    <td className="p-4">Jejak Inventori</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Sales & Delivery Management</td>
+                    <td className="p-4">Pengurusan Jualan & Penghantaran</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Financial Reports</td>
+                    <td className="p-4">Laporan Kewangan</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Production Planning</td>
+                    <td className="p-4">Perancangan Produksi</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">FIFO Batch Tracking</td>
+                    <td className="p-4">Jejak Batch FIFO</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Commission Management</td>
+                    <td className="p-4">Pengurusan Komisyen</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
@@ -371,22 +371,22 @@ export default function Pricing() {
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">WhatsApp Integration</td>
+                    <td className="p-4">Integrasi WhatsApp</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">API Access</td>
+                    <td className="p-4">Akses API</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Support Level</td>
+                    <td className="p-4">Tahap Sokongan</td>
                     <td className="text-center p-4">Email</td>
-                    <td className="text-center p-4">Priority</td>
-                    <td className="text-center p-4">Dedicated</td>
+                    <td className="text-center p-4">Prioriti</td>
+                    <td className="text-center p-4">Dedikasi</td>
                   </tr>
                 </tbody>
               </table>
@@ -397,34 +397,34 @@ export default function Pricing() {
 
       {/* FAQ Section */}
       <div className="text-center max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+        <h2 className="text-2xl font-bold mb-4">Soalan Lazim</h2>
         <div className="space-y-4 text-left">
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-duration">
-            <h3 className="font-semibold mb-2">How does duration-based pricing work?</h3>
+            <h3 className="font-semibold mb-2">Bagaimana harga berasaskan tempoh berfungsi?</h3>
             <p className="text-sm text-muted-foreground">
-              Pay upfront for 3, 6, or 12 months and save! Get 10% off on 6-month plans and 20% off on 12-month plans. 
-              No recurring charges - you're in control of when to renew.
+              Bayar awal untuk 3, 6, atau 12 bulan dan jimat! Dapatkan diskaun 10% untuk pakej 6 bulan dan 20% untuk pakej 12 bulan. 
+              Tiada bayaran berulang - anda yang control bila nak renew.
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-early-bird">
-            <h3 className="font-semibold mb-2">What is the early bird special?</h3>
+            <h3 className="font-semibold mb-2">Apa itu tawaran early bird?</h3>
             <p className="text-sm text-muted-foreground">
-              The first 100 subscribers get an additional 70% off their first subscription, regardless of plan or duration. 
-              This discount applies on top of any duration discounts!
+              100 pengguna pertama dapat tambahan 70% OFF untuk langganan pertama mereka, tanpa kira pakej atau tempoh. 
+              Diskaun ini apply atas diskaun tempoh!
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-renewal">
-            <h3 className="font-semibold mb-2">What happens when my subscription expires?</h3>
+            <h3 className="font-semibold mb-2">Apa jadi bila langganan saya tamat?</h3>
             <p className="text-sm text-muted-foreground">
-              You'll receive reminders before expiry. Simply renew by choosing your next duration - your data stays safe. 
-              You can upgrade, downgrade, or choose a different duration when renewing.
+              Anda akan terima reminder sebelum tamat. Cuma renew dengan pilih tempoh seterusnya - data anda selamat. 
+              Anda boleh upgrade, downgrade, atau tukar tempoh bila renew.
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-data-safety">
-            <h3 className="font-semibold mb-2">Is my data safe?</h3>
+            <h3 className="font-semibold mb-2">Adakah data saya selamat?</h3>
             <p className="text-sm text-muted-foreground">
-              Absolutely. We use industry-standard encryption and security practices. Your data is backed up 
-              regularly and stored securely in the cloud.
+              Memang selamat! Kami guna enkripsi dan amalan keselamatan standard industri. Data anda di-backup 
+              secara berkala dan disimpan dengan selamat di cloud.
             </p>
           </div>
         </div>
