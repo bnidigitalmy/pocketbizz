@@ -178,6 +178,7 @@ export interface IStorage {
   
   // User Subscriptions
   getUserSubscriptions(userId: string): Promise<UserSubscription[]>;
+  getUserSubscriptionById(id: string): Promise<UserSubscription | undefined>;
   getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined>;
   createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
   updateUserSubscription(id: string, data: Partial<InsertUserSubscription>): Promise<UserSubscription | undefined>;
@@ -1293,6 +1294,14 @@ export class DatabaseStorage implements IStorage {
       .from(userSubscriptions)
       .where(eq(userSubscriptions.userId, userId))
       .orderBy(userSubscriptions.createdAt);
+  }
+  
+  async getUserSubscriptionById(id: string): Promise<UserSubscription | undefined> {
+    const [subscription] = await db.select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.id, id))
+      .limit(1);
+    return subscription;
   }
   
   async getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined> {

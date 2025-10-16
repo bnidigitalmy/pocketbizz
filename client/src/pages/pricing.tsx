@@ -29,6 +29,10 @@ export default function Pricing() {
   const [, setLocation] = useLocation();
   const [selectedDuration, setSelectedDuration] = useState<3 | 6 | 12>(6);
   
+  // Check if this is a renewal flow
+  const urlParams = new URLSearchParams(window.location.search);
+  const isRenewal = urlParams.get('renew') === 'true';
+  
   const { data: plans, isLoading } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/subscription-plans"],
   });
@@ -41,12 +45,17 @@ export default function Pricing() {
   const earlyBirdDiscount = 70; // 70% off early bird discount
   
   const handleSelectPlan = (plan: SubscriptionPlan) => {
-    // Navigate to checkout with plan details
+    // Navigate to checkout with plan details and renewal flag
     const params = new URLSearchParams({
       planId: plan.id,
       planName: plan.name,
       duration: selectedDuration.toString(),
     });
+    
+    if (isRenewal) {
+      params.set('renew', 'true');
+    }
+    
     setLocation(`/checkout?${params.toString()}`);
   };
 

@@ -588,6 +588,8 @@ export const pendingBills = pgTable("pending_bills", {
   discountApplied: decimal("discount_applied", { precision: 10, scale: 2 }).default("0"),
   isProcessed: integer("is_processed").notNull().default(0), // 1 = processed by webhook, 0 = pending
   processedAt: timestamp("processed_at"),
+  isRenewal: integer("is_renewal").notNull().default(0), // 1 = renewal, 0 = new subscription
+  renewalSubscriptionId: varchar("renewal_subscription_id").references(() => userSubscriptions.id, { onDelete: "set null" }), // For renewals
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(), // Bill expiry (7 days)
 });

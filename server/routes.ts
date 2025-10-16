@@ -515,6 +515,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Create renewal bill for existing subscription
+  app.post("/api/subscription/renew", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        subscriptionId: z.string().optional(), // If not provided, use active subscription
+        durationMonths: z.number().refine(val => [3, 6, 12].includes(val), {
+          message: "Duration must be 3, 6, or 12 months"
+        }),
+        promoCode: z.string().optional(),
+      });
+      
+      const { subscriptionId, durationMonths, promoCode } = schema.parse(req.body);
+      const user = req.user!;
+      
+      // Get subscription to renew
+      let subscriptionToRenew;
+      if (subscriptionId) {
+        subscriptionToRenew = await storage.getUserSubscriptionById(subscriptionId);
+        if (!subscriptionToRenew || subscriptionToRenew.userId !== user.id) {
+          return res.status(404).json({ message: "Subscription not found" });
+        }
+      } else {
+        // Try to get active subscription first
+        subscriptionToRenew = await getUserActiveSubscription(user.id);
+        
+        // If no active subscription, get most recent subscription (even if expired)
+        if (!subscriptionToRenew) {
+          const allSubscriptions = await storage.getUserSubscriptions(user.id);
+          if (allSubscriptions.length > 0) {
+            // Get the most recent subscription
+            subscriptionToRenew = allSubscriptions[allSubscriptions.length - 1];
+          }
+        }
+        
+        if (!subscriptionToRenew) {
+          return res.status(404).json({ message: "No subscription found to renew" });
+        }
+      }
+      
+      // Get subscription plan
+      const plan = await storage.getSubscriptionPlanById(subscriptionToRenew.planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      // Calculate base price for duration
+      const monthlyPrice = parseFloat(plan.monthlyPrice);
+      let totalPrice = monthlyPrice * durationMonths;
+      
+      // Apply duration discount
+      if (durationMonths === 6) {
+        const discount = parseFloat(plan.discount6Months || "10");
+        totalPrice = totalPrice * (1 - discount / 100);
+      } else if (durationMonths === 12) {
+        const discount = parseFloat(plan.discount12Months || "20");
+        totalPrice = totalPrice * (1 - discount / 100);
+      }
+      
+      // Apply promo code if provided
+      let appliedPromo = null;
+      if (promoCode) {
+        const promo = await storage.getPromoCodeByCode(promoCode);
+        if (promo && promo.isActive) {
+          // Check usage limit
+          const usageCount = await storage.getPromoCodeUsageCount(promo.id);
+          if (usageCount < (promo.maxUses || Infinity)) {
+            // Check expiry
+            if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
+              // Apply discount
+              if (promo.discountType === 'percentage') {
+                totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
+              } else {
+                totalPrice = totalPrice - parseFloat(promo.discountValue);
+              }
+              appliedPromo = promo;
+            }
+          }
+        }
+      }
+      
+      // Ensure minimum price
+      totalPrice = Math.max(totalPrice, 1);
+      
+      // Generate unique order reference
+      const orderRef = `REN-${user.id.slice(0, 8)}-${Date.now()}`;
+      
+      // Import ToyyibPay helper
+      const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
+      
+      // Create bill
+      const billParams = {
+        billName: `${plan.displayName} Renewal - ${durationMonths} months`,
+        billDescription: `PocketBizz ${plan.displayName} subscription renewal for ${durationMonths} months`,
+        billAmount: rmToCents(totalPrice),
+        billTo: user.name,
+        billEmail: user.email,
+        billPhone: user.phone || '0000000000',
+        billExternalReferenceNo: orderRef,
+        billReturnUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/payment/callback`,
+        billCallbackUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/subscription/webhook`,
+        billExpiryDays: 7,
+      };
+      
+      const billResponse = await createBill(billParams);
+      
+      if (!billResponse.BillCode) {
+        return res.status(500).json({ message: "Failed to create renewal bill" });
+      }
+      
+      // Calculate total discount amount
+      const discountAmount = (monthlyPrice * durationMonths) - totalPrice;
+      
+      // Store bill metadata with renewal flag
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+      
+      await storage.createPendingBill({
+        userId: user.id,
+        billCode: billResponse.BillCode,
+        orderRef,
+        planId: plan.id,
+        planName: plan.displayName,
+        durationMonths,
+        totalAmount: totalPrice.toString(),
+        promoCodeId: appliedPromo?.id,
+        promoCode: appliedPromo?.code,
+        discountApplied: discountAmount.toString(),
+        expiresAt: expiryDate,
+        isRenewal: 1,
+        renewalSubscriptionId: subscriptionToRenew.id,
+      });
+      
+      res.json({
+        billCode: billResponse.BillCode,
+        billUrl: getBillUrl(billResponse.BillCode),
+        orderRef,
+        totalAmount: totalPrice,
+        planName: plan.displayName,
+        durationMonths,
+        isRenewal: true,
+        subscriptionId: subscriptionToRenew.id,
+        promoApplied: appliedPromo ? {
+          code: appliedPromo.code,
+          discountType: appliedPromo.discountType,
+          discountValue: appliedPromo.discountValue,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error("Create renewal bill error:", error);
+      res.status(400).json({ message: error.message || "Failed to create renewal bill" });
+    }
+  });
+  
   // Get early bird slots remaining
   app.get("/api/subscription/early-bird-slots", async (req, res) => {
     try {
@@ -576,11 +729,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Only process successful payments
       if (transaction.billpaymentStatus === '1' && status === '1') {
-        // Calculate subscription dates
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + existingBill.durationMonths);
-        
         // Create billing history record
         const billingRecord = await db.insert(billingHistory).values({
           userId: existingBill.userId,
@@ -590,38 +738,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
           toyyibpayBillCode: billcode as string,
           toyyibpayTransactionId: refno as string,
           paymentMethod: transaction.billpaymentChannel,
-          description: `${existingBill.planName} - ${existingBill.durationMonths} months subscription`,
+          description: existingBill.isRenewal 
+            ? `${existingBill.planName} - ${existingBill.durationMonths} months renewal`
+            : `${existingBill.planName} - ${existingBill.durationMonths} months subscription`,
           paidAt: new Date(),
         }).returning();
         
-        // Create user subscription
-        const newSubscription = await storage.createUserSubscription({
-          userId: existingBill.userId,
-          planId: existingBill.planId,
-          planName: existingBill.planName,
-          status: 'active',
-          durationMonths: existingBill.durationMonths,
-          subscriptionStartsAt: startDate,
-          subscriptionEndsAt: endDate,
-          totalPaid: existingBill.totalAmount,
-          toyyibpayBillCode: billcode as string,
-          paymentMethod: transaction.billpaymentChannel,
-        });
+        let subscriptionId: string;
         
-        // Update user: turn off trial
-        await storage.updateUser(existingBill.userId, {
-          isOnTrial: 0,
-          trialEndsAt: null,
-        });
-        
-        // Update early bird tracking if applicable
-        if (existingBill.promoCode?.toUpperCase().includes('EARLYBIRD')) {
-          await db.update(earlyBirdTracking)
-            .set({ 
-              hasSubscribed: 1,
-              subscriptionId: newSubscription.id,
-            })
-            .where(eq(earlyBirdTracking.userId, existingBill.userId));
+        // Handle renewal vs new subscription
+        if (existingBill.isRenewal && existingBill.renewalSubscriptionId) {
+          // RENEWAL: Extend existing subscription
+          const existingSubscription = await storage.getUserSubscriptionById(existingBill.renewalSubscriptionId);
+          if (existingSubscription) {
+            // Calculate new end date from current end date (or now if expired)
+            const currentEndDate = new Date(existingSubscription.subscriptionEndsAt || new Date());
+            const now = new Date();
+            const extensionStartDate = currentEndDate > now ? currentEndDate : now;
+            
+            const newEndDate = new Date(extensionStartDate);
+            newEndDate.setMonth(newEndDate.getMonth() + existingBill.durationMonths);
+            
+            // Update subscription: extend end date, set status to active if expired
+            await storage.updateUserSubscription(existingBill.renewalSubscriptionId, {
+              subscriptionEndsAt: newEndDate,
+              status: 'active',
+              totalPaid: (parseFloat(existingSubscription.totalPaid) + parseFloat(existingBill.totalAmount)).toString(),
+            });
+            
+            subscriptionId = existingBill.renewalSubscriptionId;
+            
+            console.log('Subscription renewed successfully:', {
+              userId: existingBill.userId,
+              subscriptionId,
+              planName: existingBill.planName,
+              durationMonths: existingBill.durationMonths,
+              newEndDate,
+              amount: existingBill.totalAmount,
+            });
+          }
+        } else {
+          // NEW SUBSCRIPTION: Create subscription
+          const startDate = new Date();
+          const endDate = new Date();
+          endDate.setMonth(endDate.getMonth() + existingBill.durationMonths);
+          
+          const newSubscription = await storage.createUserSubscription({
+            userId: existingBill.userId,
+            planId: existingBill.planId,
+            planName: existingBill.planName,
+            status: 'active',
+            durationMonths: existingBill.durationMonths,
+            subscriptionStartsAt: startDate,
+            subscriptionEndsAt: endDate,
+            totalPaid: existingBill.totalAmount,
+            toyyibpayBillCode: billcode as string,
+            paymentMethod: transaction.billpaymentChannel,
+          });
+          
+          subscriptionId = newSubscription.id;
+          
+          // Update user: turn off trial
+          await storage.updateUser(existingBill.userId, {
+            isOnTrial: 0,
+            trialEndsAt: null,
+          });
+          
+          // Update early bird tracking if applicable
+          if (existingBill.promoCode?.toUpperCase().includes('EARLYBIRD')) {
+            await db.update(earlyBirdTracking)
+              .set({ 
+                hasSubscribed: 1,
+                subscriptionId: newSubscription.id,
+              })
+              .where(eq(earlyBirdTracking.userId, existingBill.userId));
+          }
+          
+          console.log('Subscription activated successfully:', {
+            userId: existingBill.userId,
+            subscriptionId: newSubscription.id,
+            planName: existingBill.planName,
+            durationMonths: existingBill.durationMonths,
+            amount: existingBill.totalAmount,
+          });
         }
         
         // Increment promo code usage if applicable
@@ -631,14 +830,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Mark bill as processed
         await storage.markBillAsProcessed(billcode as string);
-        
-        console.log('Subscription activated successfully:', {
-          userId: existingBill.userId,
-          subscriptionId: newSubscription.id,
-          planName: existingBill.planName,
-          durationMonths: existingBill.durationMonths,
-          amount: existingBill.totalAmount,
-        });
       } else {
         // Payment failed - create failed billing record
         await db.insert(billingHistory).values({

@@ -36,6 +36,7 @@ export default function Checkout() {
   const planId = params.get("planId");
   const planName = params.get("planName");
   const duration = parseInt(params.get("duration") || "6") as 3 | 6 | 12;
+  const isRenewal = params.get("renew") === "true";
 
   // Fetch plan details
   const { data: plans, isLoading: isPlanLoading } = useQuery<SubscriptionPlan[]>({
@@ -45,13 +46,13 @@ export default function Checkout() {
   
   const plan = plans?.find(p => p.id === planId);
 
-  // Create bill mutation
+  // Create bill mutation (handles both new subscriptions and renewals)
   const createBillMutation = useMutation({
     mutationFn: async (data: { planId: string; durationMonths: number; promoCode?: string }) => {
-      const response = await apiRequest("/api/subscription/create-bill", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      // Use renewal endpoint if this is a renewal
+      const endpoint = isRenewal ? "/api/subscription/renew" : "/api/subscription/create-bill";
+      
+      const response = await apiRequest("POST", endpoint, data);
       
       // Parse JSON response
       const json = await response.json();
@@ -62,6 +63,8 @@ export default function Checkout() {
         totalAmount: number;
         planName: string;
         durationMonths: number;
+        isRenewal?: boolean;
+        subscriptionId?: string;
         promoApplied: any;
       };
     },
