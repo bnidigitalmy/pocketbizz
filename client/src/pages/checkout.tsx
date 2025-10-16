@@ -74,8 +74,8 @@ export default function Checkout() {
     },
     onError: (error: any) => {
       toast({
-        title: "Payment Error",
-        description: error.message || "Failed to create payment bill. Please try again.",
+        title: "Ralat Pembayaran",
+        description: error.message || "Gagal membuat bil pembayaran. Sila cuba lagi.",
         variant: "destructive",
       });
     },
@@ -121,8 +121,8 @@ export default function Checkout() {
     });
     
     toast({
-      title: "Promo Code Applied",
-      description: `You saved 10% with code ${promoCode}!`,
+      title: "Kod Promo Diguna",
+      description: `Anda jimat 10% dengan kod ${promoCode}!`,
     });
   };
 
@@ -151,10 +151,10 @@ export default function Checkout() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Plan not found. Please select a plan from the pricing page.</p>
+            <p className="text-center text-muted-foreground">Pelan tidak dijumpai. Sila pilih pelan dari halaman harga.</p>
             <div className="flex justify-center mt-4">
               <Button onClick={() => setLocation("/pricing")} data-testid="button-back-pricing">
-                Go to Pricing
+                Ke Halaman Harga
               </Button>
             </div>
           </CardContent>
@@ -176,7 +176,7 @@ export default function Checkout() {
         data-testid="button-back"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Pricing
+        Kembali ke Harga
       </Button>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -184,24 +184,24 @@ export default function Checkout() {
         <div className="md:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-              <CardDescription>Review your subscription details</CardDescription>
+              <CardTitle>Ringkasan Pesanan</CardTitle>
+              <CardDescription>Semak butiran langganan anda</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Plan Details */}
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-lg">{plan.displayName} Plan</h3>
+                  <h3 className="font-semibold text-lg">Pelan {plan.displayName}</h3>
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
-                <Badge variant="secondary">{duration} months</Badge>
+                <Badge variant="secondary">{duration} bulan</Badge>
               </div>
 
               <Separator />
 
               {/* Features */}
               <div>
-                <h4 className="font-medium mb-3">Included Features:</h4>
+                <h4 className="font-medium mb-3">Ciri-ciri Termasuk:</h4>
                 <ul className="space-y-2">
                   {(typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features).slice(0, 5).map((feature: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2 text-sm">
@@ -216,11 +216,11 @@ export default function Checkout() {
 
               {/* Promo Code */}
               <div className="space-y-2">
-                <Label htmlFor="promo-code">Promo Code (Optional)</Label>
+                <Label htmlFor="promo-code">Kod Promo (Pilihan)</Label>
                 <div className="flex gap-2">
                   <Input
                     id="promo-code"
-                    placeholder="Enter promo code"
+                    placeholder="Masukkan kod promo"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     disabled={!!appliedPromo || createBillMutation.isPending}
@@ -233,7 +233,7 @@ export default function Checkout() {
                       data-testid="button-apply-promo"
                     >
                       <Tag className="mr-2 h-4 w-4" />
-                      Apply
+                      Guna
                     </Button>
                   ) : (
                     <Button
@@ -244,14 +244,14 @@ export default function Checkout() {
                       }}
                       data-testid="button-remove-promo"
                     >
-                      Remove
+                      Buang
                     </Button>
                   )}
                 </div>
                 {appliedPromo && (
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <Check className="h-4 w-4" />
-                    Promo code "{appliedPromo.code}" applied!
+                    Kod promo "{appliedPromo.code}" telah diguna!
                   </p>
                 )}
               </div>
@@ -263,29 +263,29 @@ export default function Checkout() {
         <div className="md:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle>Price Details</CardTitle>
+              <CardTitle>Butiran Harga</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Monthly Price</span>
+                <span className="text-muted-foreground">Harga Bulanan</span>
                 <span>RM{plan.monthlyPrice}</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Duration</span>
-                <span>{duration} months</span>
+                <span className="text-muted-foreground">Tempoh</span>
+                <span>{duration} bulan</span>
               </div>
 
               {(duration === 6 || duration === 12) && (
                 <div className="flex justify-between text-green-600">
-                  <span>Duration Discount</span>
+                  <span>Diskaun Tempoh</span>
                   <span>-{duration === 6 ? '10' : '20'}%</span>
                 </div>
               )}
 
               {appliedPromo && (
                 <div className="flex justify-between text-green-600">
-                  <span>Promo Discount</span>
+                  <span>Diskaun Promo</span>
                   <span>-{appliedPromo.discountValue}{appliedPromo.discountType === 'percentage' ? '%' : ' RM'}</span>
                 </div>
               )}
@@ -293,12 +293,12 @@ export default function Checkout() {
               <Separator />
 
               <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
+                <span>Jumlah</span>
                 <span data-testid="text-total-price">RM{totalPrice.toFixed(2)}</span>
               </div>
 
               <div className="text-sm text-muted-foreground text-center">
-                RM{monthlyEquivalent}/month equivalent
+                RM{monthlyEquivalent}/bulan setara
               </div>
             </CardContent>
             <CardFooter>
@@ -312,10 +312,10 @@ export default function Checkout() {
                 {createBillMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating payment...
+                    Membuat pembayaran...
                   </>
                 ) : (
-                  "Proceed to Payment"
+                  "Teruskan Pembayaran"
                 )}
               </Button>
             </CardFooter>
