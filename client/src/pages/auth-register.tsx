@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Package, Loader2, Check } from "lucide-react";
+import { Package, Loader2, Check, Sparkles } from "lucide-react";
 
 export default function AuthRegister() {
   const [, navigate] = useLocation();
@@ -53,7 +53,10 @@ export default function AuthRegister() {
               <Package className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <Badge className="mb-4 mx-auto">🎉 Trial Percuma 7 Hari</Badge>
+          <Badge className="mb-4 mx-auto gap-1.5">
+            <Sparkles className="h-3 w-3" />
+            Trial Percuma 7 Hari
+          </Badge>
           <CardTitle className="text-2xl">Daftar PocketBizz</CardTitle>
           <CardDescription>
             Tiada credit card diperlukan. Setup dalam 5 minit.
