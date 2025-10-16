@@ -33,6 +33,18 @@ async function loadUser(req: Request, res: Response, next: NextFunction) {
         await storage.updateUser(user.id, { isOnTrial: 0 });
         user.isOnTrial = 0;
       }
+      
+      // Auto-expire subscriptions that have passed their end date
+      const subscriptions = await storage.getUserSubscriptions(user.id);
+      const now = new Date();
+      
+      for (const sub of subscriptions) {
+        if (sub.status === 'active' && sub.subscriptionEndsAt && new Date(sub.subscriptionEndsAt) < now) {
+          // Mark subscription as expired
+          await storage.updateUserSubscription(sub.id, { status: 'expired' });
+        }
+      }
+      
       req.user = user;
     }
   }

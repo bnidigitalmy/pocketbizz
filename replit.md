@@ -51,6 +51,7 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
 -   **Subscription System**:
     -   **Free Trial**: 7-day auto-activated trial with product limits (10 max) and disabled Google Drive sync, enforced by middleware.
     -   **Trial Expiry System**: Automatic trial disabling on expiry (sets `isOnTrial=0` on user load and blocked requests), upgrade prompt dialog with dismissible option for active trials and forced upgrade for expired trials.
+    -   **Subscription Expiry Tracking**: Auto-expiry system that checks `subscriptionEndsAt` on every user load, marks expired subscriptions as 'expired' status, with date-based fallback checks in `getUserActiveSubscription` for stale data protection.
     -   **Authentication**: Secure registration/login with bcrypt and session-based auth.
     -   **Duration-Based Pricing**: 3/6/12 month packages with progressive discounts (10% for 6m, 20% for 12m).
     -   **Three-Tier Plans**: Basic, Pro, Premium.

@@ -1839,7 +1839,8 @@
         "canceled",
         "past_due",
         "trialing",
-        "incomplete"
+        "incomplete",
+        "expired"
       ]
     }
   },

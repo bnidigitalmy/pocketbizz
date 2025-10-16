@@ -180,6 +180,7 @@ export interface IStorage {
   getUserSubscriptions(userId: string): Promise<UserSubscription[]>;
   getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined>;
   createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
+  updateUserSubscription(id: string, data: Partial<InsertUserSubscription>): Promise<UserSubscription | undefined>;
   
   // Promo Codes
   getPromoCodeByCode(code: string): Promise<PromoCode | undefined>;
@@ -1317,6 +1318,14 @@ export class DatabaseStorage implements IStorage {
   async createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription> {
     const [newSubscription] = await db.insert(userSubscriptions).values(subscription).returning();
     return newSubscription;
+  }
+  
+  async updateUserSubscription(id: string, data: Partial<InsertUserSubscription>): Promise<UserSubscription | undefined> {
+    const [updated] = await db.update(userSubscriptions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userSubscriptions.id, id))
+      .returning();
+    return updated || undefined;
   }
   
   // Promo Codes

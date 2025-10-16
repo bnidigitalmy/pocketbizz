@@ -59,7 +59,7 @@ export const deliveryStatusEnum = pgEnum("delivery_status", ["delivered", "claim
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial", "settled"]);
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
-export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete", "expired"]);
 export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
 export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
 
