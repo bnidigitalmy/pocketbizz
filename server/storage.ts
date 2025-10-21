@@ -600,37 +600,124 @@ export class DatabaseStorage implements IStorage {
       .where(eq(deliveryItems.id, itemId));
   }
 
-  // Sales
-  async getSales(): Promise<Sale[]> {
-    return await db.select().from(sales).orderBy(desc(sales.saleDate));
+  // POS Sales
+  async generateReceiptNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+    
+    // Get today's sales count for sequence number
+    const todaySales = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(sales)
+      .where(eq(sales.saleDate, today.toISOString().split('T')[0]));
+    
+    const sequence = (todaySales[0]?.count || 0) + 1;
+    const paddedSequence = sequence.toString().padStart(4, '0');
+    
+    return `RES-${dateStr}-${paddedSequence}`;
   }
 
-  async checkDuplicateSale(productId: string, vendorId: string | null, saleDate: string): Promise<Sale | null> {
-    const conditions = [
-      eq(sales.productId, productId),
-      eq(sales.saleDate, saleDate),
-    ];
+  async getSales(limit: number = 50, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+    // Get total count
+    const countResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(sales);
+    const total = countResult[0]?.count || 0;
 
-    if (vendorId) {
-      conditions.push(eq(sales.vendorId, vendorId));
-    }
-
-    const existing = await db
+    // Get sales with items
+    const salesData = await db
       .select()
       .from(sales)
-      .where(and(...conditions))
+      .orderBy(desc(sales.saleDate), desc(sales.createdAt))
+      .limit(limit + 1)
+      .offset(offset);
+
+    const hasMore = salesData.length > limit;
+    const data = salesData.slice(0, limit);
+
+    // Fetch items for each sale
+    const salesWithItems = await Promise.all(
+      data.map(async (sale) => {
+        const items = await db
+          .select()
+          .from(salesItems)
+          .where(eq(salesItems.saleId, sale.id));
+        
+        return {
+          ...sale,
+          items,
+        };
+      })
+    );
+
+    return {
+      data: salesWithItems,
+      hasMore,
+      total,
+    };
+  }
+
+  async getSale(id: string): Promise<any> {
+    const [sale] = await db
+      .select()
+      .from(sales)
+      .where(eq(sales.id, id))
       .limit(1);
 
-    return existing.length > 0 ? existing[0] : null;
+    if (!sale) return null;
+
+    const items = await db
+      .select()
+      .from(salesItems)
+      .where(eq(salesItems.saleId, id));
+
+    return {
+      ...sale,
+      items,
+    };
   }
 
-  async createSale(sale: InsertSale): Promise<Sale> {
-    const [newSale] = await db.insert(sales).values(sale).returning();
-    return newSale;
-  }
+  async createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale> {
+    // Use transaction for atomic sale creation with FIFO stock deduction
+    return await db.transaction(async (tx) => {
+      // Step 1: Create the sale record
+      const [newSale] = await tx.insert(sales).values(sale).returning();
 
-  async markSalePaid(id: string): Promise<void> {
-    await db.update(sales).set({ isPaid: 1 }).where(eq(sales.id, id));
+      // Step 2: Process each item with FIFO deduction
+      const createdItems: SalesItem[] = [];
+      
+      for (const item of items) {
+        // Deduct from finished goods using FIFO
+        const deductionResult = await this.deductFromBatches(item.productId, item.quantity);
+        
+        if (!deductionResult.success) {
+          // Rollback transaction if insufficient stock
+          throw new Error(`Insufficient stock for product ${item.productName}. Required: ${item.quantity}, available less.`);
+        }
+
+        // Create sales item records (one per batch used in FIFO)
+        for (const deduction of deductionResult.deductions) {
+          const unitPrice = parseFloat(item.unitPrice || "0");
+          const unitCost = parseFloat(item.unitCost || "0");
+          const quantity = Math.floor(deduction.deductedQty);
+          
+          const [salesItem] = await tx.insert(salesItems).values({
+            ...item,
+            saleId: newSale.id,
+            quantity, // Quantity from this batch
+            totalPrice: (unitPrice * deduction.deductedQty).toFixed(2),
+            totalCost: (unitCost * deduction.deductedQty).toFixed(2),
+            profitAmount: ((unitPrice - unitCost) * deduction.deductedQty).toFixed(2),
+            batchId: deduction.batchId,
+          }).returning();
+          
+          createdItems.push(salesItem);
+        }
+      }
+
+      // Transaction commits automatically if we return successfully
+      return newSale;
+    });
   }
 
   // Expenses
@@ -669,11 +756,12 @@ export class DatabaseStorage implements IStorage {
       .from(sales)
       .where(eq(sales.saleDate, today));
 
-    // Today's sales (quantity)
+    // Today's sales (quantity) - sum from salesItems
     const todaySalesQty = await db.select({
-      total: sql<number>`COALESCE(SUM(${sales.quantity}), 0)`,
+      total: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
     })
-      .from(sales)
+      .from(salesItems)
+      .leftJoin(sales, eq(salesItems.saleId, sales.id))
       .where(eq(sales.saleDate, today));
 
     // Today's deliveries (quantity delivered to vendors)
@@ -757,13 +845,9 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    // Current month's commission projection
+    // Current month's commission projection - removed as commission calculation is separate
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    const monthlyCommission = await db.select({
-      total: sql<string>`COALESCE(SUM(${deliveries.commissionAmount}), 0)`,
-    })
-      .from(deliveries)
-      .where(gte(deliveries.deliveryDate, firstDayOfMonth));
+    const monthlyCommission = [{ total: "0" }]; // TODO: Calculate from vendor commissions if needed
 
     return {
       todayProduction: productionQty,
@@ -821,22 +905,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTopProducts(): Promise<any[]> {
+    // Use salesItems instead of sales to get product-level stats
     const topProducts = await db.select({
       id: products.id,
       name: products.name,
-      totalSold: sql<number>`COALESCE(SUM(${sales.quantity}), 0)`,
-      totalRevenue: sql<string>`COALESCE(SUM(${sales.totalAmount}), 0)`,
-      totalCost: sql<string>`COALESCE(SUM(${sales.quantity} * ${products.costPerUnit}), 0)`,
+      totalSold: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
+      totalRevenue: sql<string>`COALESCE(SUM(${salesItems.totalPrice}), 0)`,
+      totalCost: sql<string>`COALESCE(SUM(${salesItems.totalCost}), 0)`,
+      totalProfit: sql<string>`COALESCE(SUM(${salesItems.profitAmount}), 0)`,
     })
       .from(products)
-      .leftJoin(sales, eq(products.id, sales.productId))
+      .leftJoin(salesItems, eq(products.id, salesItems.productId))
       .groupBy(products.id, products.name)
-      .orderBy(sql`COALESCE(SUM(${sales.totalAmount}), 0) DESC`)
+      .orderBy(sql`COALESCE(SUM(${salesItems.totalPrice}), 0) DESC`)
       .limit(5);
 
     return topProducts.map(p => ({
-      ...p,
-      totalProfit: (parseFloat(p.totalRevenue) - parseFloat(p.totalCost)).toFixed(2),
+      id: p.id,
+      name: p.name,
+      totalSold: p.totalSold,
+      totalRevenue: parseFloat(p.totalRevenue || "0").toFixed(2),
+      totalCost: parseFloat(p.totalCost || "0").toFixed(2),
+      totalProfit: parseFloat(p.totalProfit || "0").toFixed(2),
     }));
   }
 
