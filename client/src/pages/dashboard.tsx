@@ -513,7 +513,7 @@ export default function Dashboard() {
                       data-testid={`status-${delivery.id}`}
                     >
                       {delivery.status === "claimed" ? "Dibayar" :
-                       delivery.status === "pending" ? "Pending" :
+                       delivery.status === "pending" ? "Menunggu" :
                        delivery.status === "rejected" ? "Ditolak" : "Dihantar"}
                     </Badge>
                   </div>
