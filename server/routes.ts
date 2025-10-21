@@ -320,6 +320,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: userWithoutPassword });
   });
   
+  // Get current user's early bird status
+  app.get("/api/auth/early-bird-status", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      
+      const earlyBirdSlot = await db.query.earlyBirdTracking.findFirst({
+        where: (tracking, { eq }) => eq(tracking.userId, user.id),
+      });
+      
+      res.json({
+        hasSlot: !!earlyBirdSlot,
+        slotNumber: earlyBirdSlot?.slotNumber || null,
+        hasSubscribed: earlyBirdSlot?.hasSubscribed === 1,
+      });
+    } catch (error: any) {
+      console.error("Early bird status error:", error);
+      res.status(500).json({ message: "Failed to get early bird status" });
+    }
+  });
+  
   // ==================== SUBSCRIPTION PLANS ====================
   
   // Get all active subscription plans
@@ -461,6 +481,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice = totalPrice * (1 - discount / 100);
       }
       
+      // Check if user has early bird slot (auto-apply 70% discount for first 100 signups)
+      let hasEarlyBird = false;
+      try {
+        const earlyBirdSlot = await db.query.earlyBirdTracking.findFirst({
+          where: (tracking, { eq }) => eq(tracking.userId, user.id),
+        });
+        
+        // Auto-apply 70% early bird discount if user has a slot and hasn't subscribed yet
+        if (earlyBirdSlot && !earlyBirdSlot.hasSubscribed) {
+          totalPrice = totalPrice * (1 - 70 / 100);
+          hasEarlyBird = true;
+        }
+      } catch (earlyBirdError) {
+        console.error("Error checking early bird status:", earlyBirdError);
+      }
+      
       // Apply promo code if provided
       let appliedPromo = null;
       if (promoCode) {
@@ -543,6 +579,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAmount: totalPrice,
         planName: plan.displayName,
         durationMonths,
+        hasEarlyBird,
+        earlyBirdDiscount: hasEarlyBird ? 70 : 0,
         promoApplied: appliedPromo ? {
           code: appliedPromo.code,
           discountType: appliedPromo.discountType,
@@ -611,6 +649,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (durationMonths === 12) {
         const discount = parseFloat(plan.discount12Months || "20");
         totalPrice = totalPrice * (1 - discount / 100);
+      }
+      
+      // Check if user has early bird slot (auto-apply 70% discount for first 100 signups)
+      let hasEarlyBird = false;
+      try {
+        const earlyBirdSlot = await db.query.earlyBirdTracking.findFirst({
+          where: (tracking, { eq }) => eq(tracking.userId, user.id),
+        });
+        
+        // Auto-apply 70% early bird discount if user has a slot and hasn't subscribed yet
+        if (earlyBirdSlot && !earlyBirdSlot.hasSubscribed) {
+          totalPrice = totalPrice * (1 - 70 / 100);
+          hasEarlyBird = true;
+        }
+      } catch (earlyBirdError) {
+        console.error("Error checking early bird status:", earlyBirdError);
       }
       
       // Apply promo code if provided
@@ -696,6 +750,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         durationMonths,
         isRenewal: true,
         subscriptionId: subscriptionToRenew.id,
+        hasEarlyBird,
+        earlyBirdDiscount: hasEarlyBird ? 70 : 0,
         promoApplied: appliedPromo ? {
           code: appliedPromo.code,
           discountType: appliedPromo.discountType,
