@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/production", async (req, res) => {
+  app.post("/api/production", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertProductionBatchSchema.parse(req.body);
       const batch = await storage.createProductionBatch(data);
@@ -1290,7 +1290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Production Planning - Confirm production and deduct stock
-  app.post("/api/production/confirm", async (req, res) => {
+  app.post("/api/production/confirm", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { productId, quantity, batchDate, expiryDate, notes, materialsNeeded } = req.body;
 
@@ -1405,7 +1405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendors", async (req, res) => {
+  app.post("/api/vendors", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertVendorSchema.parse(req.body);
       const vendor = await storage.createVendor(data);
@@ -1528,7 +1528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/stock", async (req, res) => {
+  app.post("/api/stock", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertStockItemSchema.parse(req.body);
       const item = await storage.createStockItem(data);
@@ -1538,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/stock/:id", async (req, res) => {
+  app.patch("/api/stock/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       const data = insertStockItemSchema.partial().parse(req.body);
@@ -1550,7 +1550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Replenish stock - add additional quantity to existing stock
-  app.post("/api/stock/:id/replenish", async (req, res) => {
+  app.post("/api/stock/:id/replenish", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       const replenishSchema = z.object({
@@ -1629,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/stock/:id", async (req, res) => {
+  app.delete("/api/stock/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteStockItem(id);
@@ -1696,7 +1696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/deliveries", async (req, res) => {
+  app.post("/api/deliveries", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const deliverySchema = insertDeliverySchema.extend({
         items: z.array(z.object({
