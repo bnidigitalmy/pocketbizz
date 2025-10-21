@@ -18,10 +18,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package, Printer, Share2 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface CartItem {
   productId: string;
@@ -44,6 +46,17 @@ export default function POSPage() {
   // Fetch products for selection
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  // Fetch business profile for receipt header
+  const { data: businessProfile } = useQuery<any>({
+    queryKey: ["/api/business-profile"],
+  });
+
+  // Fetch sale details with items when receipt is shown
+  const { data: saleDetails } = useQuery<any>({
+    queryKey: ["/api/sales", lastReceipt?.id],
+    enabled: !!lastReceipt?.id && showReceipt,
   });
 
   // Filter products based on search
@@ -183,6 +196,115 @@ export default function POSPage() {
     };
 
     createSaleMutation.mutate(saleData);
+  };
+
+  // Generate PDF receipt
+  const generatePDF = () => {
+    if (!lastReceipt || !saleDetails) return;
+
+    const doc = new jsPDF();
+    
+    // Business Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(businessProfile?.businessName || "PocketBizz", 105, 20, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    if (businessProfile?.address) {
+      doc.text(businessProfile.address, 105, 28, { align: "center" });
+    }
+    if (businessProfile?.phone) {
+      doc.text(`Tel: ${businessProfile.phone}`, 105, 34, { align: "center" });
+    }
+    
+    // Receipt Info
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("RESIT JUALAN", 105, 45, { align: "center" });
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`No: ${lastReceipt.receiptNumber}`, 20, 55);
+    doc.text(`Tarikh: ${new Date(lastReceipt.saleDate).toLocaleDateString('ms-MY')}`, 20, 60);
+    doc.text(`Pelanggan: ${lastReceipt.customerName}`, 20, 65);
+    doc.text(`Bayaran: ${lastReceipt.paymentMethod.toUpperCase()}`, 20, 70);
+    
+    // Items Table
+    const tableData = (saleDetails.items || []).map((item: any) => [
+      item.productName,
+      item.quantity,
+      `RM ${parseFloat(item.unitPrice).toFixed(2)}`,
+      `RM ${parseFloat(item.totalPrice).toFixed(2)}`,
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Produk', 'Kuantiti', 'Harga', 'Jumlah']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [251, 146, 60], textColor: 255 },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 30, halign: 'center' },
+        2: { cellWidth: 35, halign: 'right' },
+        3: { cellWidth: 35, halign: 'right' },
+      },
+    });
+    
+    // Total
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`JUMLAH: RM ${parseFloat(lastReceipt.totalAmount).toFixed(2)}`, 190, finalY, { align: "right" });
+    
+    // Footer
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Terima kasih atas pembelian anda!", 105, finalY + 15, { align: "center" });
+    
+    return doc;
+  };
+
+  // Handle Print
+  const handlePrint = () => {
+    const doc = generatePDF();
+    if (doc) {
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+      
+      toast({
+        title: "Cetak Resit",
+        description: "Dialog cetak dibuka",
+      });
+    }
+  };
+
+  // Handle WhatsApp Share
+  const handleWhatsAppShare = () => {
+    if (!lastReceipt || !saleDetails) return;
+
+    const items = (saleDetails.items || [])
+      .map((item: any) => `- ${item.productName} x${item.quantity} = RM${parseFloat(item.totalPrice).toFixed(2)}`)
+      .join('\n');
+
+    const message = `*RESIT JUALAN*\n\n` +
+      `No: ${lastReceipt.receiptNumber}\n` +
+      `Tarikh: ${new Date(lastReceipt.saleDate).toLocaleDateString('ms-MY')}\n` +
+      `Pelanggan: ${lastReceipt.customerName}\n\n` +
+      `*Produk:*\n${items}\n\n` +
+      `*JUMLAH: RM ${parseFloat(lastReceipt.totalAmount).toFixed(2)}*\n\n` +
+      `Bayaran: ${lastReceipt.paymentMethod.toUpperCase()}\n\n` +
+      `Terima kasih! - ${businessProfile?.businessName || 'PocketBizz'}`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    toast({
+      title: "WhatsApp Dibuka",
+      description: "Kongsi resit melalui WhatsApp",
+    });
   };
 
   return (
@@ -441,10 +563,36 @@ export default function POSPage() {
                 Terima kasih!
               </div>
 
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  data-testid="button-print-receipt"
+                  onClick={handlePrint}
+                  variant="outline"
+                  disabled={!saleDetails}
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Cetak
+                </Button>
+
+                <Button
+                  data-testid="button-whatsapp-share"
+                  onClick={handleWhatsAppShare}
+                  variant="outline"
+                  disabled={!saleDetails}
+                  className="flex items-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  WhatsApp
+                </Button>
+              </div>
+
               <Button
                 data-testid="button-close-receipt"
                 onClick={() => setShowReceipt(false)}
                 className="w-full"
+                variant="secondary"
               >
                 Tutup
               </Button>
