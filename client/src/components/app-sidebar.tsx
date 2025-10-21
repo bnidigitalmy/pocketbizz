@@ -71,6 +71,11 @@ const menuItems = [
     icon: Truck,
   },
   {
+    title: "POS - Kaunter",
+    url: "/pos",
+    icon: CreditCard,
+  },
+  {
     title: "Jualan",
     url: "/sales",
     icon: DollarSign,
