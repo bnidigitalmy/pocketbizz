@@ -368,7 +368,8 @@ export default function Stock() {
               </Button>
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama Bahan</TableHead>
@@ -440,6 +441,7 @@ export default function Stock() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
