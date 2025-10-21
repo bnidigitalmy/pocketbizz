@@ -38,9 +38,11 @@ export default function SalesListPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Fetch all sales
-  const { data: sales = [], isLoading } = useQuery<any[]>({
+  const { data: salesResponse, isLoading } = useQuery<{data: any[], hasMore: boolean, total: string}>({
     queryKey: ["/api/sales"],
   });
+  
+  const sales = salesResponse?.data || [];
 
   // Fetch selected sale details with items
   const { data: saleDetails } = useQuery<any>({
