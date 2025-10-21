@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer, Edit, Filter, X } from "lucide-react";
+import { Plus, Truck, Trash2, Download, Copy, ChevronDown, Share2, Receipt, Printer, Edit, Filter, X, AlertCircle } from "lucide-react";
 import { generateInvoicePDF, generateMiniInvoicePDF, generateThermalInvoicePDF } from "@/lib/pdf-utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,11 +93,11 @@ export default function Deliveries() {
   // Flatten all pages into single array
   const deliveries = data?.pages.flatMap(page => page.data) || [];
 
-  const { data: vendors } = useQuery({
+  const { data: vendors = [] } = useQuery<any[]>({
     queryKey: ["/api/vendors"],
   });
 
-  const { data: products } = useQuery({
+  const { data: products = [] } = useQuery<any[]>({
     queryKey: ["/api/products"],
   });
 

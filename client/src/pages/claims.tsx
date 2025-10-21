@@ -76,13 +76,19 @@ export default function Claims() {
   // Flatten all pages into single array
   const claims = data?.pages.flatMap(page => page.data) || [];
 
-  // No need to fetch deliveries separately - claims summary includes all needed info
+  // Fetch all deliveries for filtering and PDF generation
+  const { data: deliveriesData } = useQuery<any>({
+    queryKey: ["/api/deliveries"],
+  });
+
+  // Extract deliveries array from response
+  const deliveries = deliveriesData?.data || [];
 
   const { data: businessProfile } = useQuery({
     queryKey: ["/api/business-profile"],
   });
 
-  const { data: claimDetails } = useQuery({
+  const { data: claimDetails } = useQuery<any>({
     queryKey: ["/api/claims", selectedVendorId, "details"],
     enabled: !!selectedVendorId,
   });
@@ -120,8 +126,8 @@ export default function Claims() {
       
       // Filter by payment status (check if vendor has deliveries with that payment status)
       if (filterPaymentStatus !== "all") {
-        const vendorDeliveries = deliveries?.filter(d => d.vendorId === claim.vendorId) || [];
-        const hasMatchingStatus = vendorDeliveries.some(d => d.paymentStatus === filterPaymentStatus);
+        const vendorDeliveries = deliveries?.filter((d: any) => d.vendorId === claim.vendorId) || [];
+        const hasMatchingStatus = vendorDeliveries.some((d: any) => d.paymentStatus === filterPaymentStatus);
         if (!hasMatchingStatus) {
           return false;
         }
@@ -196,7 +202,7 @@ export default function Claims() {
 
   const generateClaimStatement = (vendorId: string, vendorName: string) => {
     // Filter deliveries for this vendor
-    const vendorDeliveries = deliveries?.filter(d => d.vendorId === vendorId) || [];
+    const vendorDeliveries = deliveries?.filter((d: any) => d.vendorId === vendorId) || [];
     
     if (vendorDeliveries.length === 0) {
       toast({
@@ -208,9 +214,9 @@ export default function Claims() {
     }
 
     // Get date range (earliest to latest delivery)
-    const dates = vendorDeliveries.map(d => new Date(d.deliveryDate));
-    const earliestDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
-    const latestDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+    const dates = vendorDeliveries.map((d: any) => new Date(d.deliveryDate));
+    const earliestDate = new Date(Math.min(...dates.map((d: any) => d.getTime()))).toISOString().split('T')[0];
+    const latestDate = new Date(Math.max(...dates.map((d: any) => d.getTime()))).toISOString().split('T')[0];
 
     // Generate PDF
     generateClaimStatementPDF(
@@ -229,7 +235,7 @@ export default function Claims() {
 
   const generateThermalClaimStatement = (vendorId: string, vendorName: string) => {
     // Filter deliveries for this vendor
-    const vendorDeliveries = deliveries?.filter(d => d.vendorId === vendorId) || [];
+    const vendorDeliveries = deliveries?.filter((d: any) => d.vendorId === vendorId) || [];
     
     if (vendorDeliveries.length === 0) {
       toast({
@@ -241,9 +247,9 @@ export default function Claims() {
     }
 
     // Get date range (earliest to latest delivery)
-    const dates = vendorDeliveries.map(d => new Date(d.deliveryDate));
-    const earliestDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
-    const latestDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+    const dates = vendorDeliveries.map((d: any) => new Date(d.deliveryDate));
+    const earliestDate = new Date(Math.min(...dates.map((d: any) => d.getTime()))).toISOString().split('T')[0];
+    const latestDate = new Date(Math.max(...dates.map((d: any) => d.getTime()))).toISOString().split('T')[0];
 
     // Generate Thermal PDF
     generateThermalClaimStatementPDF(
@@ -463,7 +469,7 @@ export default function Claims() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {deliveries?.map((delivery) => (
+            {deliveries?.map((delivery: any) => (
               <Card key={delivery.id} className="hover-elevate" data-testid={`card-delivery-${delivery.id}`}>
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -506,7 +512,7 @@ export default function Claims() {
 
                   {/* Delivery Items */}
                   <div className="mt-3 pt-3 border-t space-y-1">
-                    {delivery.items?.map((item, idx) => (
+                    {delivery.items?.map((item: any, idx: any) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{item.productName}</span>
                         <span className="font-mono">
