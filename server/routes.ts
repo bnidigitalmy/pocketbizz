@@ -10,6 +10,7 @@ import {
   insertVendorSchema,
   insertDeliverySchema,
   insertSaleSchema,
+  insertSalesItemSchema,
   insertExpenseSchema,
   insertBusinessProfileSchema,
   insertGoogleDriveSyncLogSchema,
@@ -1810,76 +1811,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sales
-  app.get("/api/sales", async (req, res) => {
+  // POS Sales - New transaction-based sales system
+  app.get("/api/sales", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const sales = await storage.getSales();
-      res.json(sales);
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const result = await storage.getSales(limit, offset);
+      res.json(result);
     } catch (error) {
+      console.error('[ERROR] GET /api/sales failed:', error);
       res.status(500).json({ error: "Failed to fetch sales" });
     }
   });
 
-  app.post("/api/sales", async (req, res) => {
+  app.get("/api/sales/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      // Extract force flag (it's not part of schema, so remove it before validation)
-      const force = req.body.force === true;
-      const { force: _, ...bodyWithoutForce } = req.body; // Remove force from body
+      const { id } = req.params;
+      const sale = await storage.getSale(id);
       
-      // Coerce numeric string fields to numbers (HTML forms send numbers as strings)
-      if (bodyWithoutForce.quantity) bodyWithoutForce.quantity = Number(bodyWithoutForce.quantity);
-      if (bodyWithoutForce.isPaid) bodyWithoutForce.isPaid = Number(bodyWithoutForce.isPaid);
-      
-      const data = insertSaleSchema.parse(bodyWithoutForce);
-      
-      // Check for duplicate sale (same product + vendor on same date)
-      if (!force && data.productId && data.saleDate) {
-        const duplicate = await storage.checkDuplicateSale(
-          data.productId, 
-          data.vendorId || null, 
-          data.saleDate
-        );
-        
-        if (duplicate) {
-          return res.status(409).json({
-            error: "Duplicate sale detected",
-            duplicate: {
-              productName: duplicate.productName,
-              vendorName: duplicate.vendorName,
-              quantity: duplicate.quantity,
-              saleDate: duplicate.saleDate,
-              totalAmount: duplicate.totalAmount
-            }
-          });
-        }
+      if (!sale) {
+        return res.status(404).json({ error: "Sale not found" });
       }
       
-      // Deduct from finished goods batches using FIFO if productId is provided
-      if (data.productId && data.quantity) {
-        const deductionResult = await storage.deductFromBatches(data.productId, data.quantity);
-        if (!deductionResult.success) {
-          return res.status(400).json({ 
-            error: `Insufficient finished goods stock for ${data.productName}`,
-            details: deductionResult
-          });
-        }
-      }
-      
-      const sale = await storage.createSale(data);
       res.json(sale);
-    } catch (error: any) {
-      console.error('[ERROR] POST /api/sales failed:', error);
-      res.status(400).json({ error: "Invalid sale data" });
+    } catch (error) {
+      console.error('[ERROR] GET /api/sales/:id failed:', error);
+      res.status(500).json({ error: "Failed to fetch sale" });
     }
   });
 
-  app.patch("/api/sales/:id/paid", async (req, res) => {
+  app.post("/api/sales", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const { id } = req.params;
-      await storage.markSalePaid(id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(400).json({ error: "Failed to mark as paid" });
+      // Validate sale and items structure
+      const saleCreateSchema = z.object({
+        sale: insertSaleSchema,
+        items: z.array(insertSalesItemSchema).min(1, "At least one item required"),
+      });
+      
+      const validated = saleCreateSchema.parse(req.body);
+      
+      // Create sale with FIFO stock deduction (atomic transaction)
+      const sale = await storage.createSale(validated.sale, validated.items);
+      
+      res.json(sale);
+    } catch (error: any) {
+      console.error('[ERROR] POST /api/sales failed:', error);
+      
+      if (error.message?.includes('Insufficient stock')) {
+        return res.status(400).json({ 
+          error: "Insufficient stock", 
+          message: error.message 
+        });
+      }
+      
+      res.status(400).json({ 
+        error: "Invalid sale data",
+        message: error.message || "Failed to create sale"
+      });
     }
   });
 
