@@ -683,10 +683,16 @@ export class DatabaseStorage implements IStorage {
   async createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale> {
     // Use transaction for atomic sale creation with FIFO stock deduction
     return await db.transaction(async (tx) => {
-      // Step 1: Create the sale record
-      const [newSale] = await tx.insert(sales).values(sale).returning();
+      // Step 1: Generate receipt number
+      const receiptNumber = await this.generateReceiptNumber();
+      
+      // Step 2: Create the sale record
+      const [newSale] = await tx.insert(sales).values({
+        ...sale,
+        receiptNumber,
+      }).returning();
 
-      // Step 2: Process each item with FIFO deduction
+      // Step 3: Process each item with FIFO deduction
       const createdItems: SalesItem[] = [];
       
       for (const item of items) {

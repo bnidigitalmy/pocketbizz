@@ -413,11 +413,14 @@ export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
+  receiptNumber: true,
   createdAt: true,
 });
 
 export const insertSalesItemSchema = createInsertSchema(salesItems).omit({
   id: true,
+  saleId: true,
+  batchId: true,
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({
