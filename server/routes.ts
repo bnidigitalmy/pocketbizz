@@ -502,18 +502,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (promoCode) {
         const promo = await storage.getPromoCodeByCode(promoCode);
         if (promo && promo.isActive) {
-          // Check usage limit
-          const usageCount = await storage.getPromoCodeUsageCount(promo.id);
-          if (usageCount < (promo.maxUses || Infinity)) {
-            // Check expiry
-            if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
-              // Apply discount
-              if (promo.discountType === 'percentage') {
-                totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
-              } else {
-                totalPrice = totalPrice - parseFloat(promo.discountValue);
+          // Check if user already used this promo
+          const hasUsed = await storage.hasUserUsedPromoCode(user.id, promo.id);
+          if (!hasUsed) {
+            // Check usage limit
+            const usageCount = await storage.getPromoCodeUsageCount(promo.id);
+            if (usageCount < (promo.maxUses || Infinity)) {
+              // Check expiry
+              if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
+                // Apply discount
+                if (promo.discountType === 'percentage') {
+                  totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
+                } else {
+                  totalPrice = totalPrice - parseFloat(promo.discountValue);
+                }
+                appliedPromo = promo;
               }
-              appliedPromo = promo;
             }
           }
         }
@@ -672,18 +676,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (promoCode) {
         const promo = await storage.getPromoCodeByCode(promoCode);
         if (promo && promo.isActive) {
-          // Check usage limit
-          const usageCount = await storage.getPromoCodeUsageCount(promo.id);
-          if (usageCount < (promo.maxUses || Infinity)) {
-            // Check expiry
-            if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
-              // Apply discount
-              if (promo.discountType === 'percentage') {
-                totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
-              } else {
-                totalPrice = totalPrice - parseFloat(promo.discountValue);
+          // Check if user already used this promo
+          const hasUsed = await storage.hasUserUsedPromoCode(user.id, promo.id);
+          if (!hasUsed) {
+            // Check usage limit
+            const usageCount = await storage.getPromoCodeUsageCount(promo.id);
+            if (usageCount < (promo.maxUses || Infinity)) {
+              // Check expiry
+              if (!promo.expiresAt || new Date(promo.expiresAt) > new Date()) {
+                // Apply discount
+                if (promo.discountType === 'percentage') {
+                  totalPrice = totalPrice * (1 - parseFloat(promo.discountValue) / 100);
+                } else {
+                  totalPrice = totalPrice - parseFloat(promo.discountValue);
+                }
+                appliedPromo = promo;
               }
-              appliedPromo = promo;
             }
           }
         }
@@ -779,6 +787,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Early bird slots error:", error);
       res.status(500).json({ message: "Failed to get early bird slots" });
+    }
+  });
+  
+  // Validate promo code (check expiry, usage limits, user-specific usage)
+  app.post("/api/promo-codes/validate", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        code: z.string(),
+      });
+      
+      const { code } = schema.parse(req.body);
+      const userId = req.user!.id;
+      
+      // Get promo code
+      const promo = await storage.getPromoCodeByCode(code);
+      
+      if (!promo) {
+        return res.status(404).json({ 
+          valid: false, 
+          message: "Kod promo tidak wujud" 
+        });
+      }
+      
+      // Check if active
+      if (!promo.isActive) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Kod promo tidak aktif" 
+        });
+      }
+      
+      // Check expiry
+      if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Kod promo telah tamat tempoh" 
+        });
+      }
+      
+      // Check global usage limit
+      const usageCount = await storage.getPromoCodeUsageCount(promo.id);
+      if (promo.maxUses && usageCount >= promo.maxUses) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Kod promo telah mencapai had penggunaan" 
+        });
+      }
+      
+      // Check if user already used this promo (user-specific check)
+      const hasUsed = await storage.hasUserUsedPromoCode(userId, promo.id);
+      if (hasUsed) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Anda telah menggunakan kod promo ini" 
+        });
+      }
+      
+      // Valid promo code!
+      res.json({
+        valid: true,
+        promo: {
+          id: promo.id,
+          code: promo.code,
+          name: promo.name,
+          discountType: promo.discountType,
+          discountValue: promo.discountValue,
+        },
+      });
+    } catch (error: any) {
+      console.error("Promo validation error:", error);
+      res.status(500).json({ message: error.message || "Failed to validate promo code" });
     }
   });
   
@@ -922,6 +1001,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Increment promo code usage if applicable
         if (existingBill.promoCodeId) {
           await storage.incrementPromoCodeUsage(existingBill.promoCodeId);
+          // Track user-specific usage to prevent duplicate usage
+          await storage.trackPromoCodeUsage(existingBill.userId, existingBill.promoCodeId);
         }
         
         // Mark bill as processed

@@ -60,6 +60,7 @@ import {
   promoCodes,
   type PromoCode,
   type InsertPromoCode,
+  promoCodeUsage,
   earlyBirdTracking,
   pendingBills,
   type PendingBill,
@@ -190,6 +191,8 @@ export interface IStorage {
   getPromoCodeByCode(code: string): Promise<PromoCode | undefined>;
   getPromoCodeUsageCount(promoCodeId: string): Promise<number>;
   incrementPromoCodeUsage(promoCodeId: string): Promise<void>;
+  hasUserUsedPromoCode(userId: string, promoCodeId: string): Promise<boolean>;
+  trackPromoCodeUsage(userId: string, promoCodeId: string): Promise<void>;
   
   // Pending Bills
   createPendingBill(bill: InsertPendingBill): Promise<PendingBill>;
@@ -1449,6 +1452,25 @@ export class DatabaseStorage implements IStorage {
     await db.update(promoCodes)
       .set({ currentUses: sql`${promoCodes.currentUses} + 1` })
       .where(eq(promoCodes.id, promoCodeId));
+  }
+  
+  async hasUserUsedPromoCode(userId: string, promoCodeId: string): Promise<boolean> {
+    const [usage] = await db.select()
+      .from(promoCodeUsage)
+      .where(
+        and(
+          eq(promoCodeUsage.userId, userId),
+          eq(promoCodeUsage.promoCodeId, promoCodeId)
+        )
+      );
+    return !!usage;
+  }
+  
+  async trackPromoCodeUsage(userId: string, promoCodeId: string): Promise<void> {
+    await db.insert(promoCodeUsage).values({
+      userId,
+      promoCodeId,
+    });
   }
   
   // Pending Bills

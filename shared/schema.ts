@@ -571,6 +571,14 @@ export const promoCodes = pgTable("promo_codes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Promo Code Usage Tracking (Prevent duplicate usage per user)
+export const promoCodeUsage = pgTable("promo_code_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  promoCodeId: varchar("promo_code_id").notNull().references(() => promoCodes.id, { onDelete: "cascade" }),
+  usedAt: timestamp("used_at").defaultNow().notNull(),
+});
+
 // Billing History Table (ToyyibPay transactions)
 export const billingHistory = pgTable("billing_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
