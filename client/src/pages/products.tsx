@@ -250,7 +250,7 @@ export default function Products() {
       
       if (!categoryName) {
         toast({
-          title: "Error",
+          title: "Ralat",
           description: "Nama kategori diperlukan",
           variant: "destructive",
         });
@@ -298,7 +298,7 @@ export default function Products() {
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Ralat",
         description: "Gagal menyimpan produk",
         variant: "destructive",
       });
@@ -748,7 +748,7 @@ export default function Products() {
                           </div>
                           <FormDescription>
                             Cadangan: RM {costs.suggestedSellingPrice} 
-                            ({costs.suggestedMarginPercent}% profit margin)
+                            ({costs.suggestedMarginPercent}% margin keuntungan)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
