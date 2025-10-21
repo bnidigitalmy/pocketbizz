@@ -504,7 +504,7 @@ export default function Products() {
 
                 {/* Recipe Items (from Stock) */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                       <h3 className="font-medium">Resepi (Bahan dari Stok)</h3>
                       <p className="text-sm text-muted-foreground">Pilih bahan dari stok gudang</p>
@@ -515,6 +515,7 @@ export default function Products() {
                       size="sm"
                       onClick={addRecipeItem}
                       data-testid="button-add-recipe-item"
+                      className="w-full sm:w-auto"
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       Tambah Bahan
