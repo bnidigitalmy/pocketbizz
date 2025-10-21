@@ -351,11 +351,11 @@ export default function POSPage() {
                         data-testid={`button-add-product-${product.id}`}
                         onClick={() => addToCart(product)}
                         variant="outline"
-                        className="h-24 flex flex-col items-center justify-center gap-2 hover-elevate active-elevate-2"
+                        className="min-h-32 md:h-28 flex flex-col items-center justify-center gap-2 hover-elevate active-elevate-2 p-3"
                       >
-                        <Package className="w-6 h-6" />
-                        <span className="font-medium text-sm">{product.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <Package className="w-7 h-7 md:w-6 md:h-6" />
+                        <span className="font-medium text-sm md:text-sm text-center leading-tight">{product.name}</span>
+                        <span className="text-sm md:text-xs text-muted-foreground font-semibold">
                           RM {parseFloat(product.sellingPrice).toFixed(2)}
                         </span>
                       </Button>
@@ -392,29 +392,29 @@ export default function POSPage() {
                       <div
                         key={item.productId}
                         data-testid={`cart-item-${item.productId}`}
-                        className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted"
+                        className="flex flex-col md:flex-row md:items-center gap-3 p-4 md:p-3 rounded-lg bg-muted"
                       >
                         <div className="flex-1">
-                          <p className="font-medium text-sm" data-testid={`text-product-name-${item.productId}`}>
+                          <p className="font-medium text-base md:text-sm" data-testid={`text-product-name-${item.productId}`}>
                             {item.productName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm md:text-xs text-muted-foreground">
                             RM {parseFloat(item.unitPrice).toFixed(2)} x {item.quantity}
                           </p>
                         </div>
                         
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <Button
                             data-testid={`button-decrease-qty-${item.productId}`}
                             size="icon"
                             variant="outline"
-                            className="h-8 w-8"
+                            className="h-10 w-10 md:h-8 md:w-8"
                             onClick={() => updateQuantity(item.productId, -1)}
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-5 h-5 md:w-4 md:h-4" />
                           </Button>
                           
-                          <span className="w-8 text-center font-medium" data-testid={`text-quantity-${item.productId}`}>
+                          <span className="w-10 md:w-8 text-center font-medium text-base md:text-sm" data-testid={`text-quantity-${item.productId}`}>
                             {item.quantity}
                           </span>
                           
@@ -422,25 +422,25 @@ export default function POSPage() {
                             data-testid={`button-increase-qty-${item.productId}`}
                             size="icon"
                             variant="outline"
-                            className="h-8 w-8"
+                            className="h-10 w-10 md:h-8 md:w-8"
                             onClick={() => updateQuantity(item.productId, 1)}
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-5 h-5 md:w-4 md:h-4" />
                           </Button>
                         </div>
 
-                        <div className="text-right">
-                          <p className="font-medium" data-testid={`text-item-total-${item.productId}`}>
+                        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2">
+                          <p className="font-medium text-lg md:text-base" data-testid={`text-item-total-${item.productId}`}>
                             RM {item.totalPrice.toFixed(2)}
                           </p>
                           <Button
                             data-testid={`button-remove-${item.productId}`}
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6"
+                            className="h-8 w-8 md:h-6 md:w-6"
                             onClick={() => removeFromCart(item.productId)}
                           >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Trash2 className="w-5 h-5 md:w-4 md:h-4 text-destructive" />
                           </Button>
                         </div>
                       </div>
@@ -496,14 +496,14 @@ export default function POSPage() {
                   </div>
 
                   {/* Total */}
-                  <div className="bg-primary/10 p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">Jumlah Item:</span>
-                      <span className="font-medium" data-testid="text-total-items">{totalItems}</span>
+                  <div className="bg-primary/10 p-5 md:p-4 rounded-lg">
+                    <div className="flex justify-between items-center mb-3 md:mb-2">
+                      <span className="text-base md:text-sm text-muted-foreground">Jumlah Item:</span>
+                      <span className="font-medium text-base md:text-sm" data-testid="text-total-items">{totalItems}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold">JUMLAH:</span>
-                      <span className="text-2xl font-bold text-primary" data-testid="text-total-amount">
+                      <span className="text-xl md:text-lg font-semibold">JUMLAH:</span>
+                      <span className="text-3xl md:text-2xl font-bold text-primary" data-testid="text-total-amount">
                         RM {subtotal.toFixed(2)}
                       </span>
                     </div>
@@ -513,7 +513,7 @@ export default function POSPage() {
                     data-testid="button-checkout"
                     onClick={handleCheckout}
                     disabled={cart.length === 0 || createSaleMutation.isPending}
-                    className="w-full h-14 text-lg"
+                    className="w-full h-16 md:h-14 text-xl md:text-lg font-semibold"
                   >
                     {createSaleMutation.isPending ? "Memproses..." : "Proses Jualan"}
                   </Button>
@@ -564,15 +564,15 @@ export default function POSPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button
                   data-testid="button-print-receipt"
                   onClick={handlePrint}
                   variant="outline"
                   disabled={!saleDetails}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-5 h-5 md:w-4 md:h-4" />
                   Cetak
                 </Button>
 
@@ -581,9 +581,9 @@ export default function POSPage() {
                   onClick={handleWhatsAppShare}
                   variant="outline"
                   disabled={!saleDetails}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="w-5 h-5 md:w-4 md:h-4" />
                   WhatsApp
                 </Button>
               </div>
