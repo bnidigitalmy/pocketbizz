@@ -12,6 +12,8 @@ import {
   Download
 } from "lucide-react";
 import { generateProfitLossReport } from "@/lib/pdf-utils";
+import { UpgradeDialog } from "@/components/upgrade-dialog";
+import { useUpgradePrompt } from "@/hooks/use-upgrade-prompt";
 import {
   BarChart,
   Bar,
@@ -25,20 +27,50 @@ import {
 } from "recharts";
 
 export default function Reports() {
+  const { showUpgrade, upgradeInfo, checkUpgradeError, closeUpgradePrompt } = useUpgradePrompt();
+
   const { data: profitLoss, isLoading: plLoading } = useQuery({
     queryKey: ["/api/reports/profit-loss"],
+    retry: (failureCount, error: any) => {
+      if (error?.response?.data?.requiresUpgrade || error?.data?.requiresUpgrade) {
+        checkUpgradeError(error);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   const { data: topProducts } = useQuery({
     queryKey: ["/api/reports/top-products"],
+    retry: (failureCount, error: any) => {
+      if (error?.response?.data?.requiresUpgrade || error?.data?.requiresUpgrade) {
+        checkUpgradeError(error);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   const { data: topVendors } = useQuery({
     queryKey: ["/api/reports/top-vendors"],
+    retry: (failureCount, error: any) => {
+      if (error?.response?.data?.requiresUpgrade || error?.data?.requiresUpgrade) {
+        checkUpgradeError(error);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   const { data: monthlyData } = useQuery({
     queryKey: ["/api/reports/monthly"],
+    retry: (failureCount, error: any) => {
+      if (error?.response?.data?.requiresUpgrade || error?.data?.requiresUpgrade) {
+        checkUpgradeError(error);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   if (plLoading) {
@@ -335,6 +367,15 @@ export default function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <UpgradeDialog
+        open={showUpgrade}
+        onOpenChange={closeUpgradePrompt}
+        title="Premium Feature: Advanced Reports"
+        message={upgradeInfo.message}
+        currentPlan={upgradeInfo.currentPlan}
+        requiredPlan={upgradeInfo.requiredPlan}
+      />
     </div>
   );
 }

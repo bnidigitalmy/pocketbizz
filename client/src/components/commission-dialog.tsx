@@ -22,6 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, Percent } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { UpgradeDialog } from "@/components/upgrade-dialog";
+import { useUpgradePrompt } from "@/hooks/use-upgrade-prompt";
 
 interface CommissionRange {
   min: string;
@@ -38,6 +40,7 @@ interface CommissionDialogProps {
 
 export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: CommissionDialogProps) {
   const { toast } = useToast();
+  const { showUpgrade, upgradeInfo, checkUpgradeError, closeUpgradePrompt } = useUpgradePrompt();
   const [commissionType, setCommissionType] = useState<"fixed_range" | "percentage">("percentage");
   const [percentage, setPercentage] = useState("");
   const [ranges, setRanges] = useState<CommissionRange[]>([
@@ -47,6 +50,14 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
   const { data: existingCommission } = useQuery<any>({
     queryKey: ["/api/vendors", vendorId, "commission"],
     enabled: open && !!vendorId,
+    retry: (failureCount, error: any) => {
+      // Don't retry if upgrade is required
+      if (error?.response?.data?.requiresUpgrade || error?.data?.requiresUpgrade) {
+        checkUpgradeError(error);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   useEffect(() => {
@@ -144,11 +155,15 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Ralat",
-        description: error.message || "Gagal menyimpan setup komisyen.",
-        variant: "destructive",
-      });
+      // Check if this is an upgrade error
+      if (!checkUpgradeError(error)) {
+        // Show regular error toast if not upgrade-related
+        toast({
+          title: "Ralat",
+          description: error.message || "Gagal menyimpan setup komisyen.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -163,6 +178,15 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
         description: "Setup komisyen telah dipadam.",
       });
       onOpenChange(false);
+    },
+    onError: (error: any) => {
+      if (!checkUpgradeError(error)) {
+        toast({
+          title: "Ralat",
+          description: error.message || "Gagal memadam setup komisyen.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -181,6 +205,7 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -328,5 +353,15 @@ export function CommissionDialog({ vendorId, vendorName, open, onOpenChange }: C
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    <UpgradeDialog
+      open={showUpgrade}
+      onOpenChange={closeUpgradePrompt}
+      title="Premium Feature: Commission Tracking"
+      message={upgradeInfo.message}
+      currentPlan={upgradeInfo.currentPlan}
+      requiredPlan={upgradeInfo.requiredPlan}
+    />
+    </>
   );
 }

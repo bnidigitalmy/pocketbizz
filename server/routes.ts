@@ -152,6 +152,45 @@ async function requirePaidSubscription(req: Request, res: Response, next: NextFu
   next();
 }
 
+// Middleware: Require Pro or Premium plan for advanced features
+async function requireProPlan(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - please login" });
+  }
+  
+  // Block if on trial
+  if (req.user.isOnTrial) {
+    return res.status(403).json({ 
+      message: "This premium feature requires a Pro or Premium plan. Upgrade to unlock.",
+      requiresUpgrade: true,
+      requiredPlan: "pro"
+    });
+  }
+  
+  // Verify user has an active subscription
+  const activeSub = await getUserActiveSubscription(req.user.id);
+  if (!activeSub) {
+    return res.status(403).json({ 
+      message: "Your subscription has expired. Please renew to access premium features.",
+      requiresUpgrade: true,
+      subscriptionExpired: true
+    });
+  }
+  
+  // Check if plan is Pro or Premium (not Basic)
+  const plan = await storage.getSubscriptionPlanById(activeSub.planId);
+  if (!plan || (plan.name !== 'pro' && plan.name !== 'premium')) {
+    return res.status(403).json({ 
+      message: "This premium feature is only available on Pro and Premium plans. Upgrade to unlock.",
+      requiresUpgrade: true,
+      currentPlan: plan?.name || 'unknown',
+      requiredPlan: "pro"
+    });
+  }
+  
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Load user for all requests
@@ -1416,7 +1455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor Commissions
-  app.get("/api/vendors/:vendorId/commission", async (req, res) => {
+  app.get("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
     try {
       const { vendorId } = req.params;
       const commission = await storage.getVendorCommission(vendorId);
@@ -1426,7 +1465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendors/:vendorId/commission", async (req, res) => {
+  app.post("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
     try {
       const { vendorId } = req.params;
       
@@ -1486,7 +1525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/vendors/:vendorId/commission", async (req, res) => {
+  app.delete("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
     try {
       const { vendorId } = req.params;
       await storage.deleteVendorCommission(vendorId);
@@ -1903,7 +1942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reports
-  app.get("/api/reports/profit-loss", async (req, res) => {
+  app.get("/api/reports/profit-loss", requireProPlan, async (req, res) => {
     try {
       const report = await storage.getProfitLossReport();
       res.json(report);
@@ -1912,7 +1951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/top-products", async (req, res) => {
+  app.get("/api/reports/top-products", requireProPlan, async (req, res) => {
     try {
       const topProducts = await storage.getTopProducts();
       res.json(topProducts);
@@ -1921,7 +1960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/top-vendors", async (req, res) => {
+  app.get("/api/reports/top-vendors", requireProPlan, async (req, res) => {
     try {
       const topVendors = await storage.getTopVendors();
       res.json(topVendors);
@@ -1930,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/monthly", async (req, res) => {
+  app.get("/api/reports/monthly", requireProPlan, async (req, res) => {
     try {
       const monthlyData = await storage.getMonthlyData();
       res.json(monthlyData);
