@@ -36,6 +36,10 @@ import DriveSync from "@/pages/drive-sync";
 import Pricing from "@/pages/pricing";
 import Checkout from "@/pages/checkout";
 import PaymentCallback from "@/pages/payment-callback";
+import PricingTiers from "@/pages/pricing-tiers";
+import Resellers from "@/pages/resellers";
+import ResellerTransfer from "@/pages/reseller-transfer";
+import ResellerPerformance from "@/pages/reseller-performance";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -70,6 +74,10 @@ function AppRouter() {
       <Route path="/reports" component={Reports} />
       <Route path="/settings" component={Settings} />
       <Route path="/drive-sync" component={DriveSync} />
+      <Route path="/pricing-tiers" component={PricingTiers} />
+      <Route path="/resellers" component={Resellers} />
+      <Route path="/reseller-transfer" component={ResellerTransfer} />
+      <Route path="/reseller-performance" component={ResellerPerformance} />
       <Route component={NotFound} />
     </Switch>
   );

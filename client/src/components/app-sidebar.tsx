@@ -14,6 +14,9 @@ import {
   Settings,
   Cloud,
   CreditCard,
+  Users,
+  TrendingUp,
+  Tag,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -107,6 +110,29 @@ const menuItems = [
   },
 ];
 
+const resellerItems = [
+  {
+    title: "Senarai Ejen",
+    url: "/resellers",
+    icon: Users,
+  },
+  {
+    title: "Transfer Stok",
+    url: "/reseller-transfer",
+    icon: Truck,
+  },
+  {
+    title: "Prestasi Ejen",
+    url: "/reseller-performance",
+    icon: TrendingUp,
+  },
+  {
+    title: "Tetapan Tier",
+    url: "/pricing-tiers",
+    icon: Tag,
+  },
+];
+
 const subscriptionItems = [
   {
     title: "Pricing Plans",
@@ -151,6 +177,28 @@ export function AppSidebar() {
                       href={item.url} 
                       onClick={handleMenuClick}
                       data-testid={`link-${item.url.slice(1) || 'dashboard'}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Ejen Jualan</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resellerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>

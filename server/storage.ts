@@ -65,6 +65,18 @@ import {
   pendingBills,
   type PendingBill,
   type InsertPendingBill,
+  pricingTiers,
+  resellers,
+  resellerTransfers,
+  resellerTransferItems,
+  type PricingTier,
+  type InsertPricingTier,
+  type Reseller,
+  type InsertReseller,
+  type ResellerTransfer,
+  type InsertResellerTransfer,
+  type ResellerTransferItem,
+  type InsertResellerTransferItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -198,6 +210,25 @@ export interface IStorage {
   createPendingBill(bill: InsertPendingBill): Promise<PendingBill>;
   getPendingBillByBillCode(billCode: string): Promise<PendingBill | undefined>;
   markBillAsProcessed(billCode: string): Promise<void>;
+  
+  // Pricing Tiers (Reseller Module)
+  getPricingTiers(): Promise<any[]>;
+  createPricingTier(tier: any): Promise<any>;
+  updatePricingTier(id: string, tier: any): Promise<any>;
+  
+  // Resellers
+  getResellers(): Promise<any[]>;
+  getReseller(id: string): Promise<any | undefined>;
+  createReseller(reseller: any): Promise<any>;
+  updateReseller(id: string, reseller: any): Promise<any>;
+  deleteReseller(id: string): Promise<void>;
+  getResellerStats(resellerId: string): Promise<any>;
+  
+  // Reseller Transfers
+  createResellerTransfer(transfer: any, items: any[]): Promise<any>;
+  getResellerTransfers(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
+  getResellerTransferById(id: string): Promise<any>;
+  generateTransferReceiptNumber(): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1505,6 +1536,187 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ count: sql<number>`count(*)` })
       .from(earlyBirdTracking);
     return result[0]?.count || 0;
+  }
+  
+  // Pricing Tiers (Reseller Module)
+  async getPricingTiers(): Promise<any[]> {
+    const tiers = await db.select()
+      .from(pricingTiers)
+      .orderBy(desc(pricingTiers.createdAt));
+    return tiers;
+  }
+  
+  async createPricingTier(tier: any): Promise<any> {
+    const [newTier] = await db.insert(pricingTiers).values(tier).returning();
+    return newTier;
+  }
+  
+  async updatePricingTier(id: string, tier: any): Promise<any> {
+    const [updatedTier] = await db.update(pricingTiers)
+      .set(tier)
+      .where(eq(pricingTiers.id, id))
+      .returning();
+    return updatedTier;
+  }
+  
+  // Resellers
+  async getResellers(): Promise<any[]> {
+    const resellerList = await db.select({
+      reseller: resellers,
+      tier: pricingTiers
+    })
+      .from(resellers)
+      .leftJoin(pricingTiers, eq(resellers.pricingTierId, pricingTiers.id))
+      .orderBy(desc(resellers.createdAt));
+    
+    return resellerList.map(r => ({
+      ...r.reseller,
+      pricingTier: r.tier
+    }));
+  }
+  
+  async getReseller(id: string): Promise<any | undefined> {
+    const [result] = await db.select({
+      reseller: resellers,
+      tier: pricingTiers
+    })
+      .from(resellers)
+      .leftJoin(pricingTiers, eq(resellers.pricingTierId, pricingTiers.id))
+      .where(eq(resellers.id, id));
+    
+    if (!result) return undefined;
+    
+    return {
+      ...result.reseller,
+      pricingTier: result.tier
+    };
+  }
+  
+  async createReseller(reseller: any): Promise<any> {
+    const [newReseller] = await db.insert(resellers).values(reseller).returning();
+    return newReseller;
+  }
+  
+  async updateReseller(id: string, reseller: any): Promise<any> {
+    const [updatedReseller] = await db.update(resellers)
+      .set(reseller)
+      .where(eq(resellers.id, id))
+      .returning();
+    return updatedReseller;
+  }
+  
+  async deleteReseller(id: string): Promise<void> {
+    await db.delete(resellers).where(eq(resellers.id, id));
+  }
+  
+  async getResellerStats(resellerId: string): Promise<any> {
+    // Get total transfers
+    const transfers = await db.select()
+      .from(resellerTransfers)
+      .where(eq(resellerTransfers.resellerId, resellerId));
+    
+    // Get last transfer date
+    const [lastTransfer] = await db.select()
+      .from(resellerTransfers)
+      .where(eq(resellerTransfers.resellerId, resellerId))
+      .orderBy(desc(resellerTransfers.transferDate))
+      .limit(1);
+    
+    return {
+      totalTransfers: transfers.length,
+      totalAmount: transfers.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0),
+      lastTransferDate: lastTransfer?.transferDate || null
+    };
+  }
+  
+  // Reseller Transfers
+  async generateTransferReceiptNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+    
+    // Get count of transfers today
+    const todayTransfers = await db.select()
+      .from(resellerTransfers)
+      .where(sql`DATE(${resellerTransfers.createdAt}) = CURRENT_DATE`);
+    
+    const nextNumber = todayTransfers.length + 1;
+    const paddedNumber = nextNumber.toString().padStart(4, '0');
+    
+    return `TRF-${dateStr}-${paddedNumber}`;
+  }
+  
+  async createResellerTransfer(transfer: any, items: any[]): Promise<any> {
+    // Start transaction
+    const [newTransfer] = await db.insert(resellerTransfers).values(transfer).returning();
+    
+    // Insert transfer items
+    if (items.length > 0) {
+      const itemsWithTransferId = items.map(item => ({
+        ...item,
+        transferId: newTransfer.id
+      }));
+      await db.insert(resellerTransferItems).values(itemsWithTransferId);
+    }
+    
+    // Update reseller total purchases
+    await db.update(resellers)
+      .set({ 
+        totalPurchases: sql`${resellers.totalPurchases} + ${transfer.totalAmount}` 
+      })
+      .where(eq(resellers.id, transfer.resellerId));
+    
+    return newTransfer;
+  }
+  
+  async getResellerTransfers(limit: number = 50, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+    const transfers = await db.select({
+      transfer: resellerTransfers,
+      reseller: resellers
+    })
+      .from(resellerTransfers)
+      .leftJoin(resellers, eq(resellerTransfers.resellerId, resellers.id))
+      .orderBy(desc(resellerTransfers.transferDate))
+      .limit(limit + 1)
+      .offset(offset);
+    
+    const hasMore = transfers.length > limit;
+    const data = transfers.slice(0, limit).map(t => ({
+      ...t.transfer,
+      reseller: t.reseller
+    }));
+    
+    // Get total count
+    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(resellerTransfers);
+    
+    return {
+      data,
+      hasMore,
+      total: countResult?.count || 0
+    };
+  }
+  
+  async getResellerTransferById(id: string): Promise<any> {
+    const [result] = await db.select({
+      transfer: resellerTransfers,
+      reseller: resellers
+    })
+      .from(resellerTransfers)
+      .leftJoin(resellers, eq(resellerTransfers.resellerId, resellers.id))
+      .where(eq(resellerTransfers.id, id));
+    
+    if (!result) return undefined;
+    
+    // Get transfer items
+    const items = await db.select()
+      .from(resellerTransferItems)
+      .where(eq(resellerTransferItems.transferId, id));
+    
+    return {
+      ...result.transfer,
+      reseller: result.reseller,
+      items
+    };
   }
 }
 

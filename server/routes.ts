@@ -19,6 +19,9 @@ import {
   convertUnit,
   insertUserSchema,
   insertSubscriptionPlanSchema,
+  insertPricingTierSchema,
+  insertResellerSchema,
+  insertResellerTransferSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -2237,6 +2240,331 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(logs);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch delivery sync logs" });
+    }
+  });
+
+  // ==================== RESELLER MODULE ROUTES ====================
+  
+  // ========== Pricing Tiers Routes ==========
+  
+  // Get all pricing tiers for current user
+  app.get("/api/pricing-tiers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const allTiers = await storage.getPricingTiers();
+      // Filter by current user
+      const userTiers = allTiers.filter(tier => tier.userId === req.user!.id);
+      res.json(userTiers);
+    } catch (error: any) {
+      console.error("Get pricing tiers error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch pricing tiers" });
+    }
+  });
+  
+  // Create new pricing tier
+  app.post("/api/pricing-tiers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const validatedData = insertPricingTierSchema.parse(req.body);
+      
+      // Add userId from authenticated user
+      const tierData = {
+        ...validatedData,
+        userId: req.user!.id,
+      };
+      
+      const tier = await storage.createPricingTier(tierData);
+      res.status(201).json(tier);
+    } catch (error: any) {
+      console.error("Create pricing tier error:", error);
+      if (error.name === 'ZodError') {
+        const { fromError } = await import('zod-validation-error');
+        const validationError = fromError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(400).json({ message: error.message || "Failed to create pricing tier" });
+    }
+  });
+  
+  // Update pricing tier
+  app.patch("/api/pricing-tiers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertPricingTierSchema.partial().parse(req.body);
+      
+      // Verify tier belongs to user
+      const allTiers = await storage.getPricingTiers();
+      const existingTier = allTiers.find(t => t.id === id && t.userId === req.user!.id);
+      
+      if (!existingTier) {
+        return res.status(404).json({ message: "Pricing tier not found" });
+      }
+      
+      const updatedTier = await storage.updatePricingTier(id, validatedData);
+      res.json(updatedTier);
+    } catch (error: any) {
+      console.error("Update pricing tier error:", error);
+      if (error.name === 'ZodError') {
+        const { fromError } = await import('zod-validation-error');
+        const validationError = fromError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(400).json({ message: error.message || "Failed to update pricing tier" });
+    }
+  });
+  
+  // ========== Resellers Routes ==========
+  
+  // Get all resellers for current user
+  app.get("/api/resellers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const allResellers = await storage.getResellers();
+      // Filter by current user
+      const userResellers = allResellers.filter(reseller => reseller.userId === req.user!.id);
+      res.json(userResellers);
+    } catch (error: any) {
+      console.error("Get resellers error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch resellers" });
+    }
+  });
+  
+  // Create new reseller
+  app.post("/api/resellers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const validatedData = insertResellerSchema.parse(req.body);
+      
+      // Add userId from authenticated user
+      const resellerData = {
+        ...validatedData,
+        userId: req.user!.id,
+      };
+      
+      const reseller = await storage.createReseller(resellerData);
+      res.status(201).json(reseller);
+    } catch (error: any) {
+      console.error("Create reseller error:", error);
+      if (error.name === 'ZodError') {
+        const { fromError } = await import('zod-validation-error');
+        const validationError = fromError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(400).json({ message: error.message || "Failed to create reseller" });
+    }
+  });
+  
+  // Update reseller
+  app.patch("/api/resellers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertResellerSchema.partial().parse(req.body);
+      
+      // Verify reseller belongs to user
+      const allResellers = await storage.getResellers();
+      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      
+      if (!existingReseller) {
+        return res.status(404).json({ message: "Reseller not found" });
+      }
+      
+      const updatedReseller = await storage.updateReseller(id, validatedData);
+      res.json(updatedReseller);
+    } catch (error: any) {
+      console.error("Update reseller error:", error);
+      if (error.name === 'ZodError') {
+        const { fromError } = await import('zod-validation-error');
+        const validationError = fromError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(400).json({ message: error.message || "Failed to update reseller" });
+    }
+  });
+  
+  // Delete reseller
+  app.delete("/api/resellers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify reseller belongs to user
+      const allResellers = await storage.getResellers();
+      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      
+      if (!existingReseller) {
+        return res.status(404).json({ message: "Reseller not found" });
+      }
+      
+      await storage.deleteReseller(id);
+      res.json({ message: "Reseller deleted successfully" });
+    } catch (error: any) {
+      console.error("Delete reseller error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete reseller" });
+    }
+  });
+  
+  // Get reseller stats
+  app.get("/api/resellers/:id/stats", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify reseller belongs to user
+      const allResellers = await storage.getResellers();
+      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      
+      if (!existingReseller) {
+        return res.status(404).json({ message: "Reseller not found" });
+      }
+      
+      const stats = await storage.getResellerStats(id);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get reseller stats error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reseller stats" });
+    }
+  });
+  
+  // ========== Reseller Transfers Routes ==========
+  
+  // Get all reseller transfers with pagination
+  app.get("/api/reseller-transfers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const result = await storage.getResellerTransfers(limit, offset);
+      
+      // Filter by current user
+      const userTransfers = result.data.filter(transfer => transfer.userId === req.user!.id);
+      
+      res.json({
+        data: userTransfers,
+        hasMore: result.hasMore,
+        total: userTransfers.length,
+      });
+    } catch (error: any) {
+      console.error("Get reseller transfers error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reseller transfers" });
+    }
+  });
+  
+  // Get single reseller transfer with items
+  app.get("/api/reseller-transfers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const transfer = await storage.getResellerTransferById(id);
+      
+      if (!transfer) {
+        return res.status(404).json({ message: "Transfer not found" });
+      }
+      
+      // Verify transfer belongs to user
+      if (transfer.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(transfer);
+    } catch (error: any) {
+      console.error("Get reseller transfer error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reseller transfer" });
+    }
+  });
+  
+  // Create new reseller transfer with FIFO stock deduction
+  app.post("/api/reseller-transfers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      // Validate request body
+      const transferSchema = z.object({
+        resellerId: z.string().min(1, "Reseller is required"),
+        transferDate: z.string().min(1, "Transfer date is required"),
+        items: z.array(z.object({
+          productId: z.string().min(1, "Product ID is required"),
+          productName: z.string().min(1, "Product name is required"),
+          quantity: z.number().int().positive("Quantity must be positive"),
+        })).min(1, "At least one item is required"),
+        paymentStatus: z.enum(["paid", "pending"]).default("pending"),
+        notes: z.string().optional(),
+      });
+      
+      const validatedData = transferSchema.parse(req.body);
+      
+      // Verify reseller belongs to user
+      const allResellers = await storage.getResellers();
+      const reseller = allResellers.find(r => r.id === validatedData.resellerId && r.userId === req.user!.id);
+      
+      if (!reseller) {
+        return res.status(404).json({ message: "Reseller not found" });
+      }
+      
+      // Get reseller's pricing tier
+      let tier = null;
+      if (reseller.pricingTierId) {
+        const allTiers = await storage.getPricingTiers();
+        tier = allTiers.find(t => t.id === reseller.pricingTierId);
+      }
+      
+      // Process each item and deduct from batches using FIFO
+      const processedItems = [];
+      
+      for (const item of validatedData.items) {
+        // Deduct from batches using FIFO
+        const deductionResult = await storage.deductFromBatches(item.productId, item.quantity);
+        
+        if (!deductionResult.success) {
+          return res.status(400).json({ 
+            error: "Insufficient stock",
+            message: `Insufficient stock for product: ${item.productName}. Available quantity is less than ${item.quantity}.`,
+            productName: item.productName,
+          });
+        }
+        
+        // Get product to calculate tier price
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(404).json({ message: `Product not found: ${item.productName}` });
+        }
+        
+        // Calculate tier price: product.sellingPrice * (1 - tier.discountPercent/100)
+        const discountPercent = tier ? parseFloat(tier.discountPercent.toString()) : 0;
+        const tierPrice = parseFloat(product.sellingPrice.toString()) * (1 - discountPercent / 100);
+        const subtotal = item.quantity * tierPrice;
+        
+        // Get batch ID from first deduction for tracking
+        const batchId = deductionResult.deductions.length > 0 ? deductionResult.deductions[0].batchId : null;
+        
+        processedItems.push({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          tierPrice,
+          subtotal,
+          batchId,
+        });
+      }
+      
+      // Calculate total amount
+      const totalAmount = processedItems.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Generate receipt number
+      const receiptNumber = await storage.generateTransferReceiptNumber();
+      
+      // Create transfer
+      const transferData = {
+        userId: req.user!.id,
+        resellerId: validatedData.resellerId,
+        transferDate: validatedData.transferDate,
+        totalAmount,
+        paymentStatus: validatedData.paymentStatus,
+        notes: validatedData.notes || null,
+        receiptNumber,
+      };
+      
+      const createdTransfer = await storage.createResellerTransfer(transferData, processedItems);
+      
+      res.status(201).json(createdTransfer);
+    } catch (error: any) {
+      console.error("Create reseller transfer error:", error);
+      if (error.name === 'ZodError') {
+        const { fromError } = await import('zod-validation-error');
+        const validationError = fromError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(400).json({ message: error.message || "Failed to create reseller transfer" });
     }
   });
 

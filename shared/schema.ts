@@ -63,6 +63,7 @@ export const paymentMethodEnum = pgEnum("payment_method", ["tunai", "online", "k
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete", "expired"]);
 export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
 export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
+export const resellerPaymentStatusEnum = pgEnum("reseller_payment_status", ["paid", "pending"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -693,3 +694,84 @@ export type InsertEarlyBirdTracking = z.infer<typeof insertEarlyBirdTrackingSche
 
 export type PendingBill = typeof pendingBills.$inferSelect;
 export type InsertPendingBill = z.infer<typeof insertPendingBillSchema>;
+
+// Pricing Tiers Table (for reseller discount tiers)
+export const pricingTiers = pgTable("pricing_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "Bronze", "Silver", "Gold"
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).notNull().default("0"), // Discount % off selling price
+  isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Resellers Table (agents/ejen jualan)
+export const resellers = pgTable("resellers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // Reseller/agent name
+  phone: text("phone"),
+  area: text("area"), // State/region they operate in (e.g., "Selangor", "Johor")
+  pricingTierId: varchar("pricing_tier_id").references(() => pricingTiers.id, { onDelete: "set null" }),
+  totalPurchases: decimal("total_purchases", { precision: 10, scale: 2 }).notNull().default("0"), // Cumulative purchases
+  isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Reseller Transfers Table (stock transfers to resellers)
+export const resellerTransfers = pgTable("reseller_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resellerId: varchar("reseller_id").notNull().references(() => resellers.id, { onDelete: "cascade" }),
+  transferDate: date("transfer_date").notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total value of transfer
+  paymentStatus: resellerPaymentStatusEnum("payment_status").notNull().default("pending"), // paid or pending
+  notes: text("notes"), // Optional notes
+  receiptNumber: text("receipt_number").unique(), // Format: TRF-YYYYMMDD-XXXX
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Reseller Transfer Items Table (items in each transfer)
+export const resellerTransferItems = pgTable("reseller_transfer_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transferId: varchar("transfer_id").notNull().references(() => resellerTransfers.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  productName: text("product_name").notNull(),
+  quantity: integer("quantity").notNull(),
+  tierPrice: decimal("tier_price", { precision: 10, scale: 2 }).notNull(), // Price after tier discount
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(), // quantity * tierPrice
+  batchId: varchar("batch_id").references(() => productionBatches.id, { onDelete: "set null" }), // For FIFO tracking
+});
+
+// Insert Schemas for Reseller Module
+export const insertPricingTierSchema = createInsertSchema(pricingTiers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertResellerSchema = createInsertSchema(resellers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertResellerTransferSchema = createInsertSchema(resellerTransfers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertResellerTransferItemSchema = createInsertSchema(resellerTransferItems).omit({
+  id: true,
+});
+
+// Type Exports for Reseller Module
+export type PricingTier = typeof pricingTiers.$inferSelect;
+export type InsertPricingTier = z.infer<typeof insertPricingTierSchema>;
+
+export type Reseller = typeof resellers.$inferSelect;
+export type InsertReseller = z.infer<typeof insertResellerSchema>;
+
+export type ResellerTransfer = typeof resellerTransfers.$inferSelect;
+export type InsertResellerTransfer = z.infer<typeof insertResellerTransferSchema>;
+
+export type ResellerTransferItem = typeof resellerTransferItems.$inferSelect;
+export type InsertResellerTransferItem = z.infer<typeof insertResellerTransferItemSchema>;
