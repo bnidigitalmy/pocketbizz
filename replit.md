@@ -135,3 +135,42 @@ The design prioritizes a mobile-first, responsive approach using Shadcn/ui (Radi
 -   **Google Fonts**
 -   **Google Drive API**
 -   **ToyyibPay**
+
+## Recent Bug Fixes (October 2025)
+
+### Deliveries Page (deliveries.tsx)
+**Issue**: Page was blank due to 6 TypeScript compilation errors preventing the component from rendering.
+**Root Cause**: 
+- Missing `AlertCircle` import from lucide-react
+- Vendors and products queries not properly typed, causing `.find()` and `.map()` errors at lines 297, 305, 504, 581, 758
+**Fix**: 
+- Added `AlertCircle` to imports from lucide-react
+- Added type annotations to vendors and products queries with default empty arrays: `const { data: vendors = [] } = useQuery<any[]>(...)`
+**Result**: All 6 TypeScript errors resolved, page now renders with 17 delivery cards
+
+### Claims Page (claims.tsx)
+**Issue**: Page was blank due to 27 TypeScript compilation errors preventing the component from rendering.
+**Root Cause**: 
+- Missing `deliveries` query - component referenced deliveries data without fetching it
+- Multiple implicit 'any' type errors in filter/map callbacks (lines 129-130, 205, 217-219, 238, 250-252, 472, 515)
+- Missing type annotation for claimDetails query causing property access errors
+**Fix**: 
+- Added deliveries query: `const { data: deliveries = [] } = useQuery<any[]>({ queryKey: ["/api/deliveries"] })`
+- Added explicit `any` type annotations to all filter/map callback parameters
+- Added type annotation to claimDetails query: `useQuery<any>(...)`
+**Result**: All 27 TypeScript errors resolved, page now renders with 4 claim cards and delivery list
+
+### Sales Page (sales.tsx)
+**Issue**: Runtime error "sales.filter is not a function" preventing page from rendering.
+**Root Cause**: 
+- API endpoint `/api/sales` returns paginated response `{data: [], hasMore: boolean, total: string}`
+- Frontend code expected direct array response, causing `.filter()` to fail
+**Fix**: 
+- Changed query type from `useQuery<any[]>` to `useQuery<{data: any[], hasMore: boolean, total: string}>`
+- Added data extraction: `const sales = salesResponse?.data || []`
+**Result**: Runtime error resolved, page now renders with KPI cards and transaction list
+
+### Testing
+- Created test user: `test@pocketbizz.my` / `testpassword123` (ID: 56fc1d76-10d1-45f0-baae-4336ad194c56)
+- E2E test passed: All 3 pages (deliveries, sales, claims) load successfully with proper content
+- No blank pages, all TypeScript and runtime errors resolved
