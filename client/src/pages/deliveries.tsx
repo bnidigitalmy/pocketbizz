@@ -78,7 +78,7 @@ export default function Deliveries() {
     queryKey: ["/api/deliveries"],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await fetch(`/api/deliveries?limit=20&offset=${pageParam}`);
-      if (!response.ok) throw new Error("Failed to fetch deliveries");
+      if (!response.ok) throw new Error("Gagal mendapatkan data penghantaran");
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
@@ -141,7 +141,7 @@ export default function Deliveries() {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to create delivery");
+        throw new Error(error.error || "Gagal merekod penghantaran");
       }
       
       return response.json();

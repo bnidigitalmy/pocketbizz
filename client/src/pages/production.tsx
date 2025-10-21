@@ -188,7 +188,7 @@ export default function Production() {
         
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.message || "Failed to add item to cart");
+          throw new Error(error.message || "Gagal menambah item ke senarai");
         }
       }
     },
