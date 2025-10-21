@@ -746,7 +746,7 @@ export default function Deliveries() {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor</label>
                 <Select value={filterVendor} onValueChange={setFilterVendor}>
@@ -922,7 +922,7 @@ export default function Deliveries() {
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Tolakan
                     </Button>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -1014,7 +1014,7 @@ export default function Deliveries() {
                       <p className="font-mono font-semibold">RM {item.totalPrice}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
                       <div>
                         <label className="text-xs font-medium text-muted-foreground">Kuantiti Ditolak</label>
                         <Input

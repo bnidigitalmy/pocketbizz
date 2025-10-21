@@ -427,7 +427,7 @@ export default function Products() {
                 {/* Product Details */}
                 <div className="space-y-4">
                   <h3 className="font-medium">Maklumat Produk</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -522,7 +522,7 @@ export default function Products() {
                   </div>
                   
                   {form.watch("recipeItems")?.map((_, index) => (
-                    <div key={index} className="flex gap-3 items-start p-3 bg-muted/50 rounded-lg">
+                    <div key={index} className="flex flex-col md:flex-row gap-3 items-start p-3 bg-muted/50 rounded-lg">
                       <FormField
                         control={form.control}
                         name={`recipeItems.${index}.stockItemId`}
