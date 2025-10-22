@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuickActionsFab } from "@/components/quick-actions-fab";
 import { DashboardChart } from "@/components/dashboard-chart";
+import { LowStockAlertWidget } from "@/components/low-stock-alert-widget";
 import { 
   Package, 
   DollarSign, 
@@ -476,6 +477,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Low Stock Alerts */}
+      <LowStockAlertWidget />
 
       {/* Finished Goods Inventory */}
       {stats && stats.totalReadyStock > 0 && (

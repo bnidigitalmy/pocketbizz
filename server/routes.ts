@@ -1563,6 +1563,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get low finished products (total quantity < 10)
+  app.get("/api/finished-products/low", async (req, res) => {
+    try {
+      const summary = await storage.getFinishedProductsSummary();
+      // Filter products with low total quantity (< 10 units)
+      const lowProducts = summary.filter((product: any) => {
+        const totalQty = parseFloat(product.totalQuantity || "0");
+        return totalQty > 0 && totalQty < 10;
+      });
+      res.json(lowProducts);
+    } catch (error) {
+      console.error("Low finished products error:", error);
+      res.status(500).json({ error: "Failed to fetch low finished products" });
+    }
+  });
+
   app.get("/api/finished-products/:productId/batches", async (req, res) => {
     try {
       const { productId } = req.params;
