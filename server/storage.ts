@@ -125,6 +125,10 @@ export interface IStorage {
   getSale(id: string): Promise<any>;
   createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale>;
   generateReceiptNumber(): Promise<string>;
+  getAllSales(startDate?: string, endDate?: string): Promise<any[]>;
+  
+  // Deliveries Export
+  getAllDeliveries(): Promise<any[]>;
   
   // Expenses
   getExpenses(): Promise<Expense[]>;
@@ -720,6 +724,61 @@ export class DatabaseStorage implements IStorage {
     const paddedSequence = sequence.toString().padStart(4, '0');
     
     return `RES-${dateStr}-${paddedSequence}`;
+  }
+
+  async getAllSales(startDate?: string, endDate?: string): Promise<any[]> {
+    let query = db
+      .select({
+        id: sales.id,
+        saleDate: sales.saleDate,
+        receiptNumber: sales.receiptNumber,
+        totalAmount: sales.totalAmount,
+        totalCost: sales.totalCost,
+        totalProfit: sales.totalProfit,
+        paymentMethod: sales.paymentMethod,
+        customerName: sales.customerName,
+        totalItems: sql<number>`COUNT(${salesItems.id})`,
+      })
+      .from(sales)
+      .leftJoin(salesItems, eq(sales.id, salesItems.saleId))
+      .groupBy(sales.id, sales.saleDate, sales.receiptNumber)
+      .orderBy(desc(sales.saleDate));
+
+    if (startDate) {
+      query = query.where(sql`${sales.saleDate} >= ${startDate}`);
+    }
+    if (endDate) {
+      query = query.where(sql`${sales.saleDate} <= ${endDate}`);
+    }
+
+    return await query;
+  }
+
+  async getAllDeliveries(): Promise<any[]> {
+    const result = await db
+      .select({
+        id: deliveries.id,
+        deliveryDate: deliveries.deliveryDate,
+        vendorId: deliveries.vendorId,
+        vendorName: vendors.name,
+        productId: deliveryItems.productId,
+        productName: products.name,
+        quantity: deliveryItems.quantity,
+        rejectedQuantity: deliveryItems.rejectedQuantity,
+        rejectionReason: deliveryItems.rejectionReason,
+        unitPrice: deliveryItems.unitPrice,
+        totalAmount: deliveryItems.totalAmount,
+        deliveryStatus: deliveries.deliveryStatus,
+        paymentStatus: deliveries.paymentStatus,
+        notes: deliveries.notes,
+      })
+      .from(deliveries)
+      .innerJoin(vendors, eq(deliveries.vendorId, vendors.id))
+      .innerJoin(deliveryItems, eq(deliveries.id, deliveryItems.deliveryId))
+      .innerJoin(products, eq(deliveryItems.productId, products.id))
+      .orderBy(desc(deliveries.deliveryDate));
+
+    return result;
   }
 
   async getSales(limit: number = 50, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {

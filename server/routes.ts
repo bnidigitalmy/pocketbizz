@@ -2212,6 +2212,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CSV/Excel Export Endpoints
+  app.get("/api/reports/export-sales", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      
+      const sales = await storage.getAllSales(startDate, endDate);
+      
+      // CSV headers
+      const headers = ['No.', 'Tarikh', 'No. Resit', 'Jumlah Produk', 'Jumlah (RM)', 'Kos (RM)', 'Untung (RM)', 'Kaedah Bayaran', 'Pelanggan'];
+      
+      // CSV rows
+      const rows = sales.map((sale: any, index: number) => [
+        index + 1,
+        new Date(sale.saleDate).toLocaleDateString('ms-MY'),
+        sale.receiptNumber,
+        sale.totalItems,
+        Number(sale.totalAmount || 0).toFixed(2),
+        Number(sale.totalCost || 0).toFixed(2),
+        Number(sale.totalProfit || 0).toFixed(2),
+        sale.paymentMethod || 'Tunai',
+        sale.customerName || '-'
+      ]);
+      
+      // Build CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=PocketBizz_Jualan_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send('\uFEFF' + csvContent); // BOM for Excel UTF-8 support
+    } catch (error) {
+      console.error("Export sales error:", error);
+      res.status(500).json({ error: "Failed to export sales" });
+    }
+  });
+
+  app.get("/api/reports/export-deliveries", async (req, res) => {
+    try {
+      const deliveries = await storage.getAllDeliveries();
+      
+      // CSV headers
+      const headers = ['No.', 'Tarikh', 'Vendor', 'Produk', 'Kuantiti', 'Jumlah (RM)', 'Status', 'Bayaran', 'Catatan'];
+      
+      // CSV rows
+      const rows = deliveries.map((delivery: any, index: number) => [
+        index + 1,
+        new Date(delivery.deliveryDate).toLocaleDateString('ms-MY'),
+        delivery.vendorName,
+        delivery.productName,
+        delivery.quantity,
+        Number(delivery.totalAmount || 0).toFixed(2),
+        delivery.deliveryStatus === 'delivered' ? 'Dihantar' :
+        delivery.deliveryStatus === 'claimed' ? 'Dituntut' :
+        delivery.deliveryStatus === 'pending' ? 'Pending' : 'Tolakan',
+        delivery.paymentStatus === 'full' ? 'Penuh' :
+        delivery.paymentStatus === 'partial' ? 'Sebahagian' : 'Belum',
+        delivery.notes || '-'
+      ]);
+      
+      // Build CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=PocketBizz_Penghantaran_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error("Export deliveries error:", error);
+      res.status(500).json({ error: "Failed to export deliveries" });
+    }
+  });
+
+  app.get("/api/reports/export-claims", async (req, res) => {
+    try {
+      const claimsResult = await storage.getClaimsSummary(1000, 0);
+      
+      // CSV headers
+      const headers = ['No.', 'Vendor', 'Jumlah Hantar', 'Jumlah Tuntut', 'Pending', 'Sebahagian', 'Penuh', 'Tolakan', 'Belum Bayar (RM)', 'Status'];
+      
+      // CSV rows
+      const rows = claimsResult.data.map((claim: any, index: number) => [
+        index + 1,
+        claim.vendorName,
+        claim.totalDeliveries,
+        claim.totalClaimed,
+        claim.pendingCount,
+        claim.partialCount,
+        claim.fullCount,
+        claim.rejectedCount,
+        (Number(claim.pendingAmount || 0) + Number(claim.partialAmount || 0)).toFixed(2),
+        Number(claim.pendingAmount || 0) + Number(claim.partialAmount || 0) > 0 ? 'Belum Selesai' : 'Selesai'
+      ]);
+      
+      // Build CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=PocketBizz_Tuntutan_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error("Export claims error:", error);
+      res.status(500).json({ error: "Failed to export claims" });
+    }
+  });
+
   app.get("/api/reports/top-products", requireProPlan, async (req, res) => {
     try {
       const topProducts = await storage.getTopProducts();
