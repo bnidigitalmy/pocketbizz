@@ -30,6 +30,10 @@ The frontend leverages React 18, TypeScript, Vite, Wouter for routing, TanStack 
 -   **Professional Invoicing**: Business profile management, multi-invoice claim statements, and consignment-appropriate footer notes.
 -   **Expiry Tracking**: Visual indicators for expiring products.
 -   **Subscription System**: Features a 7-day free trial with product limits and feature gating, automatic trial expiry, and a comprehensive renewal system (banners, API endpoints, webhook processing, reactivation). Includes duration-based and tiered pricing, early bird tracking, ToyyibPay integration with promo codes, billing history, feature gating, and an admin panel.
+-   **Automation Features (Option B)**: Production-ready dashboard automation widgets:
+    -   **Low Stock Alerts**: Real-time monitoring of raw materials (<10 units) and finished products (<10 units) with color-coded urgency indicators (red <5, yellow <10). Quick access to shopping cart and detailed stock pages.
+    -   **Weekly Profit Summary**: Automatic week-over-week performance tracking with revenue, costs, and profit margin calculations. Features trend indicators, percentage growth comparisons, and motivational business insights.
+    -   **Daily Task Checklist**: Auto-generated action items from business data including low stock restocking, production planning for depleting inventory, payment collection reminders, and expiring batch alerts. Interactive checkboxes with localStorage persistence, visual progress tracking (progress bar + completion count), and celebration messaging upon task completion. Tasks reset daily for fresh prioritization.
 
 ### System Design Choices
 -   **Database**: Neon Serverless PostgreSQL with Drizzle ORM, utilizing UUIDs, Decimal types, Enums, and denormalization.
