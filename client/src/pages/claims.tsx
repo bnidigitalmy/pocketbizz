@@ -3,6 +3,8 @@ import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Select,
   SelectContent,
@@ -16,11 +18,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X, Download } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X, Download, MessageCircle } from "lucide-react";
 import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
+import { 
+  sendWhatsApp, 
+  generateInvoiceMessage, 
+  generateDeliveryMessage, 
+  generatePaymentReminder,
+  formatWhatsAppPhone 
+} from "@/lib/whatsapp";
 
 interface ClaimSummary {
   vendorId: string;
@@ -51,6 +61,9 @@ export default function Claims() {
   const [filterVendor, setFilterVendor] = useState<string>("all");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [showPhoneDialog, setShowPhoneDialog] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [pendingWhatsAppAction, setPendingWhatsAppAction] = useState<(() => void) | null>(null);
 
   const {
     data,
@@ -93,6 +106,13 @@ export default function Claims() {
 
   // Extract deliveries array from response
   const deliveries = deliveriesData?.data || [];
+
+  // Fetch vendors to get phone numbers
+  const { data: vendorsData } = useQuery<any>({
+    queryKey: ["/api/vendors"],
+  });
+  
+  const vendors = vendorsData || [];
 
   const { data: businessProfile } = useQuery({
     queryKey: ["/api/business-profile"],
@@ -167,35 +187,70 @@ export default function Claims() {
     );
   };
 
-  const shareClaimViaWhatsApp = (claim: ClaimSummary) => {
-    const message = `*ManisBizz - Tuntutan Vendor*\n\n` +
-      `Vendor: *${claim.vendorName}*\n` +
-      `Jumlah Keseluruhan: RM ${parseFloat(claim.totalAmount).toFixed(2)}\n` +
-      `Jumlah Penghantaran: ${claim.totalDeliveries}\n\n` +
-      `Status Bayaran:\n` +
-      `• Belum Bayar: RM ${parseFloat(claim.pendingAmount).toFixed(2)}\n` +
-      (parseFloat(claim.partialAmount) > 0 ? `• Bayar Separa: RM ${parseFloat(claim.partialAmount).toFixed(2)}\n` : '') +
-      `• Selesai: RM ${parseFloat(claim.settledAmount).toFixed(2)}`;
+  // Helper function to get vendor phone number
+  const getVendorPhone = (vendorId: string): string | null => {
+    const vendor = vendors.find((v: any) => v.id === vendorId);
+    return vendor?.phone || null;
+  };
+
+  // Helper function to handle WhatsApp with phone number check
+  const handleWhatsAppWithPhone = (vendorId: string, vendorName: string, action: (phone: string) => void) => {
+    const phone = getVendorPhone(vendorId);
     
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    if (!phone) {
+      // Show dialog to input phone number
+      setPendingWhatsAppAction(() => () => {
+        if (phoneInput.trim()) {
+          action(phoneInput);
+          setShowPhoneDialog(false);
+          setPhoneInput("");
+          setPendingWhatsAppAction(null);
+        }
+      });
+      setShowPhoneDialog(true);
+    } else {
+      action(phone);
+    }
+  };
+
+  const shareClaimViaWhatsApp = (claim: ClaimSummary) => {
+    handleWhatsAppWithPhone(claim.vendorId, claim.vendorName, (phone) => {
+      // Generate invoice message with business profile
+      const message = generateInvoiceMessage({
+        vendorName: claim.vendorName,
+        invoiceNumber: `CLAIM-${new Date().toISOString().split('T')[0]}`,
+        totalAmount: parseFloat(claim.totalAmount).toFixed(2),
+        deliveryDate: new Date().toLocaleDateString('ms-MY'),
+        businessName: (businessProfile as any)?.companyName || 'PocketBizz',
+      });
+      
+      sendWhatsApp({ phone, message });
+      
+      toast({
+        title: "WhatsApp Dibuka",
+        description: `Mesej invois untuk ${claim.vendorName}`,
+      });
+    });
   };
 
   const sendPaymentReminder = (claim: ClaimSummary) => {
-    const outstandingAmount = parseFloat(claim.pendingAmount) + parseFloat(claim.partialAmount);
-    const message = `Salam *${claim.vendorName}*,\n\n` +
-      `Peringatan mesra bayaran tertunggak:\n\n` +
-      `Jumlah Tertunggak: *RM ${outstandingAmount.toFixed(2)}*\n` +
-      `Bilangan penghantaran: ${claim.totalDeliveries}\n\n` +
-      `Sila maklumkan bila boleh settle pembayaran. Terima kasih!\n\n` +
-      `_Mesej auto dari PocketBizz_`;
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-    
-    toast({
-      title: "Peringatan Dihantar",
-      description: `Peringatan bayaran kepada ${claim.vendorName}`,
+    handleWhatsAppWithPhone(claim.vendorId, claim.vendorName, (phone) => {
+      const outstandingAmount = parseFloat(claim.pendingAmount) + parseFloat(claim.partialAmount);
+      
+      const message = generatePaymentReminder({
+        vendorName: claim.vendorName,
+        amount: outstandingAmount.toFixed(2),
+        invoiceNumber: `CLAIM-${new Date().toISOString().split('T')[0]}`,
+        daysOverdue: claim.daysOverdue,
+        businessName: (businessProfile as any)?.companyName || 'PocketBizz',
+      });
+      
+      sendWhatsApp({ phone, message });
+      
+      toast({
+        title: "Peringatan Dihantar",
+        description: `Peringatan bayaran kepada ${claim.vendorName}`,
+      });
     });
   };
 
@@ -207,6 +262,36 @@ export default function Claims() {
   };
 
   const shareDeliveryViaWhatsApp = (delivery: DeliveryWithItems) => {
+    handleWhatsAppWithPhone(delivery.vendorId, delivery.vendorName, (phone) => {
+      // Prepare delivery items
+      const items = delivery.items?.map((item: any) => ({
+        name: item.productName,
+        quantity: item.quantity,
+      })) || [];
+      
+      const message = generateDeliveryMessage({
+        vendorName: delivery.vendorName,
+        deliveryDate: new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        }),
+        items,
+        totalAmount: parseFloat(delivery.totalAmount).toFixed(2),
+        businessName: (businessProfile as any)?.companyName || 'PocketBizz',
+      });
+      
+      sendWhatsApp({ phone, message });
+      
+      toast({
+        title: "WhatsApp Dibuka",
+        description: `Slip penghantaran untuk ${delivery.vendorName}`,
+      });
+    });
+  };
+
+  // Old function for reference - can be removed
+  const shareDeliveryViaWhatsAppOld = (delivery: DeliveryWithItems) => {
     const statusLabels: { [key: string]: string } = {
       delivered: 'Dihantar',
       pending: 'Pending',
@@ -502,9 +587,10 @@ export default function Claims() {
                       size="sm"
                       onClick={() => shareClaimViaWhatsApp(claim)}
                       data-testid={`button-share-claim-${claim.vendorId}`}
+                      className="text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400"
                     >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      WhatsApp
                     </Button>
                     {hasOutstanding && (
                       <Button 
@@ -513,7 +599,7 @@ export default function Claims() {
                         onClick={() => sendPaymentReminder(claim)}
                         data-testid={`button-payment-reminder-${claim.vendorId}`}
                       >
-                        <Clock className="h-4 w-4 mr-2" />
+                        <MessageCircle className="h-4 w-4 mr-2" />
                         Ingatkan
                       </Button>
                     )}
@@ -603,12 +689,12 @@ export default function Claims() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="w-full mt-3"
+                    className="w-full mt-3 text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400"
                     onClick={() => shareDeliveryViaWhatsApp(delivery)}
                     data-testid={`button-share-delivery-${delivery.id}`}
                   >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Kongsi via WhatsApp
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Hantar WhatsApp
                   </Button>
                 </CardContent>
               </Card>
@@ -830,6 +916,62 @@ export default function Claims() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Phone Number Input Dialog */}
+      <Dialog open={showPhoneDialog} onOpenChange={setShowPhoneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              No. Telefon Vendor
+            </DialogTitle>
+            <DialogDescription>
+              Masukkan nombor telefon vendor untuk hantar WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone-input">
+                Nombor Telefon (cth: 0123456789 atau +60123456789)
+              </Label>
+              <Input
+                id="phone-input"
+                type="tel"
+                placeholder="0123456789"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                data-testid="input-vendor-phone"
+              />
+              <p className="text-xs text-muted-foreground">
+                Format akan auto-adjust untuk WhatsApp Malaysia (60XXXXXXXXX)
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPhoneDialog(false);
+                setPhoneInput("");
+                setPendingWhatsAppAction(null);
+              }}
+              data-testid="button-cancel-phone"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => pendingWhatsAppAction?.()}
+              disabled={!phoneInput.trim()}
+              data-testid="button-send-whatsapp"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Hantar WhatsApp
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
