@@ -2395,7 +2395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Goals Routes (Monthly targets and progress tracking)
-  app.get("/api/goals", async (req, res) => {
+  app.get("/api/goals", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const userId = req.user!.id;
       const goalsList = await storage.getGoals(userId);
@@ -2406,7 +2406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/goals/:month", async (req, res) => {
+  app.get("/api/goals/:month", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { month } = req.params;
@@ -2418,7 +2418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/goals/:month/progress", async (req, res) => {
+  app.get("/api/goals/:month/progress", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { month } = req.params;
@@ -2430,7 +2430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/goals", async (req, res) => {
+  app.post("/api/goals", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const userId = req.user!.id;
       const goalData = { ...req.body, userId };
@@ -2442,7 +2442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/goals/:id", async (req, res) => {
+  app.patch("/api/goals/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       const updatedGoal = await storage.updateGoal(id, req.body);
@@ -2453,7 +2453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/goals/:id", async (req, res) => {
+  app.delete("/api/goals/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteGoal(id);
@@ -2465,7 +2465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claims
-  app.get("/api/claims", async (req, res) => {
+  app.get("/api/claims", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
@@ -2477,7 +2477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/claims/:vendorId/details", async (req, res) => {
+  app.get("/api/claims/:vendorId/details", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { vendorId } = req.params;
       const claimDetails = await storage.getClaimDetailsByVendor(vendorId);
@@ -2487,7 +2487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/deliveries/:id/payment-status", async (req, res) => {
+  app.patch("/api/deliveries/:id/payment-status", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
       const { paymentStatus } = req.body;

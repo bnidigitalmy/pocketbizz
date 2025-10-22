@@ -75,7 +75,7 @@ export default function Claims() {
   });
 
   // Flatten all pages into single array
-  const claims = data?.pages.flatMap(page => page.data) || [];
+  const claims = data?.pages?.flatMap(page => page?.data || []) || [];
 
   // Fetch all deliveries for filtering and PDF generation
   const { data: deliveriesData } = useQuery<any>({
