@@ -66,12 +66,19 @@ export default function Claims() {
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage || !lastPage.hasMore) return undefined;
-      if (!Array.isArray(allPages)) return undefined;
-      return allPages.reduce((acc, page) => {
-        if (!page || !Array.isArray(page.data)) return acc;
-        return acc + page.data.length;
+      // Check if lastPage exists and has the expected structure
+      if (!lastPage || typeof lastPage !== 'object') return undefined;
+      if (!lastPage.hasMore) return undefined;
+      
+      // Calculate offset based on all pages fetched so far
+      const totalItems = allPages.reduce((acc, page) => {
+        if (page && Array.isArray(page.data)) {
+          return acc + page.data.length;
+        }
+        return acc;
       }, 0);
+      
+      return totalItems;
     },
     initialPageParam: 0,
   });
