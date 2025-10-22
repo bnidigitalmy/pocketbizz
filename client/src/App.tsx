@@ -12,6 +12,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { RenewalReminder } from "@/components/renewal-reminder";
+import { MotionWrapper } from "@/components/motion-wrapper";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -44,42 +45,46 @@ import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/auth/login" component={AuthLogin} />
-      <Route path="/auth/register" component={AuthRegister} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/checkout" component={Checkout} />
-      <Route path="/payment/callback" component={PaymentCallback} />
-      <Route component={NotFound} />
-    </Switch>
+    <MotionWrapper>
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/auth/login" component={AuthLogin} />
+        <Route path="/auth/register" component={AuthRegister} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/checkout" component={Checkout} />
+        <Route path="/payment/callback" component={PaymentCallback} />
+        <Route component={NotFound} />
+      </Switch>
+    </MotionWrapper>
   );
 }
 
 function AppRouter() {
   return (
-    <Switch>
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/products" component={Products} />
-      <Route path="/production" component={Production} />
-      <Route path="/finished-products" component={FinishedProducts} />
-      <Route path="/stock" component={Stock} />
-      <Route path="/shopping-list" component={ShoppingList} />
-      <Route path="/vendors" component={Vendors} />
-      <Route path="/deliveries" component={Deliveries} />
-      <Route path="/sales" component={Sales} />
-      <Route path="/pos" component={POSPage} />
-      <Route path="/expenses" component={Expenses} />
-      <Route path="/claims" component={Claims} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/drive-sync" component={DriveSync} />
-      <Route path="/pricing-tiers" component={PricingTiers} />
-      <Route path="/resellers" component={Resellers} />
-      <Route path="/reseller-transfer" component={ResellerTransfer} />
-      <Route path="/reseller-performance" component={ResellerPerformance} />
-      <Route component={NotFound} />
-    </Switch>
+    <MotionWrapper>
+      <Switch>
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/products" component={Products} />
+        <Route path="/production" component={Production} />
+        <Route path="/finished-products" component={FinishedProducts} />
+        <Route path="/stock" component={Stock} />
+        <Route path="/shopping-list" component={ShoppingList} />
+        <Route path="/vendors" component={Vendors} />
+        <Route path="/deliveries" component={Deliveries} />
+        <Route path="/sales" component={Sales} />
+        <Route path="/pos" component={POSPage} />
+        <Route path="/expenses" component={Expenses} />
+        <Route path="/claims" component={Claims} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/drive-sync" component={DriveSync} />
+        <Route path="/pricing-tiers" component={PricingTiers} />
+        <Route path="/resellers" component={Resellers} />
+        <Route path="/reseller-transfer" component={ResellerTransfer} />
+        <Route path="/reseller-performance" component={ResellerPerformance} />
+        <Route component={NotFound} />
+      </Switch>
+    </MotionWrapper>
   );
 }
 
