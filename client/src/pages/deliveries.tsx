@@ -38,6 +38,7 @@ import { insertDeliverySchema } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { BatchPreviewInfo } from "@/components/batch-preview-info";
 
 const deliveryFormSchema = insertDeliverySchema.extend({
   vendorId: z.string().min(1, "Sila pilih vendor"),
@@ -672,6 +673,17 @@ export default function Deliveries() {
                           />
                         </CollapsibleContent>
                       </Collapsible>
+                      
+                      {/* Batch Preview - Show which batches will be used (FIFO) */}
+                      {item.productId && item.quantity > 0 && (
+                        <div className="mt-2">
+                          <BatchPreviewInfo 
+                            productId={item.productId}
+                            quantity={item.quantity}
+                            productName={item.productName}
+                          />
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>

@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BatchPreviewInfo } from "@/components/batch-preview-info";
 
 interface CartItem {
   productId: string;
@@ -389,60 +390,70 @@ export default function POSPage() {
                     </div>
                   ) : (
                     cart.map((item) => (
-                      <div
-                        key={item.productId}
-                        data-testid={`cart-item-${item.productId}`}
-                        className="flex flex-col md:flex-row md:items-center gap-3 p-4 md:p-3 rounded-lg bg-muted"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-base md:text-sm" data-testid={`text-product-name-${item.productId}`}>
-                            {item.productName}
-                          </p>
-                          <p className="text-sm md:text-xs text-muted-foreground">
-                            RM {parseFloat(item.unitPrice).toFixed(2)} x {item.quantity}
-                          </p>
+                      <div key={item.productId} className="space-y-2">
+                        <div
+                          data-testid={`cart-item-${item.productId}`}
+                          className="flex flex-col md:flex-row md:items-center gap-3 p-4 md:p-3 rounded-lg bg-muted"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-base md:text-sm" data-testid={`text-product-name-${item.productId}`}>
+                              {item.productName}
+                            </p>
+                            <p className="text-sm md:text-xs text-muted-foreground">
+                              RM {parseFloat(item.unitPrice).toFixed(2)} x {item.quantity}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              data-testid={`button-decrease-qty-${item.productId}`}
+                              size="icon"
+                              variant="outline"
+                              className="h-10 w-10 md:h-8 md:w-8"
+                              onClick={() => updateQuantity(item.productId, -1)}
+                            >
+                              <Minus className="w-5 h-5 md:w-4 md:h-4" />
+                            </Button>
+                            
+                            <span className="w-10 md:w-8 text-center font-medium text-base md:text-sm" data-testid={`text-quantity-${item.productId}`}>
+                              {item.quantity}
+                            </span>
+                            
+                            <Button
+                              data-testid={`button-increase-qty-${item.productId}`}
+                              size="icon"
+                              variant="outline"
+                              className="h-10 w-10 md:h-8 md:w-8"
+                              onClick={() => updateQuantity(item.productId, 1)}
+                            >
+                              <Plus className="w-5 h-5 md:w-4 md:h-4" />
+                            </Button>
+                          </div>
+
+                          <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2">
+                            <p className="font-medium text-lg md:text-base" data-testid={`text-item-total-${item.productId}`}>
+                              RM {item.totalPrice.toFixed(2)}
+                            </p>
+                            <Button
+                              data-testid={`button-remove-${item.productId}`}
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 md:h-6 md:w-6"
+                              onClick={() => removeFromCart(item.productId)}
+                            >
+                              <Trash2 className="w-5 h-5 md:w-4 md:h-4 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <Button
-                            data-testid={`button-decrease-qty-${item.productId}`}
-                            size="icon"
-                            variant="outline"
-                            className="h-10 w-10 md:h-8 md:w-8"
-                            onClick={() => updateQuantity(item.productId, -1)}
-                          >
-                            <Minus className="w-5 h-5 md:w-4 md:h-4" />
-                          </Button>
-                          
-                          <span className="w-10 md:w-8 text-center font-medium text-base md:text-sm" data-testid={`text-quantity-${item.productId}`}>
-                            {item.quantity}
-                          </span>
-                          
-                          <Button
-                            data-testid={`button-increase-qty-${item.productId}`}
-                            size="icon"
-                            variant="outline"
-                            className="h-10 w-10 md:h-8 md:w-8"
-                            onClick={() => updateQuantity(item.productId, 1)}
-                          >
-                            <Plus className="w-5 h-5 md:w-4 md:h-4" />
-                          </Button>
-                        </div>
-
-                        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2">
-                          <p className="font-medium text-lg md:text-base" data-testid={`text-item-total-${item.productId}`}>
-                            RM {item.totalPrice.toFixed(2)}
-                          </p>
-                          <Button
-                            data-testid={`button-remove-${item.productId}`}
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 md:h-6 md:w-6"
-                            onClick={() => removeFromCart(item.productId)}
-                          >
-                            <Trash2 className="w-5 h-5 md:w-4 md:h-4 text-destructive" />
-                          </Button>
-                        </div>
+                        {/* Batch Preview - Show which batches will be used (FIFO) */}
+                        {item.productId && item.quantity > 0 && (
+                          <BatchPreviewInfo 
+                            productId={item.productId}
+                            quantity={item.quantity}
+                            productName={item.productName}
+                          />
+                        )}
                       </div>
                     ))
                   )}

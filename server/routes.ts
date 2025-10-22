@@ -1574,6 +1574,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Preview batch deduction (FIFO simulation without actual deduction)
+  app.post("/api/batches/preview", async (req, res) => {
+    try {
+      const { productId, quantity } = req.body;
+      
+      if (!productId || !quantity) {
+        return res.status(400).json({ error: "Product ID and quantity are required" });
+      }
+      
+      const preview = await storage.previewBatchDeduction(productId, parseFloat(quantity));
+      res.json(preview);
+    } catch (error) {
+      console.error("Batch preview error:", error);
+      res.status(500).json({ error: "Failed to preview batch deduction" });
+    }
+  });
+
   // Vendors
   app.get("/api/vendors", async (req, res) => {
     try {

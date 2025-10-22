@@ -103,6 +103,7 @@ export interface IStorage {
   getFinishedProductsSummary(): Promise<any[]>;
   getBatchesByProduct(productId: string): Promise<any[]>;
   deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }>;
+  previewBatchDeduction(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }>;
   
   // Vendors
   getVendors(): Promise<Vendor[]>;
@@ -346,6 +347,75 @@ export class DatabaseStorage implements IStorage {
       ); // FIFO: earliest expiry first, nulls last, then by creation date
     
     return batches;
+  }
+
+  async previewBatchDeduction(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }> {
+    // Preview FIFO deduction WITHOUT modifying database - read-only simulation
+    // Get batches ordered by FIFO (same logic as actual deduction)
+    const batches = await db
+      .select()
+      .from(productionBatches)
+      .where(
+        and(
+          eq(productionBatches.productId, productId),
+          sql`${productionBatches.remainingQty} > 0`
+        )
+      )
+      .orderBy(
+        sql`CASE WHEN ${productionBatches.expiryDate} IS NULL THEN 1 ELSE 0 END`,
+        productionBatches.expiryDate,
+        productionBatches.createdAt
+      );
+    
+    // Calculate total availability
+    const totalAvailable = batches.reduce((sum, batch) => sum + parseFloat(batch.remainingQty), 0);
+    
+    if (totalAvailable < quantity) {
+      // Insufficient stock
+      return {
+        success: false,
+        deductions: [],
+        totalAvailable,
+      };
+    }
+    
+    // Simulate FIFO deduction (read-only)
+    let remainingToDeduct = quantity;
+    const deductions: any[] = [];
+    
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+      
+      const batchRemaining = parseFloat(batch.remainingQty);
+      const deductAmount = Math.min(remainingToDeduct, batchRemaining);
+      const newRemaining = batchRemaining - deductAmount;
+      
+      // Calculate days until expiry for warnings
+      let daysUntilExpiry: number | null = null;
+      if (batch.expiryDate) {
+        const today = new Date();
+        const expiry = new Date(batch.expiryDate);
+        daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      }
+      
+      deductions.push({
+        batchId: batch.id,
+        batchDate: batch.batchDate,
+        expiryDate: batch.expiryDate,
+        deductedQty: deductAmount,
+        remainingBefore: batchRemaining,
+        remainingAfter: newRemaining,
+        daysUntilExpiry,
+      });
+      
+      remainingToDeduct -= deductAmount;
+    }
+    
+    return {
+      success: true,
+      deductions,
+      totalAvailable,
+    };
   }
 
   async deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }> {
