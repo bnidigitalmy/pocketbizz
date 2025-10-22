@@ -67,6 +67,9 @@ export default function Deliveries() {
   const [showFilters, setShowFilters] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<any>(null);
   const [pendingDeliveryData, setPendingDeliveryData] = useState<any>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentDeliveryId, setPaymentDeliveryId] = useState<string | null>(null);
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("pending");
   const { toast } = useToast();
 
   const { 
@@ -194,11 +197,41 @@ export default function Deliveries() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       return apiRequest("PATCH", `/api/deliveries/${id}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
       toast({
         title: "Berjaya!",
         description: "Status telah dikemaskini.",
+      });
+      
+      // Guided workflow: Prompt user to set payment status when marking as "claimed"
+      if (variables.status === "claimed") {
+        setPaymentDeliveryId(variables.id);
+        setSelectedPaymentStatus("pending");
+        setPaymentDialogOpen(true);
+      }
+    },
+  });
+
+  const updatePaymentMutation = useMutation({
+    mutationFn: async ({ id, paymentStatus }: { id: string; paymentStatus: string }) => {
+      return apiRequest("PATCH", `/api/deliveries/${id}/payment-status`, { paymentStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      toast({
+        title: "Berjaya!",
+        description: "Status bayaran telah dikemaskini.",
+      });
+      setPaymentDialogOpen(false);
+      setPaymentDeliveryId(null);
+    },
+    onError: () => {
+      toast({
+        title: "Ralat!",
+        description: "Gagal mengemaskini status bayaran.",
+        variant: "destructive",
       });
     },
   });
@@ -1158,6 +1191,82 @@ export default function Deliveries() {
               data-testid="button-confirm-duplicate"
             >
               Ya, Sambung Juga
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Guided Claims Workflow - Payment Status Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent data-testid="dialog-payment-status">
+          <DialogHeader>
+            <DialogTitle>Tetapkan Status Bayaran</DialogTitle>
+            <DialogDescription>
+              Penghantaran telah ditandakan sebagai "Dituntut". Sila tetapkan status bayaran untuk rekod tuntutan yang lebih teratur.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status Bayaran</label>
+              <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
+                <SelectTrigger data-testid="select-payment-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Belum Bayar</Badge>
+                      <span className="text-xs text-muted-foreground">- Menunggu pembayaran</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="partial">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">Sebahagian</Badge>
+                      <span className="text-xs text-muted-foreground">- Bayaran ansuran</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="settled">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-500/10 text-green-600 border-green-200">Selesai</Badge>
+                      <span className="text-xs text-muted-foreground">- Sudah dibayar penuh</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <p className="text-xs text-blue-800 dark:text-blue-300">
+                💡 <strong>Petua:</strong> Status bayaran ini akan kelihatan dalam halaman Tuntutan untuk memudahkan tracking pembayaran daripada vendor.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentDialogOpen(false);
+                setPaymentDeliveryId(null);
+              }}
+              data-testid="button-cancel-payment"
+            >
+              Nanti
+            </Button>
+            <Button
+              onClick={() => {
+                if (paymentDeliveryId) {
+                  updatePaymentMutation.mutate({
+                    id: paymentDeliveryId,
+                    paymentStatus: selectedPaymentStatus,
+                  });
+                }
+              }}
+              disabled={updatePaymentMutation.isPending}
+              data-testid="button-submit-payment"
+            >
+              {updatePaymentMutation.isPending ? "Menyimpan..." : "Simpan Status"}
             </Button>
           </DialogFooter>
         </DialogContent>
