@@ -7,6 +7,7 @@ import { QuickActionsFab } from "@/components/quick-actions-fab";
 import { DashboardChart } from "@/components/dashboard-chart";
 import { LowStockAlertWidget } from "@/components/low-stock-alert-widget";
 import { WeeklyProfitWidget } from "@/components/weekly-profit-widget";
+import { DailyTaskWidget } from "@/components/daily-task-widget";
 import { 
   Package, 
   DollarSign, 
@@ -478,6 +479,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Daily Task Checklist */}
+      <DailyTaskWidget />
 
       {/* Weekly Profit Summary */}
       <WeeklyProfitWidget />

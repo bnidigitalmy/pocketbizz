@@ -2135,6 +2135,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily Task Checklist - auto-generate today's tasks
+  app.get("/api/tasks/daily", async (req, res) => {
+    try {
+      const tasks = [];
+      const today = new Date().toISOString().split('T')[0];
+
+      // 1. Low stock items need restocking
+      const lowStock = await storage.getLowStockItems();
+      if (lowStock.length > 0) {
+        tasks.push({
+          id: "restock",
+          type: "restock",
+          title: `Tambah ${lowStock.length} stok bahan rendah`,
+          description: lowStock.slice(0, 3).map((s: any) => s.name).join(", ") + (lowStock.length > 3 ? "..." : ""),
+          priority: "high",
+          actionUrl: "/shopping-cart",
+        });
+      }
+
+      // 2. Low finished products need production
+      const finishedProducts = await storage.getFinishedProductsSummary();
+      const lowFinished = finishedProducts.filter((p: any) => {
+        const qty = parseFloat(p.totalQuantity || "0");
+        return qty > 0 && qty < 10;
+      });
+      if (lowFinished.length > 0) {
+        tasks.push({
+          id: "production",
+          type: "production",
+          title: `Produksi ${lowFinished.length} produk hampir habis`,
+          description: lowFinished.slice(0, 3).map((p: any) => p.productName).join(", ") + (lowFinished.length > 3 ? "..." : ""),
+          priority: "high",
+          actionUrl: "/production",
+        });
+      }
+
+      // 3. Pending/Claimed deliveries (need to collect payment)
+      const claimsResult = await storage.getClaimsSummary(100, 0);
+      const pendingPayments = claimsResult.data.filter((claim: any) => {
+        const pending = parseFloat(claim.pendingAmount || "0");
+        const partial = parseFloat(claim.partialAmount || "0");
+        return pending > 0 || partial > 0;
+      });
+      if (pendingPayments.length > 0) {
+        const totalOutstanding = pendingPayments.reduce((sum: number, claim: any) => {
+          return sum + parseFloat(claim.pendingAmount || "0") + parseFloat(claim.partialAmount || "0");
+        }, 0);
+        tasks.push({
+          id: "claims",
+          type: "claims",
+          title: `Kutip bayaran dari ${pendingPayments.length} vendor`,
+          description: `Total: RM ${totalOutstanding.toFixed(2)}`,
+          priority: "medium",
+          actionUrl: "/claims",
+        });
+      }
+
+      // 4. Check for expiring batches (< 3 days)
+      const stats = await storage.getDashboardStats();
+      if (stats.expiringSoonCount > 0) {
+        tasks.push({
+          id: "expiry",
+          type: "expiry",
+          title: `${stats.expiringSoonCount} batch hampir expired`,
+          description: "Jual atau promo segera untuk elak kerugian",
+          priority: "high",
+          actionUrl: "/finished-products",
+        });
+      }
+
+      res.json(tasks);
+    } catch (error) {
+      console.error("Daily tasks error:", error);
+      res.status(500).json({ error: "Failed to fetch daily tasks" });
+    }
+  });
+
   app.get("/api/reports/top-products", requireProPlan, async (req, res) => {
     try {
       const topProducts = await storage.getTopProducts();
