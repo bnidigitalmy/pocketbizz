@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package, Printer, Share2 } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package, Printer, Share2, Download } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
@@ -308,12 +308,30 @@ export default function POSPage() {
     });
   };
 
+  const handleExportSales = () => {
+    window.open('/api/reports/export-sales', '_blank');
+    toast({
+      title: "Export Berjaya",
+      description: "Data jualan sedang dimuat turun",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold text-foreground">POS - Point of Sale</h1>
-          <p className="text-muted-foreground">Sistem Jualan Kaunter</p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold text-foreground">POS - Point of Sale</h1>
+            <p className="text-muted-foreground">Sistem Jualan Kaunter</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleExportSales}
+            data-testid="button-export-sales"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

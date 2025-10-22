@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X } from "lucide-react";
+import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X, Download } from "lucide-react";
 import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
 
 interface ClaimSummary {
@@ -277,13 +277,32 @@ export default function Claims() {
     );
   }
 
+  const handleExportClaims = () => {
+    window.open('/api/reports/export-claims', '_blank');
+    toast({
+      title: "Export Berjaya",
+      description: "Data tuntutan sedang dimuat turun",
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold md:text-3xl">Tuntutan Vendor</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Urus tuntutan & status bayaran vendor
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold md:text-3xl">Tuntutan Vendor</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Urus tuntutan & status bayaran vendor
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleExportClaims}
+          data-testid="button-export-claims"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Filters */}

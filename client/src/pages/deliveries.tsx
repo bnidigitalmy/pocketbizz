@@ -484,6 +484,14 @@ export default function Deliveries() {
     );
   }
 
+  const handleExportDeliveries = () => {
+    window.open('/api/reports/export-deliveries', '_blank');
+    toast({
+      title: "Export Berjaya",
+      description: "Data penghantaran sedang dimuat turun",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -492,6 +500,15 @@ export default function Deliveries() {
           <p className="text-sm text-muted-foreground mt-1">Urus penghantaran ke vendor</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleExportDeliveries}
+            data-testid="button-export-deliveries"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
           <Button 
             variant="outline" 
             onClick={duplicateYesterday}
