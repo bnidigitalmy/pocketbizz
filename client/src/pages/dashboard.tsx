@@ -20,7 +20,8 @@ import {
   ShoppingCart,
   Box,
   ArrowRight,
-  Coins
+  Coins,
+  FileText
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -49,6 +50,21 @@ export default function Dashboard() {
   const { data: lowStockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/low"],
   });
+
+  const { data: claimsData, isLoading: isLoadingClaims } = useQuery<any>({
+    queryKey: ["/api/claims"],
+  });
+
+  // Calculate total outstanding payments with safe numeric coercion
+  const totalPending = claimsData?.data?.reduce((sum: number, claim: any) => {
+    return sum + Number(claim.pendingAmount ?? 0);
+  }, 0) ?? 0;
+
+  const totalPartial = claimsData?.data?.reduce((sum: number, claim: any) => {
+    return sum + Number(claim.partialAmount ?? 0);
+  }, 0) ?? 0;
+
+  const totalOutstanding = totalPending + totalPartial;
 
   // Greeting based on time of day
   const getGreeting = () => {
@@ -215,10 +231,10 @@ export default function Dashboard() {
       testId: "button-record-sale"
     },
     {
-      title: "Lihat Laporan",
-      icon: BarChart3,
-      href: "/reports",
-      testId: "button-view-reports"
+      title: "Tuntutan & Bayaran",
+      icon: FileText,
+      href: "/claims",
+      testId: "button-view-claims"
     },
   ];
 
@@ -351,6 +367,115 @@ export default function Dashboard() {
 
       {/* Interactive Chart */}
       <DashboardChart />
+
+      {/* Claims & Payments Summary */}
+      {claimsData && claimsData.data && claimsData.data.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Tuntutan & Bayaran
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ringkasan bayaran dari vendor
+              </p>
+            </div>
+            <Link href="/claims">
+              <Button variant="outline" size="sm" data-testid="button-view-claims">
+                Lihat Semua
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* Outstanding Payments */}
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                    Belum Dibayar
+                  </p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-amber-900 dark:text-amber-100">
+                  RM {totalOutstanding.toFixed(2)}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  {claimsData.data.filter((c: any) => Number(c.pendingAmount ?? 0) > 0 || Number(c.partialAmount ?? 0) > 0).length} vendor
+                </p>
+              </div>
+
+              {/* Pending */}
+              <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet className="h-5 w-5 text-red-600" />
+                  <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                    Pending
+                  </p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-red-900 dark:text-red-100">
+                  RM {totalPending.toFixed(2)}
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                  Perlu dibayar penuh
+                </p>
+              </div>
+
+              {/* Partial */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Coins className="h-5 w-5 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Ansuran
+                  </p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-blue-900 dark:text-blue-100">
+                  RM {totalPartial.toFixed(2)}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Bayaran sebahagian
+                </p>
+              </div>
+            </div>
+
+            {/* Top vendors with outstanding */}
+            {totalOutstanding > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm font-medium mb-3">Vendor Tertunggak Teratas</p>
+                <div className="space-y-2">
+                  {claimsData.data
+                    .filter((claim: any) => Number(claim.pendingAmount ?? 0) > 0 || Number(claim.partialAmount ?? 0) > 0)
+                    .sort((a: any, b: any) => {
+                      const aTotal = Number(a.pendingAmount ?? 0) + Number(a.partialAmount ?? 0);
+                      const bTotal = Number(b.pendingAmount ?? 0) + Number(b.partialAmount ?? 0);
+                      return bTotal - aTotal;
+                    })
+                    .slice(0, 3)
+                    .map((claim: any) => {
+                      const vendorOutstanding = Number(claim.pendingAmount ?? 0) + Number(claim.partialAmount ?? 0);
+                      return (
+                        <div 
+                          key={claim.vendorId} 
+                          className="flex items-center justify-between py-2 px-3 bg-background/50 rounded-md hover-elevate"
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{claim.vendorName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {claim.totalDeliveries} penghantaran
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            RM {vendorOutstanding.toFixed(2)}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Finished Goods Inventory */}
       {stats && stats.totalReadyStock > 0 && (
