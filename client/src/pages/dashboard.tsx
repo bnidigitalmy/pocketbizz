@@ -8,6 +8,11 @@ import { DashboardChart } from "@/components/dashboard-chart";
 import { LowStockAlertWidget } from "@/components/low-stock-alert-widget";
 import { WeeklyProfitWidget } from "@/components/weekly-profit-widget";
 import { DailyTaskWidget } from "@/components/daily-task-widget";
+import { ProductPerformanceWidget } from "@/components/product-performance-widget";
+import { LeaderboardWidget } from "@/components/leaderboard-widget";
+import { AchievementWidget } from "@/components/achievement-widget";
+import { AIGreetingWidget } from "@/components/ai-greeting-widget";
+import { SalesTrendChart } from "@/components/sales-trend-chart";
 import { 
   Package, 
   DollarSign, 
@@ -243,17 +248,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold md:text-3xl" data-testid="dashboard-greeting">
-          {getGreeting()} 👋
-        </h1>
-        <p className="text-sm text-muted-foreground" data-testid="dashboard-date">
-          {currentDate}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Ringkasan perniagaan anda hari ini
-        </p>
-      </div>
+      {/* AI Greeting Widget */}
+      <AIGreetingWidget />
 
       {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
@@ -483,8 +479,20 @@ export default function Dashboard() {
       {/* Daily Task Checklist */}
       <DailyTaskWidget />
 
+      {/* Achievement Widget */}
+      <AchievementWidget />
+
       {/* Weekly Profit Summary */}
       <WeeklyProfitWidget />
+
+      {/* Product Performance Analytics */}
+      <ProductPerformanceWidget />
+
+      {/* Sales Trend Chart */}
+      <SalesTrendChart days={14} />
+
+      {/* Performance Leaderboard (Vendors & Agents) */}
+      <LeaderboardWidget />
 
       {/* Low Stock Alerts */}
       <LowStockAlertWidget />
