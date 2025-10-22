@@ -183,7 +183,10 @@ export function AchievementWidget() {
         {/* Celebration Message for All Achievements */}
         {achievements.every((a) => a.achieved) && achievements.length > 0 && (
           <div className="text-center p-4 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg">
-            <p className="font-semibold text-lg">Tahniah! Anda cemerlang minggu ini! 🎉</p>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Trophy className="h-5 w-5 text-yellow-600" />
+              <p className="font-semibold text-lg">Tahniah! Anda cemerlang minggu ini!</p>
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               Teruskan momentum yang hebat ini!
             </p>

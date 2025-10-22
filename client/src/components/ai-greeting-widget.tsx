@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Clock, Package } from "lucide-react";
+import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Clock, Package, Sun, Cloud, Moon } from "lucide-react";
 import { format } from "date-fns";
 import { ms } from "date-fns/locale";
 
@@ -39,12 +39,12 @@ export function AIGreetingWidget() {
     return "Selamat Malam";
   };
 
-  // Get motivational emoji based on time
-  const getGreetingEmoji = () => {
+  // Get icon based on time of day
+  const getGreetingIcon = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "☀️";
-    if (hour < 18) return "🌤️";
-    return "🌙";
+    if (hour < 12) return <Sun className="h-5 w-5 text-yellow-500" />;
+    if (hour < 18) return <Cloud className="h-5 w-5 text-blue-500" />;
+    return <Moon className="h-5 w-5 text-indigo-500" />;
   };
 
   // Generate AI insights based on data
@@ -134,9 +134,12 @@ export function AIGreetingWidget() {
       <CardContent className="py-6 space-y-4">
         {/* Personalized Greeting */}
         <div>
-          <h2 className="text-2xl font-semibold mb-1" data-testid="text-greeting">
-            {getGreeting()} {getGreetingEmoji()}
-          </h2>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-2xl font-semibold" data-testid="text-greeting">
+              {getGreeting()}
+            </h2>
+            {getGreetingIcon()}
+          </div>
           <p className="text-sm text-muted-foreground" data-testid="text-date">
             {currentDate}
           </p>

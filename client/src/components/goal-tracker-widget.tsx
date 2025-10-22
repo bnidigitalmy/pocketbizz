@@ -77,10 +77,10 @@ export function GoalTrackerWidget() {
     const formData = new FormData(e.currentTarget);
     const goalData = {
       targetMonth: currentMonth,
-      revenueTarget: formData.get("revenueTarget"),
-      profitTarget: formData.get("profitTarget"),
-      salesVolumeTarget: formData.get("salesVolumeTarget"),
-      notes: formData.get("notes"),
+      revenueTarget: Number(formData.get("revenueTarget")) || 0,
+      profitTarget: Number(formData.get("profitTarget")) || 0,
+      salesVolumeTarget: Number(formData.get("salesVolumeTarget")) || 0,
+      notes: formData.get("notes") as string,
     };
     saveMutation.mutate(goalData);
   };
@@ -140,7 +140,7 @@ export function GoalTrackerWidget() {
 
   const getMotivationalMessage = () => {
     if (!hasGoal) return "Tetapkan sasaran bulan ini untuk fokus perniagaan anda!";
-    if (overallProgress >= 100) return "Tahniah! Anda capai sasaran bulan ini! 🎉";
+    if (overallProgress >= 100) return "Tahniah! Anda capai sasaran bulan ini!";
     if (overallProgress >= 80) return "Hampir sampai! Teruskan usaha!";
     if (overallProgress >= 50) return "Separuh jalan sudah ditempuh!";
     if (overallProgress >= 25) return "Langkah kecil, impian besar!";
