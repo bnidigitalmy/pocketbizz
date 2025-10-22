@@ -14,6 +14,8 @@ The design emphasizes a mobile-first, responsive approach using Shadcn/ui (Radix
 
 **Sidebar Navigation**: Shopify/Ecwid-style flat navigation with all menu items visible at once. Features are organized into 6 logical categories with clear group labels (Overview, Pengurusan Stok, Jualan & Operasi, Kewangan, Ejen Jualan, Sistem). No collapsing required - one-click access to any feature. Includes logout button in footer for easy session management.
 
+**Premium Touch & Motion**: Comprehensive Framer Motion integration delivers smooth, premium app feel. Features include smooth page transitions (0.3s cubic-bezier easing), haptic-like touch feedback (0.1s tap scale), card hover animations, shimmer loading skeletons, iOS momentum scrolling, tap highlight removal, and performance-optimized transforms with will-change and backface-visibility. All interactive elements have smooth 0.2s transitions for professional UX.
+
 ### Technical Implementations
 The frontend leverages React 18, TypeScript, Vite, Wouter for routing, TanStack Query for server state management, React Hook Form with Zod for form handling, and Context API for themes. It employs component composition, custom hooks, and centralized API handling. The backend is an Express.js application with TypeScript and a RESTful API design. Data access is abstracted via `storage.ts` using Drizzle ORM. Type safety is maintained through shared TypeScript types (Drizzle Zod). Client-side PDFs are generated using jsPDF. The application is a Progressive Web App (PWA) with a service worker. Authentication uses Bcrypt hashing and `express-session` with a PostgreSQL store. Subscription billing integrates with Stripe for webhooks, lifecycle management, and billing history.
 
