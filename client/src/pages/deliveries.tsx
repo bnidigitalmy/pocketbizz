@@ -86,8 +86,8 @@ export default function Deliveries() {
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.hasMore) {
-        return allPages.reduce((acc, page) => acc + page.data.length, 0);
+      if (lastPage?.hasMore) {
+        return allPages.reduce((acc, page) => acc + (page?.data?.length ?? 0), 0);
       }
       return undefined;
     },
@@ -819,7 +819,7 @@ export default function Deliveries() {
                     <SelectItem value="all">Semua Status</SelectItem>
                     <SelectItem value="delivered">Dihantar</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="claimed">Dibayar</SelectItem>
+                    <SelectItem value="claimed">Dituntut</SelectItem>
                     <SelectItem value="rejected">Ditolak</SelectItem>
                   </SelectContent>
                 </Select>
@@ -909,7 +909,7 @@ export default function Deliveries() {
                       <SelectContent>
                         <SelectItem value="delivered">Dihantar</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="claimed">Dibayar</SelectItem>
+                        <SelectItem value="claimed">Dituntut</SelectItem>
                         <SelectItem value="rejected">Ditolak</SelectItem>
                       </SelectContent>
                     </Select>

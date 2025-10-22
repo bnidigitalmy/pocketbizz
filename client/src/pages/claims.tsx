@@ -65,8 +65,8 @@ export default function Claims() {
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.hasMore) {
-        return allPages.reduce((acc, page) => acc + page.data.length, 0);
+      if (lastPage?.hasMore) {
+        return allPages.reduce((acc, page) => acc + (page?.data?.length ?? 0), 0);
       }
       return undefined;
     },
