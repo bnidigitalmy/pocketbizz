@@ -189,7 +189,11 @@ export default function Claims() {
 
   // Helper function to get vendor phone number
   const getVendorPhone = (vendorId: string): string | null => {
-    const vendor = vendors.find((v: any) => v.id === vendorId);
+    if (!vendors) return null;
+    
+    // Handle both array and object response structures safely
+    const vendorList = Array.isArray(vendors) ? vendors : [];
+    const vendor = vendorList.find((v: any) => v.id === vendorId);
     return vendor?.phone || null;
   };
 
