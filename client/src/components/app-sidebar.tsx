@@ -18,13 +18,11 @@ import {
   TrendingUp,
   Tag,
   LogOut,
-  ChevronDown,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -38,13 +36,6 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-
-type SectionKey = "overview" | "stock" | "sales" | "finance" | "reseller" | "system";
 
 // Overview
 const overviewItems = [
@@ -170,54 +161,16 @@ const systemItems = [
   },
 ];
 
-// Helper function to determine which section a URL belongs to
-function getSectionForUrl(url: string): SectionKey {
-  if (url === "/dashboard") return "overview";
-  
-  const stockUrls = ["/products", "/production", "/finished-products", "/stock", "/shopping-list"];
-  if (stockUrls.includes(url)) return "stock";
-  
-  const salesUrls = ["/vendors", "/deliveries", "/pos", "/sales", "/claims"];
-  if (salesUrls.includes(url)) return "sales";
-  
-  const financeUrls = ["/expenses", "/reports"];
-  if (financeUrls.includes(url)) return "finance";
-  
-  const resellerUrls = ["/resellers", "/reseller-transfer", "/reseller-performance", "/pricing-tiers"];
-  if (resellerUrls.includes(url)) return "reseller";
-  
-  const systemUrls = ["/drive-sync", "/pricing", "/settings"];
-  if (systemUrls.includes(url)) return "system";
-  
-  return "overview"; // default
-}
-
 export function AppSidebar() {
   const [location, navigate] = useLocation();
   const { setOpenMobile, isMobile } = useSidebar();
   const { toast } = useToast();
-
-  // Track which section is currently expanded (only one at a time - accordion behavior)
-  // Can be undefined when all sections are collapsed
-  const [activeSection, setActiveSection] = useState<SectionKey | undefined>("overview");
-
-  // Auto-expand the section containing the current route
-  useEffect(() => {
-    const section = getSectionForUrl(location);
-    setActiveSection(section);
-  }, [location]);
 
   const handleMenuClick = () => {
     // Auto-close sidebar on mobile after navigation
     if (isMobile) {
       setOpenMobile(false);
     }
-  };
-
-  const toggleSection = (section: SectionKey, isOpen: boolean) => {
-    // If clicking to close (isOpen = false), collapse by setting to undefined
-    // If clicking to open (isOpen = true), expand that section
-    setActiveSection(isOpen ? section : undefined);
   };
 
   const logoutMutation = useMutation({
@@ -267,220 +220,142 @@ export function AppSidebar() {
 
       <SidebarContent>
         {/* Overview */}
-        <Collapsible open={activeSection === "overview"} onOpenChange={(open) => toggleSection("overview", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Overview</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "overview" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {overviewItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1) || 'dashboard'}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {overviewItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1) || 'dashboard'}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Pengurusan Stok */}
-        <Collapsible open={activeSection === "stock"} onOpenChange={(open) => toggleSection("stock", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Pengurusan Stok</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "stock" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {stockManagementItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1)}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Pengurusan Stok</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {stockManagementItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Jualan & Operasi */}
-        <Collapsible open={activeSection === "sales"} onOpenChange={(open) => toggleSection("sales", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Jualan & Operasi</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "sales" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {salesOperationsItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1)}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Jualan & Operasi</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {salesOperationsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Kewangan */}
-        <Collapsible open={activeSection === "finance"} onOpenChange={(open) => toggleSection("finance", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Kewangan</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "finance" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {financeItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1)}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Kewangan</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {financeItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Ejen Jualan */}
-        <Collapsible open={activeSection === "reseller"} onOpenChange={(open) => toggleSection("reseller", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Ejen Jualan</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "reseller" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {resellerItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1)}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Ejen Jualan</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resellerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Sistem */}
-        <Collapsible open={activeSection === "system"} onOpenChange={(open) => toggleSection("system", open)}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover-elevate">
-                <span>Sistem</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    activeSection === "system" ? "rotate-180" : ""
-                  }`}
-                />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {systemItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link 
-                          href={item.url} 
-                          onClick={handleMenuClick}
-                          data-testid={`link-${item.url.slice(1)}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+        <SidebarGroup>
+          <SidebarGroupLabel>Sistem</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       {/* Logout Footer */}
