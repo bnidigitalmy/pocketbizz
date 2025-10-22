@@ -133,6 +133,7 @@ export interface IStorage {
   // Reports
   getDashboardStats(): Promise<any>;
   getProfitLossReport(): Promise<any>;
+  getWeeklyProfitSummary(): Promise<any>;
   getTopProducts(): Promise<any[]>;
   getTopVendors(): Promise<any[]>;
   getMonthlyData(): Promise<any[]>;
@@ -1011,6 +1012,93 @@ export class DatabaseStorage implements IStorage {
       rejectionLoss: rejectionLoss.toFixed(2),
       netProfit: netProfit.toFixed(2),
       profitMargin,
+    };
+  }
+
+  async getWeeklyProfitSummary(): Promise<any> {
+    const now = new Date();
+    
+    // Calculate date ranges for current week (Monday to Sunday)
+    const currentDay = now.getDay();
+    const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1; // Sunday = 0, adjust to Monday-based week
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setDate(now.getDate() - daysFromMonday);
+    currentWeekStart.setHours(0, 0, 0, 0);
+    
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+    currentWeekEnd.setHours(23, 59, 59, 999);
+    
+    // Previous week dates
+    const lastWeekStart = new Date(currentWeekStart);
+    lastWeekStart.setDate(currentWeekStart.getDate() - 7);
+    
+    const lastWeekEnd = new Date(currentWeekStart);
+    lastWeekEnd.setDate(currentWeekStart.getDate() - 1);
+    lastWeekEnd.setHours(23, 59, 59, 999);
+
+    // Current week sales (from POS + deliveries claimed)
+    const currentWeekSales = await db.select({
+      pos: sql<string>`COALESCE(SUM(CASE WHEN ${sales.saleDate} >= ${currentWeekStart.toISOString()} AND ${sales.saleDate} <= ${currentWeekEnd.toISOString()} THEN ${sales.totalAmount} ELSE 0 END), 0)`,
+      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${currentWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${currentWeekEnd.toISOString()} AND ${deliveries.status} = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+    }).from(sales).fullJoin(deliveries, sql`1=1`);
+
+    // Last week sales
+    const lastWeekSales = await db.select({
+      pos: sql<string>`COALESCE(SUM(CASE WHEN ${sales.saleDate} >= ${lastWeekStart.toISOString()} AND ${sales.saleDate} <= ${lastWeekEnd.toISOString()} THEN ${sales.totalAmount} ELSE 0 END), 0)`,
+      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${lastWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${lastWeekEnd.toISOString()} AND ${deliveries.status} = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+    }).from(sales).fullJoin(deliveries, sql`1=1`);
+
+    // Current week costs
+    const currentWeekCosts = await db.select({
+      production: sql<string>`COALESCE(SUM(CASE WHEN ${productionBatches.batchDate} >= ${currentWeekStart.toISOString()} AND ${productionBatches.batchDate} <= ${currentWeekEnd.toISOString()} THEN ${productionBatches.totalCost} ELSE 0 END), 0)`,
+      expenses: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseDate} >= ${currentWeekStart.toISOString()} AND ${expenses.expenseDate} <= ${currentWeekEnd.toISOString()} THEN ${expenses.amount} ELSE 0 END), 0)`,
+    }).from(productionBatches).fullJoin(expenses, sql`1=1`);
+
+    // Last week costs
+    const lastWeekCosts = await db.select({
+      production: sql<string>`COALESCE(SUM(CASE WHEN ${productionBatches.batchDate} >= ${lastWeekStart.toISOString()} AND ${productionBatches.batchDate} <= ${lastWeekEnd.toISOString()} THEN ${productionBatches.totalCost} ELSE 0 END), 0)`,
+      expenses: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseDate} >= ${lastWeekStart.toISOString()} AND ${expenses.expenseDate} <= ${lastWeekEnd.toISOString()} THEN ${expenses.amount} ELSE 0 END), 0)`,
+    }).from(productionBatches).fullJoin(expenses, sql`1=1`);
+
+    // Calculate totals
+    const currentRevenue = parseFloat(currentWeekSales[0]?.pos || "0") + parseFloat(currentWeekSales[0]?.deliveries || "0");
+    const lastRevenue = parseFloat(lastWeekSales[0]?.pos || "0") + parseFloat(lastWeekSales[0]?.deliveries || "0");
+    
+    const currentCosts = parseFloat(currentWeekCosts[0]?.production || "0") + parseFloat(currentWeekCosts[0]?.expenses || "0");
+    const lastCosts = parseFloat(lastWeekCosts[0]?.production || "0") + parseFloat(lastWeekCosts[0]?.expenses || "0");
+    
+    const currentProfit = currentRevenue - currentCosts;
+    const lastProfit = lastRevenue - lastCosts;
+    
+    // Calculate week-over-week change
+    const revenueChange = lastRevenue > 0 ? ((currentRevenue - lastRevenue) / lastRevenue) * 100 : 0;
+    const profitChange = lastProfit > 0 ? ((currentProfit - lastProfit) / lastProfit) * 100 : 0;
+    
+    // Profit margin
+    const profitMargin = currentRevenue > 0 ? (currentProfit / currentRevenue) * 100 : 0;
+
+    return {
+      currentWeek: {
+        revenue: currentRevenue.toFixed(2),
+        costs: currentCosts.toFixed(2),
+        profit: currentProfit.toFixed(2),
+        profitMargin: profitMargin.toFixed(1),
+      },
+      lastWeek: {
+        revenue: lastRevenue.toFixed(2),
+        costs: lastCosts.toFixed(2),
+        profit: lastProfit.toFixed(2),
+      },
+      comparison: {
+        revenueChange: revenueChange.toFixed(1),
+        profitChange: profitChange.toFixed(1),
+        isGrowth: profitChange >= 0,
+      },
+      weekRange: {
+        start: currentWeekStart.toISOString().split('T')[0],
+        end: currentWeekEnd.toISOString().split('T')[0],
+      },
     };
   }
 

@@ -2124,6 +2124,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Weekly profit summary with week-over-week comparison
+  app.get("/api/reports/weekly-summary", async (req, res) => {
+    try {
+      const summary = await storage.getWeeklyProfitSummary();
+      res.json(summary);
+    } catch (error) {
+      console.error("Weekly summary error:", error);
+      res.status(500).json({ error: "Failed to fetch weekly summary" });
+    }
+  });
+
   app.get("/api/reports/top-products", requireProPlan, async (req, res) => {
     try {
       const topProducts = await storage.getTopProducts();
