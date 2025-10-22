@@ -1252,7 +1252,7 @@ export class DatabaseStorage implements IStorage {
     })
       .from(deliveries);
 
-    // Calculate detailed claims for each vendor with latest delivery date
+    // Calculate detailed claims for each vendor with latest delivery date and overdue days
     const claimsSummary = await Promise.all(
       uniqueVendors.map(async (vendor) => {
         const details = await this.getClaimDetailsByVendor(vendor.vendorId);
@@ -1261,6 +1261,27 @@ export class DatabaseStorage implements IStorage {
         const latestDelivery = details.deliveries && details.deliveries.length > 0 
           ? new Date(details.deliveries[0].deliveryDate).getTime() 
           : 0;
+        
+        // Calculate oldest unpaid delivery date for overdue tracking
+        let oldestUnpaidDate = 0;
+        let daysOverdue = 0;
+        
+        if (details.deliveries && details.deliveries.length > 0) {
+          const unpaidDeliveries = details.deliveries.filter((d: any) => 
+            d.paymentStatus === 'pending' || d.paymentStatus === 'partial'
+          );
+          
+          if (unpaidDeliveries.length > 0) {
+            // Find the oldest unpaid delivery (last in the sorted array since it's desc by date)
+            const oldestUnpaid = unpaidDeliveries[unpaidDeliveries.length - 1];
+            oldestUnpaidDate = new Date(oldestUnpaid.deliveryDate).getTime();
+            
+            // Calculate days overdue
+            const today = new Date();
+            const diffTime = Math.abs(today.getTime() - oldestUnpaidDate);
+            daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+        }
         
         return {
           vendorId: vendor.vendorId,
@@ -1271,6 +1292,7 @@ export class DatabaseStorage implements IStorage {
           settledAmount: details.settledAmount,
           partialAmount: details.partialAmount,
           latestDeliveryDate: latestDelivery,
+          daysOverdue,
         };
       })
     );

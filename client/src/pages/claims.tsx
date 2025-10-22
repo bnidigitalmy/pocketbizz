@@ -30,6 +30,7 @@ interface ClaimSummary {
   pendingAmount: string;
   settledAmount: string;
   partialAmount: string;
+  daysOverdue: number;
 }
 
 interface DeliveryWithItems {
@@ -169,6 +170,31 @@ export default function Claims() {
     
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
+  };
+
+  const sendPaymentReminder = (claim: ClaimSummary) => {
+    const outstandingAmount = parseFloat(claim.pendingAmount) + parseFloat(claim.partialAmount);
+    const message = `Salam *${claim.vendorName}*,\n\n` +
+      `Peringatan mesra bayaran tertunggak:\n\n` +
+      `Jumlah Tertunggak: *RM ${outstandingAmount.toFixed(2)}*\n` +
+      `Bilangan penghantaran: ${claim.totalDeliveries}\n\n` +
+      `Sila maklumkan bila boleh settle pembayaran. Terima kasih!\n\n` +
+      `_Mesej auto dari PocketBizz_`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    toast({
+      title: "Peringatan Dihantar",
+      description: `Peringatan bayaran kepada ${claim.vendorName}`,
+    });
+  };
+
+  const getOverdueBadgeVariant = (days: number) => {
+    if (days > 30) return "destructive";
+    if (days > 14) return "default";
+    if (days > 7) return "secondary";
+    return "outline";
   };
 
   const shareDeliveryViaWhatsApp = (delivery: DeliveryWithItems) => {
@@ -377,12 +403,23 @@ export default function Claims() {
 
       {/* Vendor Claims Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredClaims.map((claim) => (
+        {filteredClaims.map((claim) => {
+          const daysOverdue = claim.daysOverdue || 0;
+          const hasOutstanding = parseFloat(claim.pendingAmount) > 0 || parseFloat(claim.partialAmount) > 0;
+          
+          return (
           <Card key={claim.vendorId} className="hover-elevate" data-testid={`card-claim-${claim.vendorId}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {claim.vendorName}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">
+                  {claim.vendorName}
+                </CardTitle>
+                {hasOutstanding && daysOverdue > 0 && (
+                  <Badge variant={getOverdueBadgeVariant(daysOverdue)} className="text-xs" data-testid={`badge-overdue-${claim.vendorId}`}>
+                    {daysOverdue} hari
+                  </Badge>
+                )}
+              </div>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -450,21 +487,34 @@ export default function Claims() {
                       Thermal
                     </Button>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="w-full"
-                    onClick={() => shareClaimViaWhatsApp(claim)}
-                    data-testid={`button-share-claim-${claim.vendorId}`}
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    WhatsApp
-                  </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => shareClaimViaWhatsApp(claim)}
+                      data-testid={`button-share-claim-${claim.vendorId}`}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                    {hasOutstanding && (
+                      <Button 
+                        variant={daysOverdue > 14 ? "destructive" : "default"}
+                        size="sm"
+                        onClick={() => sendPaymentReminder(claim)}
+                        data-testid={`button-payment-reminder-${claim.vendorId}`}
+                      >
+                        <Clock className="h-4 w-4 mr-2" />
+                        Ingatkan
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+        })}
       </div>
 
       {/* Load More Button */}
