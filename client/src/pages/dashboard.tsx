@@ -13,6 +13,7 @@ import { LeaderboardWidget } from "@/components/leaderboard-widget";
 import { AchievementWidget } from "@/components/achievement-widget";
 import { AIGreetingWidget } from "@/components/ai-greeting-widget";
 import { SalesTrendChart } from "@/components/sales-trend-chart";
+import { GoalTrackerWidget } from "@/components/goal-tracker-widget";
 import { 
   Package, 
   DollarSign, 
@@ -481,6 +482,9 @@ export default function Dashboard() {
 
       {/* Achievement Widget */}
       <AchievementWidget />
+
+      {/* Goal Tracker Widget */}
+      <GoalTrackerWidget />
 
       {/* Weekly Profit Summary */}
       <WeeklyProfitWidget />

@@ -634,6 +634,19 @@ export const pendingBills = pgTable("pending_bills", {
   expiresAt: timestamp("expires_at").notNull(), // Bill expiry (7 days)
 });
 
+// Goals Table (User monthly targets and progress tracking)
+export const goals = pgTable("goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetMonth: date("target_month").notNull(), // First day of target month (YYYY-MM-01)
+  revenueTarget: decimal("revenue_target", { precision: 10, scale: 2 }).notNull().default("0"), // Monthly revenue target
+  profitTarget: decimal("profit_target", { precision: 10, scale: 2 }).notNull().default("0"), // Monthly profit target
+  salesVolumeTarget: integer("sales_volume_target").notNull().default(0), // Target number of sales/deliveries
+  notes: text("notes"), // User notes or motivation
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -667,6 +680,12 @@ export const insertBillingHistorySchema = createInsertSchema(billingHistory).omi
   createdAt: true,
 });
 
+export const insertGoalSchema = createInsertSchema(goals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertEarlyBirdTrackingSchema = createInsertSchema(earlyBirdTracking).omit({
   id: true,
   createdAt: true,
@@ -694,6 +713,9 @@ export type InsertEarlyBirdTracking = z.infer<typeof insertEarlyBirdTrackingSche
 
 export type PendingBill = typeof pendingBills.$inferSelect;
 export type InsertPendingBill = z.infer<typeof insertPendingBillSchema>;
+
+export type Goal = typeof goals.$inferSelect;
+export type InsertGoal = z.infer<typeof insertGoalSchema>;
 
 // Pricing Tiers Table (for reseller discount tiers)
 export const pricingTiers = pgTable("pricing_tiers", {

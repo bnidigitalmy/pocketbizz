@@ -2394,6 +2394,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Goals Routes (Monthly targets and progress tracking)
+  app.get("/api/goals", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const goalsList = await storage.getGoals(userId);
+      res.json(goalsList);
+    } catch (error) {
+      console.error("Get goals error:", error);
+      res.status(500).json({ error: "Failed to fetch goals" });
+    }
+  });
+
+  app.get("/api/goals/:month", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { month } = req.params;
+      const goal = await storage.getGoalByMonth(userId, month);
+      res.json(goal || null);
+    } catch (error) {
+      console.error("Get goal by month error:", error);
+      res.status(500).json({ error: "Failed to fetch goal" });
+    }
+  });
+
+  app.get("/api/goals/:month/progress", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { month } = req.params;
+      const progress = await storage.getGoalProgress(userId, month);
+      res.json(progress);
+    } catch (error) {
+      console.error("Get goal progress error:", error);
+      res.status(500).json({ error: "Failed to fetch goal progress" });
+    }
+  });
+
+  app.post("/api/goals", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const goalData = { ...req.body, userId };
+      const newGoal = await storage.createGoal(goalData);
+      res.json(newGoal);
+    } catch (error) {
+      console.error("Create goal error:", error);
+      res.status(500).json({ error: "Failed to create goal" });
+    }
+  });
+
+  app.patch("/api/goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedGoal = await storage.updateGoal(id, req.body);
+      res.json(updatedGoal);
+    } catch (error) {
+      console.error("Update goal error:", error);
+      res.status(500).json({ error: "Failed to update goal" });
+    }
+  });
+
+  app.delete("/api/goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteGoal(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete goal error:", error);
+      res.status(500).json({ error: "Failed to delete goal" });
+    }
+  });
+
   // Claims
   app.get("/api/claims", async (req, res) => {
     try {

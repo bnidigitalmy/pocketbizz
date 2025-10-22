@@ -65,6 +65,9 @@ import {
   pendingBills,
   type PendingBill,
   type InsertPendingBill,
+  goals,
+  type Goal,
+  type InsertGoal,
   pricingTiers,
   resellers,
   resellerTransfers,
@@ -241,6 +244,14 @@ export interface IStorage {
   getResellerTransfers(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getResellerTransferById(id: string): Promise<any>;
   generateTransferReceiptNumber(): Promise<string>;
+  
+  // Goals (Monthly targets and progress tracking)
+  getGoals(userId: string): Promise<Goal[]>;
+  getGoalByMonth(userId: string, targetMonth: string): Promise<Goal | undefined>;
+  createGoal(goal: InsertGoal): Promise<Goal>;
+  updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal>;
+  deleteGoal(id: string): Promise<void>;
+  getGoalProgress(userId: string, targetMonth: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2227,6 +2238,96 @@ export class DatabaseStorage implements IStorage {
       ...result.transfer,
       reseller: result.reseller,
       items
+    };
+  }
+  
+  // Goals (Monthly targets and progress tracking)
+  async getGoals(userId: string): Promise<Goal[]> {
+    const result = await db.select()
+      .from(goals)
+      .where(eq(goals.userId, userId))
+      .orderBy(desc(goals.targetMonth));
+    return result;
+  }
+  
+  async getGoalByMonth(userId: string, targetMonth: string): Promise<Goal | undefined> {
+    const [result] = await db.select()
+      .from(goals)
+      .where(and(
+        eq(goals.userId, userId),
+        eq(goals.targetMonth, targetMonth)
+      ));
+    return result || undefined;
+  }
+  
+  async createGoal(goal: InsertGoal): Promise<Goal> {
+    const [newGoal] = await db.insert(goals).values(goal).returning();
+    return newGoal;
+  }
+  
+  async updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal> {
+    const [updatedGoal] = await db.update(goals)
+      .set({ ...goal, updatedAt: new Date() })
+      .where(eq(goals.id, id))
+      .returning();
+    return updatedGoal;
+  }
+  
+  async deleteGoal(id: string): Promise<void> {
+    await db.delete(goals).where(eq(goals.id, id));
+  }
+  
+  async getGoalProgress(userId: string, targetMonth: string): Promise<any> {
+    // Get goal
+    const goal = await this.getGoalByMonth(userId, targetMonth);
+    if (!goal) {
+      return { goal: null, progress: null };
+    }
+    
+    // Calculate actual performance for the month
+    const monthStart = new Date(targetMonth);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    
+    // Get sales and deliveries for the month
+    const salesData = await db.select({
+      totalRevenue: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)`,
+      totalProfit: sql<number>`COALESCE(SUM(${sales.profitAmount}), 0)`,
+      salesCount: sql<number>`COUNT(*)`
+    })
+      .from(sales)
+      .where(and(
+        eq(sales.userId, userId),
+        sql`${sales.saleDate} >= ${monthStart.toISOString().split('T')[0]}`,
+        sql`${sales.saleDate} < ${monthEnd.toISOString().split('T')[0]}`
+      ));
+    
+    const deliveriesData = await db.select({
+      totalRevenue: sql<number>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
+      totalProfit: sql<number>`COALESCE(SUM(${deliveries.profitAmount}), 0)`,
+      deliveryCount: sql<number>`COUNT(*)`
+    })
+      .from(deliveries)
+      .where(and(
+        eq(deliveries.userId, userId),
+        sql`${deliveries.deliveryDate} >= ${monthStart.toISOString().split('T')[0]}`,
+        sql`${deliveries.deliveryDate} < ${monthEnd.toISOString().split('T')[0]}`
+      ));
+    
+    const actualRevenue = (salesData[0]?.totalRevenue || 0) + (deliveriesData[0]?.totalRevenue || 0);
+    const actualProfit = (salesData[0]?.totalProfit || 0) + (deliveriesData[0]?.totalProfit || 0);
+    const actualSalesVolume = (salesData[0]?.salesCount || 0) + (deliveriesData[0]?.deliveryCount || 0);
+    
+    return {
+      goal,
+      progress: {
+        actualRevenue,
+        actualProfit,
+        actualSalesVolume,
+        revenueProgress: goal.revenueTarget > 0 ? (actualRevenue / parseFloat(goal.revenueTarget)) * 100 : 0,
+        profitProgress: goal.profitTarget > 0 ? (actualProfit / parseFloat(goal.profitTarget)) * 100 : 0,
+        salesVolumeProgress: goal.salesVolumeTarget > 0 ? (actualSalesVolume / goal.salesVolumeTarget) * 100 : 0,
+      }
     };
   }
 }
