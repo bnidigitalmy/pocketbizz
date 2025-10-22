@@ -66,10 +66,12 @@ export default function Claims() {
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage?.hasMore) {
-        return allPages.reduce((acc, page) => acc + (page?.data?.length ?? 0), 0);
-      }
-      return undefined;
+      if (!lastPage || !lastPage.hasMore) return undefined;
+      if (!Array.isArray(allPages)) return undefined;
+      return allPages.reduce((acc, page) => {
+        if (!page || !Array.isArray(page.data)) return acc;
+        return acc + page.data.length;
+      }, 0);
     },
     initialPageParam: 0,
   });
