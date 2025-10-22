@@ -194,6 +194,7 @@ export interface IStorage {
   bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void>;
   
   // Users & Authentication
+  getAllUsers(): Promise<User[]>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -208,6 +209,7 @@ export interface IStorage {
   deleteSubscriptionPlan(id: string): Promise<void>;
   
   // User Subscriptions
+  getAllUserSubscriptions(): Promise<UserSubscription[]>;
   getUserSubscriptions(userId: string): Promise<UserSubscription[]>;
   getUserSubscriptionById(id: string): Promise<UserSubscription | undefined>;
   getUserActiveSubscription(userId: string): Promise<UserSubscription | undefined>;
@@ -1884,6 +1886,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Users & Authentication
+  async getAllUsers(): Promise<User[]> {
+    const allUsers = await db.select().from(users);
+    return allUsers;
+  }
+  
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
@@ -1944,6 +1951,12 @@ export class DatabaseStorage implements IStorage {
   }
   
   // User Subscriptions
+  async getAllUserSubscriptions(): Promise<UserSubscription[]> {
+    return await db.select()
+      .from(userSubscriptions)
+      .orderBy(userSubscriptions.createdAt);
+  }
+  
   async getUserSubscriptions(userId: string): Promise<UserSubscription[]> {
     return await db.select()
       .from(userSubscriptions)

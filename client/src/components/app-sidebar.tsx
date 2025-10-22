@@ -18,9 +18,11 @@ import {
   TrendingUp,
   Tag,
   LogOut,
+  Shield,
+  UserCog,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -161,10 +163,32 @@ const systemItems = [
   },
 ];
 
+// Admin (only for admin users)
+const adminItems = [
+  {
+    title: "Admin Dashboard",
+    url: "/admin",
+    icon: Shield,
+  },
+  {
+    title: "Pengurusan User",
+    url: "/admin/users",
+    icon: UserCog,
+  },
+];
+
 export function AppSidebar() {
   const [location, navigate] = useLocation();
   const { setOpenMobile, isMobile } = useSidebar();
   const { toast } = useToast();
+
+  // Fetch current user to check if admin
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const isAdmin = (currentUser as any)?.isAdmin === 1;
 
   const handleMenuClick = () => {
     // Auto-close sidebar on mobile after navigation
@@ -356,6 +380,31 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin - Only visible to admin users */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location === item.url}>
+                      <Link 
+                        href={item.url} 
+                        onClick={handleMenuClick}
+                        data-testid={`link-${item.url.slice(1)}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {/* Logout Footer */}

@@ -41,6 +41,8 @@ import PricingTiers from "@/pages/pricing-tiers";
 import Resellers from "@/pages/resellers";
 import ResellerTransfer from "@/pages/reseller-transfer";
 import ResellerPerformance from "@/pages/reseller-performance";
+import AdminDashboard from "@/pages/admin-dashboard";
+import AdminUsers from "@/pages/admin-users";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -82,6 +84,8 @@ function AppRouter() {
         <Route path="/resellers" component={Resellers} />
         <Route path="/reseller-transfer" component={ResellerTransfer} />
         <Route path="/reseller-performance" component={ResellerPerformance} />
+        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/users" component={AdminUsers} />
         <Route component={NotFound} />
       </Switch>
     </MotionWrapper>

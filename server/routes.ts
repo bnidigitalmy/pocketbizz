@@ -63,6 +63,17 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Middleware to require admin access
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - please login" });
+  }
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Forbidden - admin access required" });
+  }
+  next();
+}
+
 // Helper: Get user's current active subscription
 async function getUserActiveSubscription(userId: string) {
   const subscriptions = await storage.getUserSubscriptions(userId);
@@ -2967,6 +2978,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Bulk purchase error:", error);
       res.status(500).json({ error: "Failed to complete purchase", message: error.message });
+    }
+  });
+
+  // ==================== ADMIN ROUTES ====================
+  
+  // Admin: Get dashboard statistics
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const now = new Date();
+      
+      // User statistics - properly categorize users
+      const totalUsers = allUsers.length;
+      const activeTrialUsers = allUsers.filter(u => 
+        u.isOnTrial === 1 && u.trialEndsAt && new Date(u.trialEndsAt) > now
+      ).length;
+      
+      // Expired trial: Users who HAD trial but it expired (not paid)
+      const expiredTrialUsers = allUsers.filter(u => 
+        u.isOnTrial === 0 && u.trialEndsAt && new Date(u.trialEndsAt) < now
+      ).length;
+      
+      // Subscription statistics
+      const allSubscriptions = await storage.getAllUserSubscriptions();
+      const activeSubscriptions = allSubscriptions.filter(s => 
+        s.status === 'active' && s.subscriptionEndsAt && new Date(s.subscriptionEndsAt) > now
+      );
+      
+      // Paid users: Users with active paid subscriptions
+      const paidUserIds = new Set(activeSubscriptions.map(s => s.userId));
+      const paidUsers = paidUserIds.size;
+      
+      // Revenue calculation (monthly recurring revenue)
+      let totalMRR = 0;
+      for (const sub of activeSubscriptions) {
+        const plan = await storage.getSubscriptionPlanById(sub.planId);
+        if (plan) {
+          totalMRR += parseFloat(plan.monthlyPrice || '0');
+        }
+      }
+      
+      res.json({
+        users: {
+          total: totalUsers,
+          activeTrial: activeTrialUsers,
+          expiredTrial: expiredTrialUsers,
+          paid: paidUsers,
+        },
+        subscriptions: {
+          active: activeSubscriptions.length,
+          total: allSubscriptions.length,
+        },
+        revenue: {
+          mrr: totalMRR.toFixed(2),
+          currency: 'MYR',
+        },
+      });
+    } catch (error) {
+      console.error("Admin stats error:", error);
+      res.status(500).json({ error: "Failed to fetch admin statistics" });
+    }
+  });
+  
+  // Admin: Get all users with pagination
+  app.get("/api/admin/users", requireAdmin, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      
+      const allUsers = await storage.getAllUsers();
+      const total = allUsers.length;
+      const users = allUsers.slice(offset, offset + limit);
+      
+      // Enrich users with subscription info
+      const enrichedUsers = await Promise.all(users.map(async (user) => {
+        const subscriptions = await storage.getUserSubscriptions(user.id);
+        const activeSub = subscriptions.find(s => 
+          s.status === 'active' && s.subscriptionEndsAt && new Date(s.subscriptionEndsAt) > new Date()
+        );
+        
+        let plan = null;
+        if (activeSub) {
+          plan = await storage.getSubscriptionPlanById(activeSub.planId);
+        }
+        
+        return {
+          ...user,
+          password: undefined, // Don't send password hash
+          currentPlan: plan?.displayName || (user.isOnTrial ? 'Trial' : 'None'),
+          subscriptionStatus: activeSub ? 'active' : (user.isOnTrial ? 'trial' : 'inactive'),
+        };
+      }));
+      
+      res.json({
+        users: enrichedUsers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Admin users list error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+  
+  // Admin: Get user details
+  app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUserById(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const subscriptions = await storage.getUserSubscriptions(userId);
+      const products = await storage.getProducts();
+      const userProducts = products.filter((p: any) => p.userId === userId);
+      
+      res.json({
+        ...user,
+        password: undefined,
+        subscriptions,
+        stats: {
+          totalProducts: userProducts.length,
+          totalSubscriptions: subscriptions.length,
+        },
+      });
+    } catch (error) {
+      console.error("Admin user details error:", error);
+      res.status(500).json({ error: "Failed to fetch user details" });
+    }
+  });
+  
+  // Admin: Update user subscription
+  app.patch("/api/admin/users/:userId/subscription", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { action, planId, durationMonths } = req.body;
+      
+      if (action === 'activate') {
+        // Create new subscription
+        const plan = await storage.getSubscriptionPlanById(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + (durationMonths || 1));
+        
+        const subscription = await storage.createUserSubscription({
+          userId,
+          planId,
+          status: 'active',
+          subscriptionStartsAt: startDate.toISOString(),
+          subscriptionEndsAt: endDate.toISOString(),
+          amount: (parseFloat(plan.monthlyPrice) * (durationMonths || 1)).toFixed(2),
+          currency: 'MYR',
+        });
+        
+        // Disable trial if active
+        await storage.updateUser(userId, { isOnTrial: 0 });
+        
+        res.json({ success: true, subscription });
+      } else if (action === 'cancel') {
+        // Find active subscription and cancel it
+        const subscriptions = await storage.getUserSubscriptions(userId);
+        const activeSub = subscriptions.find(s => s.status === 'active');
+        
+        if (activeSub) {
+          await storage.updateUserSubscription(activeSub.id, { status: 'cancelled' });
+        }
+        
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: "Invalid action" });
+      }
+    } catch (error) {
+      console.error("Admin subscription update error:", error);
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  });
+  
+  // Admin: Revenue analytics
+  app.get("/api/admin/analytics/revenue", requireAdmin, async (req, res) => {
+    try {
+      const billingHistory = await db.select().from(billingHistory as any);
+      
+      // Group by month
+      const revenueByMonth: { [key: string]: number } = {};
+      billingHistory.forEach((record: any) => {
+        const month = new Date(record.createdAt).toISOString().substring(0, 7); // YYYY-MM
+        revenueByMonth[month] = (revenueByMonth[month] || 0) + parseFloat(record.amount || '0');
+      });
+      
+      // Format for chart
+      const chartData = Object.entries(revenueByMonth)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-12) // Last 12 months
+        .map(([month, amount]) => ({
+          month,
+          revenue: amount,
+        }));
+      
+      res.json(chartData);
+    } catch (error) {
+      console.error("Admin revenue analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch revenue analytics" });
     }
   });
 
