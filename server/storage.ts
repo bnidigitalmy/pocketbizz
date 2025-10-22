@@ -142,6 +142,12 @@ export interface IStorage {
   getTopVendors(): Promise<any[]>;
   getMonthlyData(): Promise<any[]>;
   
+  // Advanced Analytics
+  getProductPerformanceAnalytics(): Promise<any>;
+  getVendorPerformanceLeaderboard(): Promise<any[]>;
+  getAgentPerformanceLeaderboard(): Promise<any[]>;
+  getSalesTrendData(days: number): Promise<any[]>;
+  
   // Claims
   getClaimsSummary(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getClaimDetailsByVendor(vendorId: string): Promise<any>;
@@ -1206,6 +1212,272 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyData(): Promise<any[]> {
     // This is a simplified version - in production, you'd want proper date grouping
     return [];
+  }
+
+  // Advanced Analytics Methods
+  async getProductPerformanceAnalytics(): Promise<any> {
+    // Get all products
+    const allProducts = await db.select().from(products);
+    
+    // Calculate performance metrics for each product
+    const productMetrics = await Promise.all(
+      allProducts.map(async (product) => {
+        // Sales data (POS)
+        const salesData = await db.select({
+          totalQuantity: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
+          totalRevenue: sql<string>`COALESCE(SUM(${salesItems.quantity} * ${salesItems.unitPrice}), 0)`,
+        })
+        .from(salesItems)
+        .where(eq(salesItems.productId, product.id));
+
+        // Delivery data (vendors)
+        const deliveryData = await db.select({
+          totalQuantity: sql<number>`COALESCE(SUM(${deliveryItems.quantity}), 0)`,
+          totalRevenue: sql<string>`COALESCE(SUM(${deliveryItems.quantity} * ${deliveryItems.unitPrice}), 0)`,
+          totalRejected: sql<number>`COALESCE(SUM(${deliveryItems.rejectedQty}), 0)`,
+        })
+        .from(deliveryItems)
+        .where(eq(deliveryItems.productId, product.id));
+
+        const totalQtySold = Number(salesData[0]?.totalQuantity || 0) + Number(deliveryData[0]?.totalQuantity || 0);
+        const totalRevenue = parseFloat(salesData[0]?.totalRevenue || "0") + parseFloat(deliveryData[0]?.totalRevenue || "0");
+        const totalRejected = Number(deliveryData[0]?.totalRejected || 0);
+        const costPerUnit = parseFloat(product.costPerUnit);
+        const totalProfit = totalRevenue - (totalQtySold * costPerUnit);
+        const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+        const rejectionRate = totalQtySold > 0 ? ((totalRejected / (totalQtySold + totalRejected)) * 100) : 0;
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          category: product.category,
+          totalQtySold,
+          totalRevenue: totalRevenue.toFixed(2),
+          totalProfit: totalProfit.toFixed(2),
+          profitMargin: profitMargin.toFixed(1),
+          totalRejected,
+          rejectionRate: rejectionRate.toFixed(1),
+          costPerUnit: costPerUnit.toFixed(2),
+        };
+      })
+    );
+
+    // Sort by different metrics
+    const mostProfitable = [...productMetrics]
+      .filter(p => parseFloat(p.totalProfit) > 0)
+      .sort((a, b) => parseFloat(b.totalProfit) - parseFloat(a.totalProfit))
+      .slice(0, 5);
+
+    const fastestSelling = [...productMetrics]
+      .filter(p => p.totalQtySold > 0)
+      .sort((a, b) => b.totalQtySold - a.totalQtySold)
+      .slice(0, 5);
+
+    const mostRejected = [...productMetrics]
+      .filter(p => p.totalRejected > 0)
+      .sort((a, b) => parseFloat(b.rejectionRate) - parseFloat(a.rejectionRate))
+      .slice(0, 5);
+
+    return {
+      mostProfitable,
+      fastestSelling,
+      mostRejected,
+      allProducts: productMetrics,
+    };
+  }
+
+  async getVendorPerformanceLeaderboard(): Promise<any[]> {
+    // Get all vendors
+    const allVendors = await db.select().from(vendors);
+    
+    const vendorMetrics = await Promise.all(
+      allVendors.map(async (vendor) => {
+        // Get deliveries stats
+        const deliveriesData = await db.select({
+          totalDeliveries: sql<number>`COUNT(*)`,
+          totalAmount: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
+          settledCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus} = 'settled' THEN 1 END)`,
+          pendingCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus} = 'pending' THEN 1 END)`,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.vendorId, vendor.id));
+
+        const stats = deliveriesData[0];
+        const totalDeliveries = Number(stats?.totalDeliveries || 0);
+        const settledCount = Number(stats?.settledCount || 0);
+        const paymentRate = totalDeliveries > 0 ? ((settledCount / totalDeliveries) * 100) : 0;
+
+        // Calculate average days to payment for settled deliveries
+        const settledDeliveries = await db.select({
+          deliveryDate: deliveries.deliveryDate,
+          updatedAt: deliveries.updatedAt,
+        })
+        .from(deliveries)
+        .where(
+          and(
+            eq(deliveries.vendorId, vendor.id),
+            eq(deliveries.paymentStatus, 'settled')
+          )
+        );
+
+        let avgDaysToPayment = 0;
+        if (settledDeliveries.length > 0) {
+          const totalDays = settledDeliveries.reduce((sum, d) => {
+            const deliveryDate = new Date(d.deliveryDate);
+            const paidDate = new Date(d.updatedAt);
+            const days = Math.ceil((paidDate.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
+            return sum + days;
+          }, 0);
+          avgDaysToPayment = totalDays / settledDeliveries.length;
+        }
+
+        return {
+          vendorId: vendor.id,
+          vendorName: vendor.name,
+          state: vendor.state,
+          totalDeliveries,
+          totalAmount: parseFloat(stats?.totalAmount || "0").toFixed(2),
+          settledCount,
+          pendingCount: Number(stats?.pendingCount || 0),
+          paymentRate: paymentRate.toFixed(1),
+          avgDaysToPayment: avgDaysToPayment.toFixed(0),
+          score: paymentRate - (avgDaysToPayment * 2), // Higher payment rate, lower days = higher score
+        };
+      })
+    );
+
+    // Sort by score (best performers first)
+    return vendorMetrics
+      .filter(v => v.totalDeliveries > 0)
+      .sort((a, b) => b.score - a.score);
+  }
+
+  async getAgentPerformanceLeaderboard(): Promise<any[]> {
+    // Get all resellers/agents
+    const allResellers = await db.select().from(resellers);
+    
+    const resellerMetrics = await Promise.all(
+      allResellers.map(async (reseller) => {
+        // Get transfer stats
+        const transfersData = await db.select({
+          totalTransfers: sql<number>`COUNT(*)`,
+          totalAmount: sql<string>`COALESCE(SUM(${resellerTransfers.totalAmount}), 0)`,
+          paidCount: sql<number>`COUNT(CASE WHEN ${resellerTransfers.paymentStatus} = 'paid' THEN 1 END)`,
+        })
+        .from(resellerTransfers)
+        .where(eq(resellerTransfers.resellerId, reseller.id));
+
+        // Get total quantities transferred
+        const quantityData = await db.select({
+          totalQty: sql<number>`COALESCE(SUM(${resellerTransferItems.quantity}), 0)`,
+        })
+        .from(resellerTransferItems)
+        .innerJoin(resellerTransfers, eq(resellerTransferItems.transferId, resellerTransfers.id))
+        .where(eq(resellerTransfers.resellerId, reseller.id));
+
+        const stats = transfersData[0];
+        const totalTransfers = Number(stats?.totalTransfers || 0);
+        const paidCount = Number(stats?.paidCount || 0);
+        const paymentRate = totalTransfers > 0 ? ((paidCount / totalTransfers) * 100) : 0;
+
+        return {
+          resellerId: reseller.id,
+          resellerName: reseller.name,
+          state: reseller.state,
+          pricingTier: reseller.pricingTier,
+          totalTransfers,
+          totalAmount: parseFloat(stats?.totalAmount || "0").toFixed(2),
+          totalQty: Number(quantityData[0]?.totalQty || 0),
+          paidCount,
+          paymentRate: paymentRate.toFixed(1),
+          score: parseFloat(stats?.totalAmount || "0") + (paymentRate * 10), // Higher revenue + payment rate = higher score
+        };
+      })
+    );
+
+    // Sort by score (best performers first)
+    return resellerMetrics
+      .filter(r => r.totalTransfers > 0)
+      .sort((a, b) => b.score - a.score);
+  }
+
+  async getSalesTrendData(days: number = 30): Promise<any[]> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+
+    // Get daily sales totals (POS + Deliveries)
+    const dailyData = [];
+    
+    for (let i = 0; i < days; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      const nextDate = new Date(currentDate);
+      nextDate.setDate(currentDate.getDate() + 1);
+
+      // POS sales for this day
+      const posSales = await db.select({
+        total: sql<string>`COALESCE(SUM(${sales.totalAmount}), 0)`,
+      })
+      .from(sales)
+      .where(
+        and(
+          gte(sales.saleDate, currentDate.toISOString()),
+          lte(sales.saleDate, nextDate.toISOString())
+        )
+      );
+
+      // Delivery sales for this day
+      const deliverySales = await db.select({
+        total: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
+      })
+      .from(deliveries)
+      .where(
+        and(
+          gte(deliveries.deliveryDate, currentDate.toISOString()),
+          lte(deliveries.deliveryDate, nextDate.toISOString())
+        )
+      );
+
+      // Production costs for this day
+      const productionCosts = await db.select({
+        total: sql<string>`COALESCE(SUM(${productionBatches.totalCost}), 0)`,
+      })
+      .from(productionBatches)
+      .where(
+        and(
+          gte(productionBatches.batchDate, currentDate.toISOString()),
+          lte(productionBatches.batchDate, nextDate.toISOString())
+        )
+      );
+
+      // Expenses for this day
+      const expensesCosts = await db.select({
+        total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
+      })
+      .from(expenses)
+      .where(
+        and(
+          gte(expenses.expenseDate, currentDate.toISOString()),
+          lte(expenses.expenseDate, nextDate.toISOString())
+        )
+      );
+
+      const revenue = parseFloat(posSales[0]?.total || "0") + parseFloat(deliverySales[0]?.total || "0");
+      const costs = parseFloat(productionCosts[0]?.total || "0") + parseFloat(expensesCosts[0]?.total || "0");
+      const profit = revenue - costs;
+
+      dailyData.push({
+        date: dateStr,
+        revenue: revenue.toFixed(2),
+        costs: costs.toFixed(2),
+        profit: profit.toFixed(2),
+      });
+    }
+
+    return dailyData;
   }
 
   // Helper function to calculate commission

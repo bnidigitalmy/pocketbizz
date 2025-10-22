@@ -2352,6 +2352,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Advanced Analytics Endpoints
+  app.get("/api/analytics/product-performance", async (req, res) => {
+    try {
+      const analytics = await storage.getProductPerformanceAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Product performance error:", error);
+      res.status(500).json({ error: "Failed to fetch product performance analytics" });
+    }
+  });
+
+  app.get("/api/analytics/vendor-leaderboard", async (req, res) => {
+    try {
+      const leaderboard = await storage.getVendorPerformanceLeaderboard();
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Vendor leaderboard error:", error);
+      res.status(500).json({ error: "Failed to fetch vendor leaderboard" });
+    }
+  });
+
+  app.get("/api/analytics/agent-leaderboard", async (req, res) => {
+    try {
+      const leaderboard = await storage.getAgentPerformanceLeaderboard();
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Agent leaderboard error:", error);
+      res.status(500).json({ error: "Failed to fetch agent leaderboard" });
+    }
+  });
+
+  app.get("/api/analytics/sales-trend", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const trendData = await storage.getSalesTrendData(days);
+      res.json(trendData);
+    } catch (error) {
+      console.error("Sales trend error:", error);
+      res.status(500).json({ error: "Failed to fetch sales trend data" });
+    }
+  });
+
   // Claims
   app.get("/api/claims", async (req, res) => {
     try {
