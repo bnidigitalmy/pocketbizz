@@ -216,8 +216,35 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   doc.text('JUMLAH BOLEH DITUNTUT:', breakdownX, yPos);
   doc.text(`RM ${delivery.claimableAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
   
+  // QR Code Payment (if available)
+  if (businessProfile?.paymentQrCode) {
+    yPos += 15;
+    
+    // QR Code box
+    doc.setFillColor(250, 250, 250);
+    doc.rect(20, yPos - 5, 60, 65, 'F');
+    doc.setDrawColor(217, 97, 118);
+    doc.setLineWidth(0.5);
+    doc.rect(20, yPos - 5, 60, 65);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(217, 97, 118);
+    doc.text('Scan untuk Bayar:', 50, yPos, { align: 'center' });
+    
+    // Add QR code image
+    try {
+      doc.addImage(businessProfile.paymentQrCode, 'JPEG', 25, yPos + 3, 50, 50);
+    } catch (e) {
+      // If image fails to load, show placeholder text
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text('QR Code DuitNow', 50, yPos + 30, { align: 'center' });
+    }
+  }
+  
   // Footer
-  yPos += 30;
+  yPos += businessProfile?.paymentQrCode ? 70 : 30;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
@@ -527,6 +554,36 @@ export function generateClaimStatementPDF(
     
     doc.setFontSize(9);
     doc.text(bankInfo, 25, yPos + 9);
+  }
+  
+  // QR Code Payment (if available)
+  if (businessProfile?.paymentQrCode) {
+    yPos += 30;
+    
+    // QR Code box - centered
+    const qrBoxWidth = 60;
+    const qrBoxX = (doc.internal.pageSize.width - qrBoxWidth) / 2;
+    
+    doc.setFillColor(250, 250, 250);
+    doc.rect(qrBoxX, yPos - 5, qrBoxWidth, 65, 'F');
+    doc.setDrawColor(217, 97, 118);
+    doc.setLineWidth(0.5);
+    doc.rect(qrBoxX, yPos - 5, qrBoxWidth, 65);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(217, 97, 118);
+    doc.text('Scan untuk Bayar (DuitNow):', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+    
+    // Add QR code image
+    try {
+      doc.addImage(businessProfile.paymentQrCode, 'JPEG', qrBoxX + 5, yPos + 3, 50, 50);
+    } catch (e) {
+      // If image fails to load, show placeholder text
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text('QR Code DuitNow', doc.internal.pageSize.width / 2, yPos + 30, { align: 'center' });
+    }
   }
   
   // Save
