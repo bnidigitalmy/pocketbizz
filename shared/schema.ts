@@ -64,6 +64,9 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "
 export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
 export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
 export const resellerPaymentStatusEnum = pgEnum("reseller_payment_status", ["paid", "pending"]);
+export const broadcastChannelEnum = pgEnum("broadcast_channel", ["email", "whatsapp", "sms"]);
+export const broadcastStatusEnum = pgEnum("broadcast_status", ["draft", "pending", "sending", "sent", "failed"]);
+export const messageTemplateTypeEnum = pgEnum("message_template_type", ["promo", "new_product", "voucher", "general"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -850,3 +853,85 @@ export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 
 export type LoyaltyPointsHistory = typeof loyaltyPointsHistory.$inferSelect;
 export type InsertLoyaltyPointsHistory = z.infer<typeof insertLoyaltyPointsHistorySchema>;
+
+// ========================================
+// BROADCAST SYSTEM TABLES
+// ========================================
+
+// Message Templates - Pre-built message templates for common scenarios
+export const messageTemplates = pgTable("message_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Template name (e.g., "Promosi Raya", "Produk Baru")
+  type: messageTemplateTypeEnum("type").notNull(), // promo, new_product, voucher, general
+  subject: text("subject"), // For email (optional)
+  message: text("message").notNull(), // Message body (supports placeholders like {name}, {points})
+  channel: broadcastChannelEnum("channel").notNull(), // email, whatsapp, sms
+  isActive: integer("is_active").notNull().default(1), // 1=active, 0=archived
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Broadcast Campaigns - Track broadcast campaigns
+export const broadcastCampaigns = pgTable("broadcast_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Campaign name
+  channel: broadcastChannelEnum("channel").notNull(), // email, whatsapp, sms
+  subject: text("subject"), // For email
+  message: text("message").notNull(), // Message content
+  targetSegment: text("target_segment").notNull(), // "all", "high_points", "recent_buyers", "custom"
+  targetCustomerIds: text("target_customer_ids").array(), // Array of customer IDs if custom segment
+  status: broadcastStatusEnum("status").notNull().default("draft"), // draft, pending, sending, sent, failed
+  totalRecipients: integer("total_recipients").notNull().default(0), // Total customers targeted
+  sentCount: integer("sent_count").notNull().default(0), // Successfully sent
+  failedCount: integer("failed_count").notNull().default(0), // Failed to send
+  scheduledAt: timestamp("scheduled_at"), // When to send (null = send immediately)
+  sentAt: timestamp("sent_at"), // When actually sent
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Broadcast Messages - Track individual messages sent to customers
+export const broadcastMessages = pgTable("broadcast_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull().references(() => broadcastCampaigns.id, { onDelete: "cascade" }),
+  customerId: varchar("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+  channel: broadcastChannelEnum("channel").notNull(), // email, whatsapp, sms
+  recipient: text("recipient").notNull(), // Email address or phone number
+  status: text("status").notNull().default("pending"), // pending, sent, failed, delivered, read
+  errorMessage: text("error_message"), // Error details if failed
+  externalMessageId: text("external_message_id"), // ID from email/SMS provider
+  sentAt: timestamp("sent_at"), // When message was sent
+  deliveredAt: timestamp("delivered_at"), // When message was delivered (if available)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert Schemas for Broadcast System
+export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBroadcastCampaignSchema = createInsertSchema(broadcastCampaigns).omit({
+  id: true,
+  sentCount: true,
+  failedCount: true,
+  sentAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBroadcastMessageSchema = createInsertSchema(broadcastMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type Exports for Broadcast System
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
+
+export type BroadcastCampaign = typeof broadcastCampaigns.$inferSelect;
+export type InsertBroadcastCampaign = z.infer<typeof insertBroadcastCampaignSchema>;
+
+export type BroadcastMessage = typeof broadcastMessages.$inferSelect;
+export type InsertBroadcastMessage = z.infer<typeof insertBroadcastMessageSchema>;
