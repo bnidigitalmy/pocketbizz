@@ -86,6 +86,15 @@ import {
   type InsertCustomer,
   type LoyaltyPointsHistory,
   type InsertLoyaltyPointsHistory,
+  messageTemplates,
+  broadcastCampaigns,
+  broadcastMessages,
+  type MessageTemplate,
+  type InsertMessageTemplate,
+  type BroadcastCampaign,
+  type InsertBroadcastCampaign,
+  type BroadcastMessage,
+  type InsertBroadcastMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -269,6 +278,22 @@ export interface IStorage {
   awardPoints(customerId: string, points: number, saleId: string | null, description: string): Promise<void>;
   redeemPoints(customerId: string, points: number, description: string): Promise<void>;
   getPointsHistory(customerId: string, limit?: number): Promise<any[]>;
+  
+  // Broadcast System
+  getMessageTemplates(channel?: string): Promise<any[]>;
+  createMessageTemplate(template: any): Promise<any>;
+  updateMessageTemplate(id: string, template: any): Promise<any>;
+  deleteMessageTemplate(id: string): Promise<void>;
+  
+  createBroadcastCampaign(campaign: any): Promise<any>;
+  getBroadcastCampaigns(limit?: number): Promise<any[]>;
+  getBroadcastCampaignById(id: string): Promise<any>;
+  updateBroadcastCampaign(id: string, campaign: any): Promise<any>;
+  deleteBroadcastCampaign(id: string): Promise<void>;
+  
+  getCustomerSegment(segment: string, customIds?: string[]): Promise<any[]>;
+  sendBroadcast(campaignId: string): Promise<void>;
+  getBroadcastMessages(campaignId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2451,6 +2476,172 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
     
     return history;
+  }
+
+  // ========================================
+  // Broadcast System Methods
+  // ========================================
+
+  async getMessageTemplates(channel?: string): Promise<any[]> {
+    if (channel) {
+      return await db.select()
+        .from(messageTemplates)
+        .where(and(
+          eq(messageTemplates.channel, channel as any),
+          eq(messageTemplates.isActive, 1)
+        ))
+        .orderBy(desc(messageTemplates.createdAt));
+    }
+    return await db.select()
+      .from(messageTemplates)
+      .where(eq(messageTemplates.isActive, 1))
+      .orderBy(desc(messageTemplates.createdAt));
+  }
+
+  async createMessageTemplate(template: any): Promise<any> {
+    const [newTemplate] = await db.insert(messageTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async updateMessageTemplate(id: string, template: any): Promise<any> {
+    const [updated] = await db.update(messageTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(messageTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMessageTemplate(id: string): Promise<void> {
+    await db.update(messageTemplates)
+      .set({ isActive: 0, updatedAt: new Date() })
+      .where(eq(messageTemplates.id, id));
+  }
+
+  async createBroadcastCampaign(campaign: any): Promise<any> {
+    const [newCampaign] = await db.insert(broadcastCampaigns).values(campaign).returning();
+    return newCampaign;
+  }
+
+  async getBroadcastCampaigns(limit: number = 50): Promise<any[]> {
+    return await db.select()
+      .from(broadcastCampaigns)
+      .orderBy(desc(broadcastCampaigns.createdAt))
+      .limit(limit);
+  }
+
+  async getBroadcastCampaignById(id: string): Promise<any> {
+    const [campaign] = await db.select()
+      .from(broadcastCampaigns)
+      .where(eq(broadcastCampaigns.id, id));
+    return campaign;
+  }
+
+  async updateBroadcastCampaign(id: string, campaign: any): Promise<any> {
+    const [updated] = await db.update(broadcastCampaigns)
+      .set({ ...campaign, updatedAt: new Date() })
+      .where(eq(broadcastCampaigns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBroadcastCampaign(id: string): Promise<void> {
+    await db.delete(broadcastCampaigns).where(eq(broadcastCampaigns.id, id));
+  }
+
+  async getCustomerSegment(segment: string, customIds?: string[]): Promise<any[]> {
+    // Custom segment with specific customer IDs
+    if (segment === "custom" && customIds && customIds.length > 0) {
+      return await db.select()
+        .from(customers)
+        .where(inArray(customers.id, customIds));
+    }
+
+    // High points customers (500+ points)
+    if (segment === "high_points") {
+      return await db.select()
+        .from(customers)
+        .where(gte(customers.loyaltyPoints, 500))
+        .orderBy(desc(customers.loyaltyPoints));
+    }
+
+    // Recent buyers (purchased in last 30 days)
+    if (segment === "recent_buyers") {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentCustomerIds = await db.selectDistinct({ customerId: sales.customerId })
+        .from(sales)
+        .where(
+          and(
+            gte(sales.createdAt, thirtyDaysAgo),
+            sql`${sales.customerId} IS NOT NULL`
+          )
+        );
+
+      const ids = recentCustomerIds
+        .map(r => r.customerId)
+        .filter(id => id !== null) as string[];
+
+      if (ids.length === 0) return [];
+
+      return await db.select()
+        .from(customers)
+        .where(inArray(customers.id, ids));
+    }
+
+    // Default: all customers
+    return await db.select()
+      .from(customers)
+      .orderBy(desc(customers.createdAt));
+  }
+
+  async sendBroadcast(campaignId: string): Promise<void> {
+    // Get campaign details
+    const campaign = await this.getBroadcastCampaignById(campaignId);
+    if (!campaign) throw new Error("Campaign not found");
+
+    // Get target customers
+    const targetCustomers = await this.getCustomerSegment(
+      campaign.targetSegment,
+      campaign.targetCustomerIds
+    );
+
+    if (targetCustomers.length === 0) {
+      throw new Error("No customers in target segment");
+    }
+
+    // Update campaign status to sending
+    await db.update(broadcastCampaigns)
+      .set({ 
+        status: "sending",
+        totalRecipients: targetCustomers.length,
+        updatedAt: new Date()
+      })
+      .where(eq(broadcastCampaigns.id, campaignId));
+
+    // Create broadcast message records (actual sending will be handled by external service)
+    const messages = targetCustomers.map(customer => ({
+      campaignId,
+      customerId: customer.id,
+      channel: campaign.channel,
+      recipient: campaign.channel === "email" 
+        ? customer.email || ""
+        : customer.phone,
+      status: "pending",
+    }));
+
+    if (messages.length > 0) {
+      await db.insert(broadcastMessages).values(messages);
+    }
+
+    // Note: Actual sending via Twilio/Resend will be done in routes.ts
+  }
+
+  async getBroadcastMessages(campaignId: string): Promise<any[]> {
+    return await db.select()
+      .from(broadcastMessages)
+      .where(eq(broadcastMessages.campaignId, campaignId))
+      .orderBy(desc(broadcastMessages.createdAt));
   }
 }
 

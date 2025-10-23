@@ -3352,6 +3352,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================
+  // BROADCAST SYSTEM ROUTES
+  // ========================================
+
+  // Get message templates
+  app.get("/api/broadcast/templates", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const channel = req.query.channel as string | undefined;
+      const templates = await storage.getMessageTemplates(channel);
+      res.json(templates);
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  // Create message template
+  app.post("/api/broadcast/templates", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const templateSchema = z.object({
+        name: z.string().min(1),
+        type: z.enum(["promo", "new_product", "voucher", "general"]),
+        subject: z.string().optional(),
+        message: z.string().min(1),
+        channel: z.enum(["email", "whatsapp", "sms"]),
+      });
+      
+      const data = templateSchema.parse(req.body);
+      const template = await storage.createMessageTemplate(data);
+      res.json(template);
+    } catch (error) {
+      console.error("Create template error:", error);
+      res.status(500).json({ error: "Failed to create template" });
+    }
+  });
+
+  // Update message template
+  app.put("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const template = await storage.updateMessageTemplate(id, req.body);
+      res.json(template);
+    } catch (error) {
+      console.error("Update template error:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  });
+
+  // Delete message template
+  app.delete("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteMessageTemplate(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete template error:", error);
+      res.status(500).json({ error: "Failed to delete template" });
+    }
+  });
+
+  // Create broadcast campaign
+  app.post("/api/broadcast/campaigns", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const campaignSchema = z.object({
+        name: z.string().min(1),
+        channel: z.enum(["email", "whatsapp", "sms"]),
+        subject: z.string().optional(),
+        message: z.string().min(1),
+        targetSegment: z.enum(["all", "high_points", "recent_buyers", "custom"]),
+        targetCustomerIds: z.array(z.string()).optional(),
+        status: z.enum(["draft", "pending", "sending", "sent", "failed"]).default("draft"),
+        scheduledAt: z.string().optional(),
+      });
+      
+      const data = campaignSchema.parse(req.body);
+      
+      // Validate targetCustomerIds if custom segment
+      if (data.targetSegment === "custom" && (!data.targetCustomerIds || data.targetCustomerIds.length === 0)) {
+        return res.status(400).json({ error: "Custom segment requires customer IDs" });
+      }
+      
+      const campaign = await storage.createBroadcastCampaign(data);
+      res.json(campaign);
+    } catch (error) {
+      console.error("Create campaign error:", error);
+      res.status(500).json({ error: "Failed to create campaign" });
+    }
+  });
+
+  // Get broadcast campaigns
+  app.get("/api/broadcast/campaigns", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const campaigns = await storage.getBroadcastCampaigns(limit);
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Get campaigns error:", error);
+      res.status(500).json({ error: "Failed to get campaigns" });
+    }
+  });
+
+  // Get single campaign
+  app.get("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.getBroadcastCampaignById(id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Get campaign error:", error);
+      res.status(500).json({ error: "Failed to get campaign" });
+    }
+  });
+
+  // Update campaign
+  app.put("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.updateBroadcastCampaign(id, req.body);
+      res.json(campaign);
+    } catch (error) {
+      console.error("Update campaign error:", error);
+      res.status(500).json({ error: "Failed to update campaign" });
+    }
+  });
+
+  // Delete campaign
+  app.delete("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteBroadcastCampaign(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete campaign error:", error);
+      res.status(500).json({ error: "Failed to delete campaign" });
+    }
+  });
+
+  // Get customer segment (preview)
+  app.get("/api/broadcast/segments/:segment", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { segment } = req.params;
+      const customIds = req.query.ids ? (req.query.ids as string).split(',') : undefined;
+      const customers = await storage.getCustomerSegment(segment, customIds);
+      res.json({ count: customers.length, customers });
+    } catch (error) {
+      console.error("Get segment error:", error);
+      res.status(500).json({ error: "Failed to get segment" });
+    }
+  });
+
+  // Send broadcast campaign
+  app.post("/api/broadcast/campaigns/:id/send", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Prepare and send broadcast
+      await storage.sendBroadcast(id);
+      
+      // Get updated campaign
+      const campaign = await storage.getBroadcastCampaignById(id);
+      
+      // TODO: Integrate with Twilio/Resend to actually send messages
+      // For now, we just create the message records
+      
+      res.json({ 
+        success: true, 
+        message: `Broadcast sedang dihantar kepada ${campaign.totalRecipients} pelanggan`,
+        campaign 
+      });
+    } catch (error: any) {
+      console.error("Send broadcast error:", error);
+      res.status(500).json({ error: error.message || "Failed to send broadcast" });
+    }
+  });
+
+  // Get broadcast messages (recipients)
+  app.get("/api/broadcast/campaigns/:id/messages", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const messages = await storage.getBroadcastMessages(id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get broadcast messages error:", error);
+      res.status(500).json({ error: "Failed to get messages" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

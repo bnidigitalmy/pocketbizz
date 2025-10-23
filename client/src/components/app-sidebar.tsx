@@ -21,6 +21,7 @@ import {
   Shield,
   UserCog,
   Award,
+  Send,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -104,6 +105,11 @@ const salesOperationsItems = [
     title: "Pelanggan Setia",
     url: "/customers",
     icon: Award,
+  },
+  {
+    title: "Broadcast",
+    url: "/broadcast",
+    icon: Send,
   },
   {
     title: "Tuntutan",
