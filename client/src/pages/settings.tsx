@@ -17,7 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertBusinessProfileSchema, type InsertBusinessProfile } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Building2 } from "lucide-react";
+import { Building2, QrCode } from "lucide-react";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -38,6 +38,7 @@ export default function Settings() {
       bankName: "",
       accountNumber: "",
       accountName: "",
+      paymentQrCode: "",
     },
     values: businessProfile ? {
       businessName: businessProfile.businessName ?? "",
@@ -49,6 +50,7 @@ export default function Settings() {
       bankName: businessProfile.bankName ?? "",
       accountNumber: businessProfile.accountNumber ?? "",
       accountName: businessProfile.accountName ?? "",
+      paymentQrCode: businessProfile.paymentQrCode ?? "",
     } : undefined,
   });
 
@@ -288,6 +290,31 @@ export default function Settings() {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="paymentQrCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <QrCode className="w-4 h-4" />
+                          QR Code Bayaran (Pilihan)
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="https://example.com/qr-code.png" 
+                            {...field} 
+                            data-testid="input-payment-qr"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          URL gambar QR Code DuitNow / Bank untuk POS. <br />
+                          Boleh upload ke Imgur atau Google Drive dan salin link.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </div>
 
