@@ -30,7 +30,8 @@ import {
   Box,
   ArrowRight,
   Coins,
-  FileText
+  FileText,
+  CreditCard
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -89,16 +90,16 @@ export default function Dashboard() {
 
   const quickActions = [
     {
-      id: "add-sale",
+      id: "pos-sale",
       label: "Rekod Jualan",
-      icon: <Receipt className="h-5 w-5" />,
-      onClick: () => setLocation("/sales"),
+      icon: <CreditCard className="h-5 w-5" />,
+      onClick: () => setLocation("/pos"),
     },
     {
-      id: "add-product",
-      label: "Tambah Produk",
-      icon: <Package className="h-5 w-5" />,
-      onClick: () => setLocation("/products"),
+      id: "add-expense",
+      label: "Rekod Perbelanjaan",
+      icon: <Receipt className="h-5 w-5" />,
+      onClick: () => setLocation("/expenses"),
     },
     {
       id: "add-stock",
