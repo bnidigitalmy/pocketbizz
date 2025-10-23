@@ -43,6 +43,7 @@ import ResellerTransfer from "@/pages/reseller-transfer";
 import ResellerPerformance from "@/pages/reseller-performance";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminUsers from "@/pages/admin-users";
+import Customers from "@/pages/customers";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -75,6 +76,7 @@ function AppRouter() {
         <Route path="/deliveries" component={Deliveries} />
         <Route path="/sales" component={Sales} />
         <Route path="/pos" component={POSPage} />
+        <Route path="/customers" component={Customers} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/claims" component={Claims} />
         <Route path="/reports" component={Reports} />

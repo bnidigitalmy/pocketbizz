@@ -40,6 +40,9 @@ export default function POSPage() {
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"tunai" | "online" | "qr" | "kredit">("tunai");
   const [searchQuery, setSearchQuery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
@@ -60,6 +63,45 @@ export default function POSPage() {
   const { data: saleDetails } = useQuery<any>({
     queryKey: ["/api/sales", lastReceipt?.id],
     enabled: !!lastReceipt?.id && showReceipt,
+  });
+
+  // Customer lookup mutation
+  const lookupCustomerMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      const res = await fetch(`/api/loyalty/customer/${encodeURIComponent(phone)}`);
+      if (!res.ok) throw new Error("Failed to lookup customer");
+      return res.json();
+    },
+    onSuccess: (customer) => {
+      if (customer) {
+        setSelectedCustomer(customer);
+        setCustomerName(customer.name);
+        toast({
+          title: "Pelanggan Dijumpai",
+          description: `${customer.name} - ${customer.loyaltyPoints || 0} mata ganjaran`,
+        });
+      } else {
+        setSelectedCustomer(null);
+        toast({
+          title: "Pelanggan Baru",
+          description: "Nombor ini belum didaftarkan. Masukkan nama untuk daftar.",
+        });
+      }
+    },
+  });
+
+  // Create customer mutation
+  const createCustomerMutation = useMutation({
+    mutationFn: async (data: { name: string; phone: string }) => {
+      return await apiRequest("POST", "/api/loyalty/customer", data);
+    },
+    onSuccess: (customer: any) => {
+      setSelectedCustomer(customer);
+      toast({
+        title: "Pelanggan Berdaftar",
+        description: `${customer.name} berjaya didaftarkan!`,
+      });
+    },
   });
 
   // Filter products based on search
@@ -133,22 +175,34 @@ export default function POSPage() {
       return await apiRequest("POST", "/api/sales", saleData);
     },
     onSuccess: (sale: any) => {
+      const pointsEarned = Math.floor(parseFloat(sale.totalAmount || "0"));
+      const message = selectedCustomer 
+        ? `Resit: ${sale.receiptNumber} | +${pointsEarned} mata ganjaran`
+        : `Resit: ${sale.receiptNumber}`;
+      
       toast({
         title: "Jualan Berjaya",
-        description: `Resit: ${sale.receiptNumber}`,
+        description: message,
       });
       
       setLastReceipt(sale);
       setShowReceipt(true);
       
-      // Clear cart
+      // Clear cart and customer
       setCart([]);
       setCustomerName("");
+      setCustomerPhone("");
+      setSelectedCustomer(null);
+      setPointsToRedeem(0);
       setPaymentMethod("tunai");
       setSearchQuery("");
       
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/loyalty/customers"] });
+      if (selectedCustomer?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/loyalty/history", selectedCustomer.id] });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -159,8 +213,12 @@ export default function POSPage() {
     },
   });
 
+  // Calculate discount from loyalty points (100 points = RM10)
+  const pointsDiscount = Math.floor(pointsToRedeem / 100) * 10;
+  const finalTotal = Math.max(0, subtotal - pointsDiscount);
+
   // Handle checkout
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       toast({
         title: "Troli Kosong",
@@ -170,11 +228,59 @@ export default function POSPage() {
       return;
     }
 
+    // Validate points redemption
+    if (pointsToRedeem > 0) {
+      if (!selectedCustomer) {
+        toast({
+          title: "Ralat",
+          description: "Sila daftar pelanggan untuk guna mata ganjaran",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (pointsToRedeem > selectedCustomer.loyaltyPoints) {
+        toast({
+          title: "Ralat",
+          description: "Mata ganjaran tidak mencukupi",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (pointsToRedeem < 100) {
+        toast({
+          title: "Ralat",
+          description: "Minimum 100 mata untuk tebus",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Register new customer if phone provided but not registered
+    let customerId = selectedCustomer?.id;
+    if (customerPhone && !selectedCustomer && customerName) {
+      try {
+        const newCustomer = await createCustomerMutation.mutateAsync({
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+        });
+        customerId = newCustomer.id;
+      } catch (error) {
+        toast({
+          title: "Ralat",
+          description: "Gagal mendaftar pelanggan",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const saleData = {
       sale: {
         customerName: customerName.trim() || "Walk-in Customer",
+        customerId: customerId || null,
         paymentMethod,
-        totalAmount: subtotal.toFixed(2),
+        totalAmount: finalTotal.toFixed(2),
         saleDate: new Date().toISOString().split('T')[0],
       },
       items: cart.map(item => ({
@@ -187,6 +293,12 @@ export default function POSPage() {
         totalCost: (item.quantity * parseFloat(item.unitCost)).toFixed(2),
         profitAmount: ((parseFloat(item.unitPrice) - parseFloat(item.unitCost)) * item.quantity).toFixed(2),
       })),
+      // Include redemption info so backend can process atomically
+      pointsRedemption: pointsToRedeem > 0 && customerId ? {
+        customerId,
+        points: pointsToRedeem,
+        discount: pointsDiscount,
+      } : null,
     };
 
     createSaleMutation.mutate(saleData);
@@ -523,6 +635,76 @@ export default function POSPage() {
                     />
                   </div>
 
+                  {/* Loyalty Program - Customer Phone */}
+                  <div>
+                    <Label htmlFor="customer-phone">Nombor Telefon <span className="text-muted-foreground text-xs">(Untuk mata ganjaran)</span></Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        id="customer-phone"
+                        data-testid="input-customer-phone"
+                        type="tel"
+                        placeholder="Cth: 0123456789"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                      />
+                      <Button
+                        data-testid="button-lookup-customer"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (customerPhone.trim()) {
+                            lookupCustomerMutation.mutate(customerPhone.trim());
+                          }
+                        }}
+                        disabled={!customerPhone.trim() || lookupCustomerMutation.isPending}
+                      >
+                        {lookupCustomerMutation.isPending ? "..." : "Cari"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Loyalty Points Display */}
+                  {selectedCustomer && (
+                    <Card className="bg-accent/20 border-accent">
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Mata Ganjaran:</span>
+                            <Badge variant="default" className="text-base px-3 py-1" data-testid="badge-loyalty-points">
+                              {selectedCustomer.loyaltyPoints} mata
+                            </Badge>
+                          </div>
+                          
+                          {selectedCustomer.loyaltyPoints >= 100 && (
+                            <div>
+                              <Label htmlFor="points-redeem" className="text-xs">Tebus Mata (100 mata = RM10)</Label>
+                              <Input
+                                id="points-redeem"
+                                data-testid="input-points-redeem"
+                                type="number"
+                                min="0"
+                                max={selectedCustomer.loyaltyPoints}
+                                step="100"
+                                value={pointsToRedeem || ""}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  setPointsToRedeem(Math.min(value, selectedCustomer.loyaltyPoints));
+                                }}
+                                placeholder="0"
+                                className="mt-1"
+                              />
+                              {pointsToRedeem > 0 && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1" data-testid="text-discount-amount">
+                                  Diskaun: RM{pointsDiscount.toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <div>
                     <Label htmlFor="payment-method">Kaedah Bayaran</Label>
                     <Select
@@ -597,14 +779,26 @@ export default function POSPage() {
 
                   {/* Total */}
                   <div className="bg-primary/10 p-5 md:p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-3 md:mb-2">
+                    <div className="flex justify-between items-center mb-2">
                       <span className="text-base md:text-sm text-muted-foreground">Jumlah Item:</span>
                       <span className="font-medium text-base md:text-sm" data-testid="text-total-items">{totalItems}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-base md:text-sm text-muted-foreground">Subtotal:</span>
+                      <span className="font-medium text-base md:text-sm">RM {subtotal.toFixed(2)}</span>
+                    </div>
+                    {pointsDiscount > 0 && (
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-green-600 dark:text-green-400">Diskaun Ganjaran:</span>
+                        <span className="font-medium text-sm text-green-600 dark:text-green-400" data-testid="text-discount-total">
+                          - RM {pointsDiscount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-primary/20">
                       <span className="text-xl md:text-lg font-semibold">JUMLAH:</span>
-                      <span className="text-3xl md:text-2xl font-bold text-primary" data-testid="text-total-amount">
-                        RM {subtotal.toFixed(2)}
+                      <span className="text-3xl md:text-2xl font-bold text-primary" data-testid="text-final-total">
+                        RM {finalTotal.toFixed(2)}
                       </span>
                     </div>
                   </div>

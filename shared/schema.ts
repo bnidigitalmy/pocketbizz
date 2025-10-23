@@ -180,6 +180,7 @@ export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   receiptNumber: text("receipt_number").notNull().unique(), // Format: RES-YYYYMMDD-XXXX
   customerName: text("customer_name"), // Optional customer name
+  customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }), // Link to customer for loyalty
   paymentMethod: paymentMethodEnum("payment_method").notNull().default("tunai"), // tunai, online, kredit
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total sale amount
   totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Total cost (for profit calc)

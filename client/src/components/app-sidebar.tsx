@@ -20,6 +20,7 @@ import {
   LogOut,
   Shield,
   UserCog,
+  Award,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -98,6 +99,11 @@ const salesOperationsItems = [
     title: "Jualan",
     url: "/sales",
     icon: DollarSign,
+  },
+  {
+    title: "Pelanggan Setia",
+    url: "/customers",
+    icon: Award,
   },
   {
     title: "Tuntutan",

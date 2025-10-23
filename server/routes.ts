@@ -2070,12 +2070,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saleCreateSchema = z.object({
         sale: insertSaleSchema,
         items: z.array(insertSalesItemSchema).min(1, "At least one item required"),
+        pointsRedemption: z.object({
+          customerId: z.string(),
+          points: z.number().positive(),
+          discount: z.number().positive(),
+        }).nullable().optional(),
       });
       
       const validated = saleCreateSchema.parse(req.body);
       
+      // Validate and redeem points BEFORE creating sale
+      if (validated.pointsRedemption) {
+        const { customerId, points, discount } = validated.pointsRedemption;
+        
+        // Verify customer exists and has enough points
+        const [customer] = await db.select().from(customers).where(eq(customers.id, customerId));
+        if (!customer) {
+          return res.status(400).json({ error: "Customer not found" });
+        }
+        if (customer.loyaltyPoints < points) {
+          return res.status(400).json({ error: "Insufficient loyalty points" });
+        }
+        
+        // Redeem points before sale creation
+        try {
+          await storage.redeemPoints(customerId, points, `Tebusan diskaun: RM${discount.toFixed(2)}`);
+        } catch (redeemError: any) {
+          console.error('Failed to redeem points:', redeemError);
+          return res.status(400).json({ error: redeemError.message || "Failed to redeem points" });
+        }
+      }
+      
       // Create sale with FIFO stock deduction (atomic transaction)
-      const sale = await storage.createSale(validated.sale, validated.items);
+      let sale;
+      try {
+        sale = await storage.createSale(validated.sale, validated.items);
+      } catch (saleError: any) {
+        // If sale creation fails after redemption, we need to reverse the redemption
+        if (validated.pointsRedemption) {
+          const { customerId, points } = validated.pointsRedemption;
+          try {
+            await storage.awardPoints(
+              customerId,
+              points,
+              null,
+              "Refund - sale gagal dibuat"
+            );
+          } catch (refundError) {
+            console.error('Failed to refund points after sale error:', refundError);
+          }
+        }
+        throw saleError;
+      }
       
       // Auto-award loyalty points if customer is linked (RM1 = 1 point)
       if (validated.sale.customerId) {
