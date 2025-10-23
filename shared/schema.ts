@@ -67,6 +67,10 @@ export const resellerPaymentStatusEnum = pgEnum("reseller_payment_status", ["pai
 export const broadcastChannelEnum = pgEnum("broadcast_channel", ["email", "whatsapp", "sms"]);
 export const broadcastStatusEnum = pgEnum("broadcast_status", ["draft", "pending", "sending", "sent", "failed"]);
 export const messageTemplateTypeEnum = pgEnum("message_template_type", ["promo", "new_product", "voucher", "general"]);
+export const voucherTypeEnum = pgEnum("voucher_type", ["percentage", "fixed_amount"]);
+export const voucherStatusEnum = pgEnum("voucher_status", ["active", "used", "expired", "cancelled"]);
+export const bookingStatusEnum = pgEnum("booking_status", ["pending", "confirmed", "in_progress", "ready", "completed", "cancelled"]);
+export const bookingDeliveryTypeEnum = pgEnum("booking_delivery_type", ["pickup", "delivery"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -935,3 +939,142 @@ export type InsertBroadcastCampaign = z.infer<typeof insertBroadcastCampaignSche
 
 export type BroadcastMessage = typeof broadcastMessages.$inferSelect;
 export type InsertBroadcastMessage = z.infer<typeof insertBroadcastMessageSchema>;
+
+// ========================================
+// CUSTOMER VOUCHER SYSTEM
+// ========================================
+
+// Customer Vouchers - Discount vouchers for loyal customers
+export const customerVouchers = pgTable("customer_vouchers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(), // Unique voucher code e.g., "RAYA2024", "VIP50"
+  name: text("name").notNull(), // Display name
+  description: text("description"), // Optional description
+  voucherType: voucherTypeEnum("voucher_type").notNull(), // percentage or fixed_amount
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(), // 10.00 for 10% or RM10
+  minPurchase: decimal("min_purchase", { precision: 10, scale: 2 }).notNull().default("0"), // Minimum purchase amount
+  maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }), // Max discount cap (for percentage)
+  maxUsagePerCustomer: integer("max_usage_per_customer").notNull().default(1), // How many times each customer can use
+  maxTotalUsage: integer("max_total_usage"), // Total usage limit (null = unlimited)
+  currentUsage: integer("current_usage").notNull().default(0), // Current total usage
+  validFrom: timestamp("valid_from").notNull().defaultNow(), // When voucher becomes valid
+  validUntil: timestamp("valid_until"), // Expiry date (null = no expiry)
+  isActive: integer("is_active").notNull().default(1), // 1=active, 0=deactivated
+  createdBy: varchar("created_by"), // Optional: which admin/user created this
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Voucher Usage - Track voucher redemptions
+export const voucherUsage = pgTable("voucher_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  voucherId: varchar("voucher_id").notNull().references(() => customerVouchers.id, { onDelete: "cascade" }),
+  customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }), // null if used without loyalty account
+  saleId: varchar("sale_id").references(() => sales.id, { onDelete: "set null" }), // Link to POS sale
+  discountApplied: decimal("discount_applied", { precision: 10, scale: 2 }).notNull(), // Actual discount given
+  originalAmount: decimal("original_amount", { precision: 10, scale: 2 }).notNull(), // Amount before discount
+  finalAmount: decimal("final_amount", { precision: 10, scale: 2 }).notNull(), // Amount after discount
+  usedAt: timestamp("used_at").defaultNow().notNull(),
+});
+
+// Insert Schemas for Vouchers
+export const insertCustomerVoucherSchema = createInsertSchema(customerVouchers).omit({
+  id: true,
+  currentUsage: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVoucherUsageSchema = createInsertSchema(voucherUsage).omit({
+  id: true,
+  usedAt: true,
+});
+
+// Type Exports for Vouchers
+export type CustomerVoucher = typeof customerVouchers.$inferSelect;
+export type InsertCustomerVoucher = z.infer<typeof insertCustomerVoucherSchema>;
+
+export type VoucherUsage = typeof voucherUsage.$inferSelect;
+export type InsertVoucherUsage = z.infer<typeof insertVoucherUsageSchema>;
+
+// ========================================
+// BOOKING/RESERVATION SYSTEM
+// ========================================
+
+// Bookings - Customer pre-orders for events
+export const bookings = pgTable("bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingNumber: text("booking_number").notNull().unique(), // e.g., "BK-2024-001"
+  
+  // Customer Details
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
+  customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }), // Link to loyalty customer if exists
+  
+  // Event Details
+  eventType: text("event_type").notNull(), // "Perkahwinan", "Kenduri", "Door Gift", "Jamuan", etc
+  eventDate: date("event_date").notNull(), // Date of the event
+  eventNotes: text("event_notes"), // Special instructions
+  
+  // Delivery/Pickup
+  deliveryType: bookingDeliveryTypeEnum("delivery_type").notNull(), // pickup or delivery
+  deliveryDate: date("delivery_date").notNull(), // When to deliver/pickup
+  deliveryTime: text("delivery_time").notNull(), // e.g., "09:00", "14:30"
+  deliveryAddress: text("delivery_address"), // Full address if delivery
+  deliveryCity: text("delivery_city"),
+  deliveryState: text("delivery_state"),
+  deliveryPostcode: text("delivery_postcode"),
+  
+  // Financial
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total order amount
+  depositPaid: decimal("deposit_paid", { precision: 10, scale: 2 }).notNull().default("0"), // Deposit paid
+  balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull(), // Remaining balance
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("tunai"),
+  
+  // Status & Tracking
+  status: bookingStatusEnum("status").notNull().default("pending"), // pending, confirmed, in_progress, ready, completed, cancelled
+  reminderSent: integer("reminder_sent").notNull().default(0), // 0=not sent, 1=sent
+  reminderSentAt: timestamp("reminder_sent_at"),
+  
+  // Metadata
+  notes: text("notes"), // Internal notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"), // When booking was completed
+});
+
+// Booking Items - Products ordered in the booking
+export const bookingItems = pgTable("booking_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
+  productName: text("product_name").notNull(), // Store name for historical record
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(), // Price per unit at time of booking
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(), // quantity * unitPrice
+  specialInstructions: text("special_instructions"), // e.g., "Extra chocolate chips", "No nuts"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert Schemas for Bookings
+export const insertBookingSchema = createInsertSchema(bookings).omit({
+  id: true,
+  reminderSent: true,
+  reminderSentAt: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+
+export const insertBookingItemSchema = createInsertSchema(bookingItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type Exports for Bookings
+export type Booking = typeof bookings.$inferSelect;
+export type InsertBooking = z.infer<typeof insertBookingSchema>;
+
+export type BookingItem = typeof bookingItems.$inferSelect;
+export type InsertBookingItem = z.infer<typeof insertBookingItemSchema>;
