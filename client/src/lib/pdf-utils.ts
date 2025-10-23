@@ -1045,3 +1045,355 @@ export function generateThermalClaimStatementPDF(
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`thermal-penyata-${vendorName.toLowerCase().replace(/\s+/g, '-')}-${dateStr}.pdf`);
 }
+
+// Thermal Printer Receipt for POS - 58mm format
+export function generateThermalReceipt58mm(sale: any, items: any[], businessProfile?: any) {
+  // 58mm ≈ 164 points width
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: [164, 600] // width, initial height (auto-extends)
+  });
+  
+  const margin = 8;
+  const centerX = 82; // center of 164pt
+  let yPos = 10;
+  
+  // Business Name - Bold & Centered
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(businessProfile?.businessName || 'PocketBizz', centerX, yPos, { align: 'center' });
+  yPos += 12;
+  
+  // Address - Small & Centered
+  if (businessProfile?.address) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    const addressLines = doc.splitTextToSize(businessProfile.address, 148);
+    addressLines.forEach((line: string) => {
+      doc.text(line, centerX, yPos, { align: 'center' });
+      yPos += 8;
+    });
+  }
+  
+  // Phone
+  if (businessProfile?.phone) {
+    doc.setFontSize(7);
+    doc.text(`Tel: ${businessProfile.phone}`, centerX, yPos, { align: 'center' });
+    yPos += 8;
+  }
+  
+  // Separator
+  yPos += 2;
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, 164 - margin, yPos);
+  yPos += 8;
+  
+  // Receipt Title
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESIT JUALAN', centerX, yPos, { align: 'center' });
+  yPos += 10;
+  
+  // Receipt Details
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No: ${sale.receiptNumber}`, margin, yPos);
+  yPos += 8;
+  doc.text(`Tarikh: ${new Date(sale.saleDate).toLocaleDateString('ms-MY')}`, margin, yPos);
+  yPos += 8;
+  doc.text(`Pelanggan: ${sale.customerName}`, margin, yPos);
+  yPos += 8;
+  
+  // Separator
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 164 - margin, yPos);
+  yPos += 6;
+  
+  // Items Header
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Produk', margin, yPos);
+  doc.text('Harga', 164 - margin - 35, yPos, { align: 'right' });
+  yPos += 8;
+  
+  doc.setLineWidth(0.2);
+  doc.line(margin, yPos - 2, 164 - margin, yPos - 2);
+  yPos += 2;
+  
+  // Items List
+  doc.setFont('helvetica', 'normal');
+  items.forEach((item: any) => {
+    // Product name
+    const nameLines = doc.splitTextToSize(item.productName, 100);
+    nameLines.forEach((line: string, idx: number) => {
+      doc.text(line, margin, yPos);
+      if (idx === nameLines.length - 1) {
+        // Show quantity x price on last line
+        doc.text(`${item.quantity} x RM${parseFloat(item.unitPrice).toFixed(2)}`, margin + 3, yPos + 7);
+      }
+      yPos += 8;
+    });
+    
+    yPos += 7;
+    
+    // Total for this item
+    doc.setFont('helvetica', 'bold');
+    doc.text(`RM ${parseFloat(item.totalPrice).toFixed(2)}`, 164 - margin, yPos, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    yPos += 10;
+  });
+  
+  // Separator
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 164 - margin, yPos);
+  yPos += 10;
+  
+  // Total
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('JUMLAH:', margin, yPos);
+  doc.text(`RM ${parseFloat(sale.totalAmount).toFixed(2)}`, 164 - margin, yPos, { align: 'right' });
+  yPos += 12;
+  
+  // Payment Method
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  const paymentMethodMap: {[key: string]: string} = {
+    'tunai': 'TUNAI',
+    'online': 'ONLINE TRANSFER',
+    'qr': 'QR CODE / DUITNOW',
+    'kredit': 'KREDIT'
+  };
+  doc.text(`Bayaran: ${paymentMethodMap[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}`, margin, yPos);
+  yPos += 10;
+  
+  // QR Code for payment (if available and paid with QR)
+  if (businessProfile?.paymentQrCode && sale.paymentMethod === 'qr') {
+    yPos += 5;
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, 164 - margin, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('QR Code Bayaran:', centerX, yPos, { align: 'center' });
+    yPos += 8;
+    
+    try {
+      // Add QR code centered
+      const qrSize = 80;
+      doc.addImage(businessProfile.paymentQrCode, 'JPEG', centerX - qrSize/2, yPos, qrSize, qrSize);
+      yPos += qrSize + 8;
+    } catch (e) {
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      doc.text('(QR Code)', centerX, yPos, { align: 'center' });
+      yPos += 10;
+    }
+  }
+  
+  // Footer
+  yPos += 5;
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, 164 - margin, yPos);
+  yPos += 10;
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Terima Kasih!', centerX, yPos, { align: 'center' });
+  yPos += 8;
+  
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Sila simpan resit ini', centerX, yPos, { align: 'center' });
+  
+  return doc;
+}
+
+// Thermal Printer Receipt for POS - 80mm format
+export function generateThermalReceipt80mm(sale: any, items: any[], businessProfile?: any) {
+  // 80mm ≈ 226 points width
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: [226, 600] // width, initial height (auto-extends)
+  });
+  
+  const margin = 12;
+  const centerX = 113; // center of 226pt
+  let yPos = 12;
+  
+  // Business Name - Bold & Centered
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(businessProfile?.businessName || 'PocketBizz', centerX, yPos, { align: 'center' });
+  yPos += 14;
+  
+  // Tagline
+  if (businessProfile?.tagline) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(businessProfile.tagline, centerX, yPos, { align: 'center' });
+    yPos += 10;
+  }
+  
+  // Address - Small & Centered
+  if (businessProfile?.address) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const addressLines = doc.splitTextToSize(businessProfile.address, 202);
+    addressLines.forEach((line: string) => {
+      doc.text(line, centerX, yPos, { align: 'center' });
+      yPos += 9;
+    });
+  }
+  
+  // Phone & Email
+  if (businessProfile?.phone || businessProfile?.email) {
+    doc.setFontSize(8);
+    if (businessProfile?.phone) {
+      doc.text(`Tel: ${businessProfile.phone}`, centerX, yPos, { align: 'center' });
+      yPos += 9;
+    }
+    if (businessProfile?.email) {
+      doc.text(businessProfile.email, centerX, yPos, { align: 'center' });
+      yPos += 9;
+    }
+  }
+  
+  // Separator
+  yPos += 3;
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, 226 - margin, yPos);
+  yPos += 10;
+  
+  // Receipt Title
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESIT JUALAN', centerX, yPos, { align: 'center' });
+  yPos += 12;
+  
+  // Receipt Details - Two columns
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No: ${sale.receiptNumber}`, margin, yPos);
+  yPos += 9;
+  doc.text(`Tarikh: ${new Date(sale.saleDate).toLocaleDateString('ms-MY')}`, margin, yPos);
+  doc.text(`Masa: ${new Date(sale.saleDate).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}`, 226 - margin, yPos, { align: 'right' });
+  yPos += 9;
+  doc.text(`Pelanggan: ${sale.customerName}`, margin, yPos);
+  yPos += 10;
+  
+  // Separator
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 226 - margin, yPos);
+  yPos += 8;
+  
+  // Items Header
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Produk', margin, yPos);
+  doc.text('Qty', 150, yPos, { align: 'center' });
+  doc.text('Harga', 180, yPos, { align: 'right' });
+  doc.text('Jumlah', 226 - margin, yPos, { align: 'right' });
+  yPos += 9;
+  
+  doc.setLineWidth(0.2);
+  doc.line(margin, yPos - 2, 226 - margin, yPos - 2);
+  yPos += 3;
+  
+  // Items List
+  doc.setFont('helvetica', 'normal');
+  items.forEach((item: any) => {
+    // Product name (may wrap)
+    const nameLines = doc.splitTextToSize(item.productName, 130);
+    nameLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 9;
+    });
+    
+    // Move back up to align qty, price, total with last line of product name
+    yPos -= 9;
+    
+    // Quantity, Unit Price, Total
+    doc.text(item.quantity.toString(), 150, yPos, { align: 'center' });
+    doc.text(`${parseFloat(item.unitPrice).toFixed(2)}`, 180, yPos, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${parseFloat(item.totalPrice).toFixed(2)}`, 226 - margin, yPos, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    yPos += 12;
+  });
+  
+  // Separator
+  yPos += 2;
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, 226 - margin, yPos);
+  yPos += 12;
+  
+  // Total
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('JUMLAH:', margin, yPos);
+  doc.text(`RM ${parseFloat(sale.totalAmount).toFixed(2)}`, 226 - margin, yPos, { align: 'right' });
+  yPos += 14;
+  
+  // Payment Method
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const paymentMethodMap: {[key: string]: string} = {
+    'tunai': 'TUNAI',
+    'online': 'ONLINE TRANSFER',
+    'qr': 'QR CODE / DUITNOW',
+    'kredit': 'KREDIT'
+  };
+  doc.text(`Bayaran: ${paymentMethodMap[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}`, margin, yPos);
+  yPos += 12;
+  
+  // QR Code for payment (if available and paid with QR)
+  if (businessProfile?.paymentQrCode && sale.paymentMethod === 'qr') {
+    yPos += 5;
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, 226 - margin, yPos);
+    yPos += 10;
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('QR Code Bayaran:', centerX, yPos, { align: 'center' });
+    yPos += 10;
+    
+    try {
+      // Add QR code centered
+      const qrSize = 100;
+      doc.addImage(businessProfile.paymentQrCode, 'JPEG', centerX - qrSize/2, yPos, qrSize, qrSize);
+      yPos += qrSize + 10;
+    } catch (e) {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text('(QR Code)', centerX, yPos, { align: 'center' });
+      yPos += 12;
+    }
+  }
+  
+  // Footer
+  yPos += 8;
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, 226 - margin, yPos);
+  yPos += 12;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Terima Kasih!', centerX, yPos, { align: 'center' });
+  yPos += 10;
+  
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Sila simpan resit ini sebagai bukti pembelian', centerX, yPos, { align: 'center' });
+  yPos += 8;
+  
+  if (businessProfile?.businessName) {
+    doc.text(`- ${businessProfile.businessName} -`, centerX, yPos, { align: 'center' });
+  }
+  
+  return doc;
+}

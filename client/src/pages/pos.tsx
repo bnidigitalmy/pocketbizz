@@ -25,6 +25,7 @@ import type { Product } from "@shared/schema";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { BatchPreviewInfo } from "@/components/batch-preview-info";
+import { generateThermalReceipt58mm, generateThermalReceipt80mm } from "@/lib/pdf-utils";
 
 interface CartItem {
   productId: string;
@@ -43,6 +44,7 @@ export default function POSPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
+  const [thermalFormat, setThermalFormat] = useState<"58mm" | "80mm">("80mm");
 
   // Fetch products for selection
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -259,7 +261,7 @@ export default function POSPage() {
     return doc;
   };
 
-  // Handle Print
+  // Handle Print - Standard A4
   const handlePrint = () => {
     const doc = generatePDF();
     if (doc) {
@@ -269,6 +271,44 @@ export default function POSPage() {
       toast({
         title: "Cetak Resit",
         description: "Dialog cetak dibuka",
+      });
+    }
+  };
+
+  // Handle Thermal Print
+  const handleThermalPrint = () => {
+    if (!lastReceipt || !saleDetails) return;
+
+    const doc = thermalFormat === "58mm" 
+      ? generateThermalReceipt58mm(lastReceipt, saleDetails.items, businessProfile)
+      : generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+
+    if (doc) {
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+      
+      toast({
+        title: "Cetak Resit Thermal",
+        description: `Format ${thermalFormat} dibuka`,
+      });
+    }
+  };
+
+  // Download Thermal Receipt
+  const handleDownloadThermal = () => {
+    if (!lastReceipt || !saleDetails) return;
+
+    const doc = thermalFormat === "58mm" 
+      ? generateThermalReceipt58mm(lastReceipt, saleDetails.items, businessProfile)
+      : generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+
+    if (doc) {
+      const filename = `resit-${lastReceipt.receiptNumber}-${thermalFormat}.pdf`;
+      doc.save(filename);
+      
+      toast({
+        title: "Muat Turun Berjaya",
+        description: `Resit ${thermalFormat} dimuat turun`,
       });
     }
   };
@@ -623,17 +663,64 @@ export default function POSPage() {
                 Terima kasih!
               </div>
 
+              {/* Thermal Printer Format Selection */}
+              <div className="border-t pt-4 space-y-3">
+                <Label className="text-sm font-semibold">Format Printer Thermal</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    data-testid="button-select-58mm"
+                    onClick={() => setThermalFormat("58mm")}
+                    variant={thermalFormat === "58mm" ? "default" : "outline"}
+                    className="h-10"
+                  >
+                    58mm
+                  </Button>
+                  <Button
+                    data-testid="button-select-80mm"
+                    onClick={() => setThermalFormat("80mm")}
+                    variant={thermalFormat === "80mm" ? "default" : "outline"}
+                    className="h-10"
+                  >
+                    80mm
+                  </Button>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button
-                  data-testid="button-print-receipt"
+                  data-testid="button-print-thermal"
+                  onClick={handleThermalPrint}
+                  variant="default"
+                  disabled={!saleDetails}
+                  className="flex items-center justify-center gap-2 h-12 md:h-10"
+                >
+                  <Printer className="w-5 h-5 md:w-4 md:h-4" />
+                  Cetak ({thermalFormat})
+                </Button>
+
+                <Button
+                  data-testid="button-download-thermal"
+                  onClick={handleDownloadThermal}
+                  variant="outline"
+                  disabled={!saleDetails}
+                  className="flex items-center justify-center gap-2 h-12 md:h-10"
+                >
+                  <Download className="w-5 h-5 md:w-4 md:h-4" />
+                  Muat Turun ({thermalFormat})
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Button
+                  data-testid="button-print-a4"
                   onClick={handlePrint}
                   variant="outline"
                   disabled={!saleDetails}
                   className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
-                  <Printer className="w-5 h-5 md:w-4 md:h-4" />
-                  Cetak
+                  <Receipt className="w-5 h-5 md:w-4 md:h-4" />
+                  A4
                 </Button>
 
                 <Button
