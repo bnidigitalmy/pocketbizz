@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { deliveryItems, earlyBirdTracking, billingHistory } from "@shared/schema";
+import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
@@ -2077,6 +2077,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create sale with FIFO stock deduction (atomic transaction)
       const sale = await storage.createSale(validated.sale, validated.items);
       
+      // Auto-award loyalty points if customer is linked (RM1 = 1 point)
+      if (validated.sale.customerId) {
+        const totalAmount = parseFloat(validated.sale.totalAmount || "0");
+        const pointsToAward = Math.floor(totalAmount); // RM1 = 1 point
+        
+        if (pointsToAward > 0) {
+          try {
+            await storage.awardPoints(
+              validated.sale.customerId,
+              pointsToAward,
+              sale.id,
+              `Pembelian #${sale.receiptNumber}: RM${totalAmount.toFixed(2)}`
+            );
+          } catch (pointsError) {
+            console.error('Failed to award loyalty points:', pointsError);
+            // Don't fail the sale if points award fails
+          }
+        }
+      }
+      
       res.json(sale);
     } catch (error: any) {
       console.error('[ERROR] POST /api/sales failed:', error);
@@ -3191,6 +3211,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin revenue analytics error:", error);
       res.status(500).json({ error: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  // ========================================
+  // LOYALTY PROGRAM ROUTES
+  // ========================================
+  
+  // Get customer by phone
+  app.get("/api/loyalty/customer/:phone", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { phone } = req.params;
+      const customer = await storage.getCustomerByPhone(phone);
+      res.json(customer || null);
+    } catch (error) {
+      console.error("Get customer error:", error);
+      res.status(500).json({ error: "Failed to get customer" });
+    }
+  });
+
+  // Create new customer
+  app.post("/api/loyalty/customer", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const customerSchema = z.object({
+        name: z.string().min(1),
+        phone: z.string().min(1),
+      });
+      
+      const data = customerSchema.parse(req.body);
+      
+      // Check if phone already exists
+      const existing = await storage.getCustomerByPhone(data.phone);
+      if (existing) {
+        return res.status(400).json({ error: "Nombor telefon sudah didaftarkan" });
+      }
+      
+      const customer = await storage.createCustomer({
+        ...data,
+        loyaltyPoints: 0,
+      });
+      
+      res.json(customer);
+    } catch (error) {
+      console.error("Create customer error:", error);
+      res.status(500).json({ error: "Failed to create customer" });
+    }
+  });
+
+  // Get all customers
+  app.get("/api/loyalty/customers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error("Get customers error:", error);
+      res.status(500).json({ error: "Failed to get customers" });
+    }
+  });
+
+  // Get customer points history
+  app.get("/api/loyalty/history/:customerId", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { customerId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const history = await storage.getPointsHistory(customerId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Get points history error:", error);
+      res.status(500).json({ error: "Failed to get points history" });
+    }
+  });
+
+  // Redeem points
+  app.post("/api/loyalty/redeem", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const redeemSchema = z.object({
+        customerId: z.string(),
+        points: z.number().positive(),
+        description: z.string(),
+      });
+      
+      const data = redeemSchema.parse(req.body);
+      await storage.redeemPoints(data.customerId, data.points, data.description);
+      
+      // Return updated customer
+      const customer = await storage.getCustomerByPhone((await db.select().from(customers).where(eq(customers.id, data.customerId)))[0]?.phone || '');
+      res.json(customer);
+    } catch (error: any) {
+      console.error("Redeem points error:", error);
+      if (error.message === "Insufficient points") {
+        return res.status(400).json({ error: "Mata ganjaran tidak mencukupi" });
+      }
+      res.status(500).json({ error: "Failed to redeem points" });
     }
   });
 
