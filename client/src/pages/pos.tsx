@@ -48,6 +48,11 @@ export default function POSPage() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [thermalFormat, setThermalFormat] = useState<"58mm" | "80mm">("80mm");
+  
+  // Voucher states
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<any>(null);
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
 
   // Fetch products for selection
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -100,6 +105,37 @@ export default function POSPage() {
       toast({
         title: "Pelanggan Berdaftar",
         description: `${customer.name} berjaya didaftarkan!`,
+      });
+    },
+  });
+
+  // Voucher validation mutation
+  const validateVoucherMutation = useMutation({
+    mutationFn: async (data: { code: string; customerId?: string; totalAmount: number }) => {
+      const response = await apiRequest("POST", "/api/vouchers/validate", data);
+      return await response.json();
+    },
+    onSuccess: (result) => {
+      if (result.valid) {
+        setAppliedVoucher(result.voucher);
+        setVoucherDiscount(result.discount);
+        toast({
+          title: "Voucher Sah",
+          description: `Diskaun RM${result.discount.toFixed(2)} digunakan`,
+        });
+      } else {
+        toast({
+          title: "Voucher Tidak Sah",
+          description: result.error || "Kod voucher tidak dapat digunakan",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Ralat",
+        description: "Gagal mengesahkan voucher",
+        variant: "destructive",
       });
     },
   });
@@ -194,6 +230,9 @@ export default function POSPage() {
       setCustomerPhone("");
       setSelectedCustomer(null);
       setPointsToRedeem(0);
+      setVoucherCode("");
+      setAppliedVoucher(null);
+      setVoucherDiscount(0);
       setPaymentMethod("tunai");
       setSearchQuery("");
       
@@ -215,7 +254,45 @@ export default function POSPage() {
 
   // Calculate discount from loyalty points (100 points = RM10)
   const pointsDiscount = Math.floor(pointsToRedeem / 100) * 10;
-  const finalTotal = Math.max(0, subtotal - pointsDiscount);
+  const totalAfterPoints = Math.max(0, subtotal - pointsDiscount);
+  const finalTotal = Math.max(0, totalAfterPoints - voucherDiscount);
+
+  // Handle apply voucher
+  const handleApplyVoucher = () => {
+    if (!voucherCode.trim()) {
+      toast({
+        title: "Ralat",
+        description: "Sila masukkan kod voucher",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (totalAfterPoints <= 0) {
+      toast({
+        title: "Ralat",
+        description: "Jumlah perlu lebih dari RM0 untuk guna voucher",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    validateVoucherMutation.mutate({
+      code: voucherCode.trim(),
+      customerId: selectedCustomer?.id,
+      totalAmount: totalAfterPoints,
+    });
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherDiscount(0);
+    setVoucherCode("");
+    toast({
+      title: "Voucher Dibuang",
+      description: "Voucher telah dialih keluar",
+    });
+  };
 
   // Handle checkout
   const handleCheckout = async () => {
@@ -298,6 +375,14 @@ export default function POSPage() {
         customerId,
         points: pointsToRedeem,
         discount: pointsDiscount,
+      } : null,
+      // Include voucher redemption info
+      voucherRedemption: appliedVoucher ? {
+        voucherId: appliedVoucher.id,
+        customerId: customerId || null,
+        code: appliedVoucher.code,
+        originalAmount: totalAfterPoints,
+        discount: voucherDiscount,
       } : null,
     };
 
@@ -705,6 +790,66 @@ export default function POSPage() {
                     </Card>
                   )}
 
+                  {/* Voucher Section */}
+                  <Card className="bg-accent/10 border-accent/30">
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <Label htmlFor="voucher-code" className="text-sm font-medium">
+                          Kod Voucher Diskaun
+                        </Label>
+                        
+                        {!appliedVoucher ? (
+                          <div className="flex gap-2">
+                            <Input
+                              id="voucher-code"
+                              data-testid="input-voucher-code"
+                              placeholder="Masukkan kod voucher"
+                              value={voucherCode}
+                              onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                              className="uppercase"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleApplyVoucher}
+                              disabled={!voucherCode.trim() || validateVoucherMutation.isPending}
+                              data-testid="button-apply-voucher"
+                            >
+                              {validateVoucherMutation.isPending ? "..." : "Guna"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default" className="bg-green-600" data-testid="badge-voucher-applied">
+                                  {appliedVoucher.code}
+                                </Badge>
+                                <span className="text-sm font-medium">{appliedVoucher.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveVoucher}
+                                data-testid="button-remove-voucher"
+                                className="h-7 text-xs"
+                              >
+                                Buang
+                              </Button>
+                            </div>
+                            <p className="text-sm text-green-700 dark:text-green-300 font-medium" data-testid="text-voucher-discount">
+                              Diskaun: -RM{voucherDiscount.toFixed(2)}
+                            </p>
+                            {appliedVoucher.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{appliedVoucher.description}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <div>
                     <Label htmlFor="payment-method">Kaedah Bayaran</Label>
                     <Select
@@ -792,6 +937,14 @@ export default function POSPage() {
                         <span className="text-sm text-green-600 dark:text-green-400">Diskaun Ganjaran:</span>
                         <span className="font-medium text-sm text-green-600 dark:text-green-400" data-testid="text-discount-total">
                           - RM {pointsDiscount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {voucherDiscount > 0 && (
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-green-600 dark:text-green-400">Diskaun Voucher:</span>
+                        <span className="font-medium text-sm text-green-600 dark:text-green-400" data-testid="text-voucher-total-discount">
+                          - RM {voucherDiscount.toFixed(2)}
                         </span>
                       </div>
                     )}

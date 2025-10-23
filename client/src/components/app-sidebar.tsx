@@ -22,6 +22,7 @@ import {
   UserCog,
   Award,
   Send,
+  Ticket,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -110,6 +111,11 @@ const salesOperationsItems = [
     title: "Broadcast",
     url: "/broadcast",
     icon: Send,
+  },
+  {
+    title: "Voucher",
+    url: "/vouchers",
+    icon: Ticket,
   },
   {
     title: "Tuntutan",

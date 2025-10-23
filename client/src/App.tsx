@@ -45,6 +45,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import AdminUsers from "@/pages/admin-users";
 import Customers from "@/pages/customers";
 import Broadcast from "@/pages/broadcast";
+import Vouchers from "@/pages/vouchers";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -79,6 +80,7 @@ function AppRouter() {
         <Route path="/pos" component={POSPage} />
         <Route path="/customers" component={Customers} />
         <Route path="/broadcast" component={Broadcast} />
+        <Route path="/vouchers" component={Vouchers} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/claims" component={Claims} />
         <Route path="/reports" component={Reports} />

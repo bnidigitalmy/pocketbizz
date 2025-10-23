@@ -95,6 +95,18 @@ import {
   type InsertBroadcastCampaign,
   type BroadcastMessage,
   type InsertBroadcastMessage,
+  customerVouchers,
+  voucherUsage,
+  type CustomerVoucher,
+  type InsertCustomerVoucher,
+  type VoucherUsage,
+  type InsertVoucherUsage,
+  bookings,
+  bookingItems,
+  type Booking,
+  type InsertBooking,
+  type BookingItem,
+  type InsertBookingItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -294,6 +306,29 @@ export interface IStorage {
   getCustomerSegment(segment: string, customIds?: string[]): Promise<any[]>;
   sendBroadcast(campaignId: string): Promise<void>;
   getBroadcastMessages(campaignId: string): Promise<any[]>;
+  
+  // Voucher System
+  createVoucher(voucher: any): Promise<any>;
+  getVouchers(): Promise<any[]>;
+  getVoucherById(id: string): Promise<any | undefined>;
+  getVoucherByCode(code: string): Promise<any | undefined>;
+  updateVoucher(id: string, voucher: any): Promise<any>;
+  deleteVoucher(id: string): Promise<void>;
+  validateVoucher(code: string, customerId: string | null, totalAmount: number): Promise<{ valid: boolean; voucher?: any; discount?: number; error?: string }>;
+  redeemVoucher(voucherId: string, customerId: string | null, saleId: string | null, originalAmount: number, finalAmount: number, discountApplied: number): Promise<void>;
+  getVoucherUsageHistory(voucherId: string): Promise<any[]>;
+  getCustomerVoucherUsage(customerId: string, voucherId: string): Promise<number>;
+  
+  // Booking System
+  createBooking(booking: any, items: any[]): Promise<any>;
+  getBookings(limit?: number, status?: string): Promise<any[]>;
+  getBookingById(id: string): Promise<any | undefined>;
+  updateBooking(id: string, booking: any): Promise<any>;
+  deleteBooking(id: string): Promise<void>;
+  generateBookingNumber(): Promise<string>;
+  getUpcomingBookings(daysAhead: number): Promise<any[]>;
+  markReminderSent(bookingId: string): Promise<void>;
+  getBookingItems(bookingId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2642,6 +2677,309 @@ export class DatabaseStorage implements IStorage {
       .from(broadcastMessages)
       .where(eq(broadcastMessages.campaignId, campaignId))
       .orderBy(desc(broadcastMessages.createdAt));
+  }
+
+  // ========================================
+  // VOUCHER SYSTEM METHODS
+  // ========================================
+
+  async createVoucher(voucher: any): Promise<any> {
+    const [newVoucher] = await db.insert(customerVouchers).values(voucher).returning();
+    return newVoucher;
+  }
+
+  async getVouchers(): Promise<any[]> {
+    return await db.select()
+      .from(customerVouchers)
+      .orderBy(desc(customerVouchers.createdAt));
+  }
+
+  async getVoucherById(id: string): Promise<any | undefined> {
+    const [voucher] = await db.select()
+      .from(customerVouchers)
+      .where(eq(customerVouchers.id, id));
+    return voucher || undefined;
+  }
+
+  async getVoucherByCode(code: string): Promise<any | undefined> {
+    const [voucher] = await db.select()
+      .from(customerVouchers)
+      .where(eq(customerVouchers.code, code.toUpperCase()));
+    return voucher || undefined;
+  }
+
+  async updateVoucher(id: string, voucher: any): Promise<any> {
+    const [updated] = await db.update(customerVouchers)
+      .set({ ...voucher, updatedAt: new Date() })
+      .where(eq(customerVouchers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteVoucher(id: string): Promise<void> {
+    await db.update(customerVouchers)
+      .set({ isActive: 0, updatedAt: new Date() })
+      .where(eq(customerVouchers.id, id));
+  }
+
+  async validateVoucher(
+    code: string, 
+    customerId: string | null, 
+    totalAmount: number
+  ): Promise<{ valid: boolean; voucher?: any; discount?: number; error?: string }> {
+    // Find voucher
+    const voucher = await this.getVoucherByCode(code);
+    
+    if (!voucher) {
+      return { valid: false, error: "Kod voucher tidak sah" };
+    }
+
+    // Check if active
+    if (!voucher.isActive) {
+      return { valid: false, error: "Voucher tidak aktif" };
+    }
+
+    // Check validity dates
+    const now = new Date();
+    if (voucher.validFrom && new Date(voucher.validFrom) > now) {
+      return { valid: false, error: "Voucher belum bermula" };
+    }
+    if (voucher.validUntil && new Date(voucher.validUntil) < now) {
+      return { valid: false, error: "Voucher telah tamat tempoh" };
+    }
+
+    // Check minimum purchase
+    if (totalAmount < parseFloat(voucher.minPurchase)) {
+      return { 
+        valid: false, 
+        error: `Pembelian minimum RM${voucher.minPurchase} diperlukan` 
+      };
+    }
+
+    // Check total usage limit
+    if (voucher.maxTotalUsage && voucher.currentUsage >= voucher.maxTotalUsage) {
+      return { valid: false, error: "Voucher telah habis digunakan" };
+    }
+
+    // Check customer usage limit (if customerId provided)
+    if (customerId) {
+      const customerUsageCount = await this.getCustomerVoucherUsage(customerId, voucher.id);
+      if (customerUsageCount >= voucher.maxUsagePerCustomer) {
+        return { 
+          valid: false, 
+          error: "Anda telah mencapai had penggunaan voucher ini" 
+        };
+      }
+    }
+
+    // Calculate discount
+    let discount = 0;
+    if (voucher.voucherType === "percentage") {
+      discount = totalAmount * (parseFloat(voucher.discountValue) / 100);
+      // Apply max discount cap if set
+      if (voucher.maxDiscount) {
+        discount = Math.min(discount, parseFloat(voucher.maxDiscount));
+      }
+    } else {
+      discount = parseFloat(voucher.discountValue);
+    }
+
+    // Ensure discount doesn't exceed total
+    discount = Math.min(discount, totalAmount);
+
+    return { 
+      valid: true, 
+      voucher, 
+      discount: parseFloat(discount.toFixed(2))
+    };
+  }
+
+  async redeemVoucher(
+    voucherId: string, 
+    customerId: string | null,
+    saleId: string | null,
+    originalAmount: number,
+    finalAmount: number, 
+    discountApplied: number
+  ): Promise<void> {
+    // Record usage
+    await db.insert(voucherUsage).values({
+      voucherId,
+      customerId,
+      saleId,
+      originalAmount: originalAmount.toString(),
+      finalAmount: finalAmount.toString(),
+      discountApplied: discountApplied.toString(),
+    });
+
+    // Increment usage count
+    await db.update(customerVouchers)
+      .set({ 
+        currentUsage: sql`${customerVouchers.currentUsage} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(customerVouchers.id, voucherId));
+  }
+
+  async getVoucherUsageHistory(voucherId: string): Promise<any[]> {
+    const usage = await db.select({
+      id: voucherUsage.id,
+      customerId: voucherUsage.customerId,
+      customerName: customers.name,
+      customerPhone: customers.phone,
+      saleId: voucherUsage.saleId,
+      discountApplied: voucherUsage.discountApplied,
+      originalAmount: voucherUsage.originalAmount,
+      finalAmount: voucherUsage.finalAmount,
+      usedAt: voucherUsage.usedAt,
+    })
+    .from(voucherUsage)
+    .leftJoin(customers, eq(voucherUsage.customerId, customers.id))
+    .where(eq(voucherUsage.voucherId, voucherId))
+    .orderBy(desc(voucherUsage.usedAt));
+
+    return usage;
+  }
+
+  async getCustomerVoucherUsage(customerId: string, voucherId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(voucherUsage)
+      .where(
+        and(
+          eq(voucherUsage.customerId, customerId),
+          eq(voucherUsage.voucherId, voucherId)
+        )
+      );
+    
+    return result[0]?.count || 0;
+  }
+
+  // ========================================
+  // BOOKING SYSTEM METHODS
+  // ========================================
+
+  async generateBookingNumber(): Promise<string> {
+    const now = new Date();
+    const year = now.getFullYear();
+    
+    // Get count of bookings today
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(bookings)
+      .where(gte(bookings.createdAt, today));
+    
+    const count = (result[0]?.count || 0) + 1;
+    return `BK-${year}-${String(count).padStart(4, '0')}`;
+  }
+
+  async createBooking(booking: any, items: any[]): Promise<any> {
+    // Generate booking number
+    const bookingNumber = await this.generateBookingNumber();
+    
+    // Create booking
+    const [newBooking] = await db.insert(bookings)
+      .values({ ...booking, bookingNumber })
+      .returning();
+
+    // Create booking items
+    if (items.length > 0) {
+      await db.insert(bookingItems).values(
+        items.map(item => ({
+          ...item,
+          bookingId: newBooking.id,
+        }))
+      );
+    }
+
+    // Return booking with items
+    const bookingWithItems = {
+      ...newBooking,
+      items: await this.getBookingItems(newBooking.id),
+    };
+
+    return bookingWithItems;
+  }
+
+  async getBookings(limit: number = 50, status?: string): Promise<any[]> {
+    let query = db.select()
+      .from(bookings)
+      .orderBy(desc(bookings.createdAt))
+      .limit(limit);
+
+    if (status) {
+      query = query.where(eq(bookings.status, status as any));
+    }
+
+    const allBookings = await query;
+
+    // Get items for each booking
+    const bookingsWithItems = await Promise.all(
+      allBookings.map(async (booking) => ({
+        ...booking,
+        items: await this.getBookingItems(booking.id),
+      }))
+    );
+
+    return bookingsWithItems;
+  }
+
+  async getBookingById(id: string): Promise<any | undefined> {
+    const [booking] = await db.select()
+      .from(bookings)
+      .where(eq(bookings.id, id));
+    
+    if (!booking) return undefined;
+
+    const items = await this.getBookingItems(id);
+    return { ...booking, items };
+  }
+
+  async updateBooking(id: string, booking: any): Promise<any> {
+    const [updated] = await db.update(bookings)
+      .set({ ...booking, updatedAt: new Date() })
+      .where(eq(bookings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBooking(id: string): Promise<void> {
+    await db.delete(bookings).where(eq(bookings.id, id));
+  }
+
+  async getBookingItems(bookingId: string): Promise<any[]> {
+    return await db.select()
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, bookingId))
+      .orderBy(bookingItems.createdAt);
+  }
+
+  async getUpcomingBookings(daysAhead: number = 7): Promise<any[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + daysAhead);
+
+    return await db.select()
+      .from(bookings)
+      .where(
+        and(
+          gte(bookings.deliveryDate, today.toISOString().split('T')[0]),
+          lte(bookings.deliveryDate, futureDate.toISOString().split('T')[0]),
+          sql`${bookings.status} != 'completed' AND ${bookings.status} != 'cancelled'`
+        )
+      )
+      .orderBy(bookings.deliveryDate, bookings.deliveryTime);
+  }
+
+  async markReminderSent(bookingId: string): Promise<void> {
+    await db.update(bookings)
+      .set({ 
+        reminderSent: 1, 
+        reminderSentAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(bookings.id, bookingId));
   }
 }
 

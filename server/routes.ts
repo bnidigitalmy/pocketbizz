@@ -2075,6 +2075,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           points: z.number().positive(),
           discount: z.number().positive(),
         }).nullable().optional(),
+        voucherRedemption: z.object({
+          voucherId: z.string(),
+          customerId: z.string().nullable().optional(),
+          code: z.string(),
+          originalAmount: z.number().positive(),
+          discount: z.number().positive(),
+        }).nullable().optional(),
       });
       
       const validated = saleCreateSchema.parse(req.body);
@@ -2100,6 +2107,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: redeemError.message || "Failed to redeem points" });
         }
       }
+
+      // Validate and redeem voucher BEFORE creating sale
+      let voucherRedemptionData: any = null;
+      if (validated.voucherRedemption) {
+        const { voucherId, customerId, originalAmount, discount } = validated.voucherRedemption;
+        
+        try {
+          // Redeem voucher atomically
+          const finalAmount = originalAmount - discount;
+          await storage.redeemVoucher(
+            voucherId,
+            customerId || null,
+            null, // saleId will be null initially, could update later if needed
+            originalAmount,
+            finalAmount,
+            discount
+          );
+          voucherRedemptionData = validated.voucherRedemption;
+        } catch (voucherError: any) {
+          console.error('Failed to redeem voucher:', voucherError);
+          
+          // If voucher redemption fails after points redemption, refund points
+          if (validated.pointsRedemption) {
+            const { customerId, points } = validated.pointsRedemption;
+            try {
+              await storage.awardPoints(
+                customerId,
+                points,
+                null,
+                "Refund - voucher gagal ditebus"
+              );
+            } catch (refundError) {
+              console.error('Failed to refund points after voucher error:', refundError);
+            }
+          }
+          
+          return res.status(400).json({ error: voucherError.message || "Failed to redeem voucher" });
+        }
+      }
       
       // Create sale with FIFO stock deduction (atomic transaction)
       let sale;
@@ -2120,6 +2166,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Failed to refund points after sale error:', refundError);
           }
         }
+        
+        // Note: Voucher redemption cannot be easily reversed since it updates usage count
+        // In production, you might want to implement a more sophisticated reversal mechanism
+        // For now, voucher usage is atomic and will remain counted even if sale fails
+        
         throw saleError;
       }
       
@@ -3539,6 +3590,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get broadcast messages error:", error);
       res.status(500).json({ error: "Failed to get messages" });
+    }
+  });
+
+  // ========================================
+  // VOUCHER SYSTEM ROUTES
+  // ========================================
+
+  app.post("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const voucher = await storage.createVoucher(req.body);
+      res.json(voucher);
+    } catch (error: any) {
+      console.error("Create voucher error:", error);
+      res.status(500).json({ error: "Failed to create voucher" });
+    }
+  });
+
+  app.get("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const vouchers = await storage.getVouchers();
+      res.json(vouchers);
+    } catch (error) {
+      console.error("Get vouchers error:", error);
+      res.status(500).json({ error: "Failed to get vouchers" });
+    }
+  });
+
+  app.get("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const voucher = await storage.getVoucherById(req.params.id);
+      if (!voucher) return res.status(404).json({ error: "Voucher not found" });
+      res.json(voucher);
+    } catch (error) {
+      console.error("Get voucher error:", error);
+      res.status(500).json({ error: "Failed to get voucher" });
+    }
+  });
+
+  app.put("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const voucher = await storage.updateVoucher(req.params.id, req.body);
+      res.json(voucher);
+    } catch (error) {
+      console.error("Update voucher error:", error);
+      res.status(500).json({ error: "Failed to update voucher" });
+    }
+  });
+
+  app.delete("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      await storage.deleteVoucher(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete voucher error:", error);
+      res.status(500).json({ error: "Failed to delete voucher" });
+    }
+  });
+
+  app.post("/api/vouchers/validate", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { code, customerId, totalAmount } = req.body;
+      const result = await storage.validateVoucher(code, customerId || null, parseFloat(totalAmount));
+      res.json(result);
+    } catch (error) {
+      console.error("Validate voucher error:", error);
+      res.status(500).json({ error: "Failed to validate voucher" });
+    }
+  });
+
+  app.get("/api/vouchers/:id/usage", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const usage = await storage.getVoucherUsageHistory(req.params.id);
+      res.json(usage);
+    } catch (error) {
+      console.error("Get voucher usage error:", error);
+      res.status(500).json({ error: "Failed to get usage history" });
+    }
+  });
+
+  // ========================================
+  // BOOKING SYSTEM ROUTES
+  // ========================================
+
+  app.post("/api/bookings", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { items, ...booking } = req.body;
+      const newBooking = await storage.createBooking(booking, items || []);
+      res.json(newBooking);
+    } catch (error) {
+      console.error("Create booking error:", error);
+      res.status(500).json({ error: "Failed to create booking" });
+    }
+  });
+
+  app.get("/api/bookings", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const status = req.query.status as string | undefined;
+      const bookings = await storage.getBookings(limit, status);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Get bookings error:", error);
+      res.status(500).json({ error: "Failed to get bookings" });
+    }
+  });
+
+  app.get("/api/bookings/upcoming", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const daysAhead = parseInt(req.query.days as string) || 7;
+      const bookings = await storage.getUpcomingBookings(daysAhead);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Get upcoming bookings error:", error);
+      res.status(500).json({ error: "Failed to get upcoming bookings" });
+    }
+  });
+
+  app.get("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const booking = await storage.getBookingById(req.params.id);
+      if (!booking) return res.status(404).json({ error: "Booking not found" });
+      res.json(booking);
+    } catch (error) {
+      console.error("Get booking error:", error);
+      res.status(500).json({ error: "Failed to get booking" });
+    }
+  });
+
+  app.put("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const booking = await storage.updateBooking(req.params.id, req.body);
+      res.json(booking);
+    } catch (error) {
+      console.error("Update booking error:", error);
+      res.status(500).json({ error: "Failed to update booking" });
+    }
+  });
+
+  app.delete("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      await storage.deleteBooking(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete booking error:", error);
+      res.status(500).json({ error: "Failed to delete booking" });
+    }
+  });
+
+  app.post("/api/bookings/:id/reminder", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      await storage.markReminderSent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark reminder sent error:", error);
+      res.status(500).json({ error: "Failed to mark reminder sent" });
     }
   });
 
