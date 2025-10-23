@@ -66,7 +66,8 @@ export default function Broadcast() {
   // Create and send campaign mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/broadcast/campaigns", data);
+      const response = await apiRequest("POST", "/api/broadcast/campaigns", data);
+      return await response.json();
     },
     onSuccess: (campaign: any) => {
       toast({
@@ -90,12 +91,13 @@ export default function Broadcast() {
   // Send campaign mutation
   const sendCampaignMutation = useMutation({
     mutationFn: async (campaignId: string) => {
-      return await apiRequest("POST", `/api/broadcast/campaigns/${campaignId}/send`, {});
+      const response = await apiRequest("POST", `/api/broadcast/campaigns/${campaignId}/send`, {});
+      return await response.json();
     },
-    onSuccess: (response: any) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Broadcast Dihantar",
-        description: response.message,
+        description: data.message || `Broadcast telah dihantar kepada ${data.campaign?.totalRecipients || 0} pelanggan`,
       });
       
       // Reset form
