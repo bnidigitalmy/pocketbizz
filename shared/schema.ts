@@ -798,3 +798,54 @@ export type InsertResellerTransfer = z.infer<typeof insertResellerTransferSchema
 
 export type ResellerTransferItem = typeof resellerTransferItems.$inferSelect;
 export type InsertResellerTransferItem = z.infer<typeof insertResellerTransferItemSchema>;
+
+// ========================================
+// LOYALTY PROGRAM TABLES
+// ========================================
+
+// Customers Table - Track unique customers and their loyalty points
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Customer name
+  phone: text("phone").notNull().unique(), // Phone number - unique identifier
+  email: text("email"), // Optional email
+  loyaltyPoints: integer("loyalty_points").notNull().default(0), // Current points balance
+  totalSpent: decimal("total_spent", { precision: 10, scale: 2 }).notNull().default("0"), // Lifetime spending
+  totalVisits: integer("total_visits").notNull().default(0), // Number of purchases
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Loyalty Points History - Track all point transactions
+export const loyaltyPointsHistory = pgTable("loyalty_points_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+  saleId: varchar("sale_id").references(() => sales.id, { onDelete: "set null" }), // Link to sale if earned from purchase
+  pointsChange: integer("points_change").notNull(), // Positive for earned, negative for redeemed
+  balanceAfter: integer("balance_after").notNull(), // Points balance after this transaction
+  transactionType: text("transaction_type").notNull(), // "earned", "redeemed", "expired", "adjustment"
+  description: text("description"), // Optional description
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert Schemas for Loyalty Program
+export const insertCustomerSchema = createInsertSchema(customers).omit({
+  id: true,
+  loyaltyPoints: true,
+  totalSpent: true,
+  totalVisits: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLoyaltyPointsHistorySchema = createInsertSchema(loyaltyPointsHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type Exports for Loyalty Program
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+
+export type LoyaltyPointsHistory = typeof loyaltyPointsHistory.$inferSelect;
+export type InsertLoyaltyPointsHistory = z.infer<typeof insertLoyaltyPointsHistorySchema>;

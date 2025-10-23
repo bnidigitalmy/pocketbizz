@@ -80,6 +80,12 @@ import {
   type InsertResellerTransfer,
   type ResellerTransferItem,
   type InsertResellerTransferItem,
+  customers,
+  loyaltyPointsHistory,
+  type Customer,
+  type InsertCustomer,
+  type LoyaltyPointsHistory,
+  type InsertLoyaltyPointsHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -254,6 +260,15 @@ export interface IStorage {
   updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal>;
   deleteGoal(id: string): Promise<void>;
   getGoalProgress(userId: string, targetMonth: string): Promise<any>;
+  
+  // Loyalty Program
+  getCustomerByPhone(phone: string): Promise<any | undefined>;
+  createCustomer(customer: any): Promise<any>;
+  updateCustomer(id: string, customer: any): Promise<any>;
+  getCustomers(): Promise<any[]>;
+  awardPoints(customerId: string, points: number, saleId: string | null, description: string): Promise<void>;
+  redeemPoints(customerId: string, points: number, description: string): Promise<void>;
+  getPointsHistory(customerId: string, limit?: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2342,6 +2357,100 @@ export class DatabaseStorage implements IStorage {
         salesVolumeProgress: goal.salesVolumeTarget > 0 ? (actualSalesVolume / goal.salesVolumeTarget) * 100 : 0,
       }
     };
+  }
+
+  // ========================================
+  // LOYALTY PROGRAM METHODS
+  // ========================================
+
+  async getCustomerByPhone(phone: string): Promise<any | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    return customer || undefined;
+  }
+
+  async createCustomer(customer: any): Promise<any> {
+    const [newCustomer] = await db.insert(customers).values(customer).returning();
+    return newCustomer;
+  }
+
+  async updateCustomer(id: string, customerData: any): Promise<any> {
+    const [updated] = await db.update(customers)
+      .set({ ...customerData, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getCustomers(): Promise<any[]> {
+    const result = await db.select().from(customers).orderBy(desc(customers.createdAt));
+    return result;
+  }
+
+  async awardPoints(customerId: string, points: number, saleId: string | null, description: string): Promise<void> {
+    // Get current customer points
+    const [customer] = await db.select().from(customers).where(eq(customers.id, customerId));
+    if (!customer) throw new Error("Customer not found");
+
+    const newBalance = (customer.loyaltyPoints || 0) + points;
+
+    // Update customer points
+    await db.update(customers)
+      .set({ 
+        loyaltyPoints: newBalance,
+        updatedAt: new Date()
+      })
+      .where(eq(customers.id, customerId));
+
+    // Log transaction
+    await db.insert(loyaltyPointsHistory).values({
+      customerId,
+      saleId,
+      pointsChange: points,
+      balanceAfter: newBalance,
+      transactionType: "earned",
+      description,
+    });
+  }
+
+  async redeemPoints(customerId: string, points: number, description: string): Promise<void> {
+    // Get current customer points
+    const [customer] = await db.select().from(customers).where(eq(customers.id, customerId));
+    if (!customer) throw new Error("Customer not found");
+
+    const currentPoints = customer.loyaltyPoints || 0;
+    if (currentPoints < points) {
+      throw new Error("Insufficient points");
+    }
+
+    const newBalance = currentPoints - points;
+
+    // Update customer points
+    await db.update(customers)
+      .set({ 
+        loyaltyPoints: newBalance,
+        updatedAt: new Date()
+      })
+      .where(eq(customers.id, customerId));
+
+    // Log transaction (negative points for redemption)
+    await db.insert(loyaltyPointsHistory).values({
+      customerId,
+      saleId: null,
+      pointsChange: -points,
+      balanceAfter: newBalance,
+      transactionType: "redeemed",
+      description,
+    });
+  }
+
+  async getPointsHistory(customerId: string, limit: number = 50): Promise<any[]> {
+    const history = await db.select()
+      .from(loyaltyPointsHistory)
+      .where(eq(loyaltyPointsHistory.customerId, customerId))
+      .orderBy(desc(loyaltyPointsHistory.createdAt))
+      .limit(limit);
+    
+    return history;
   }
 }
 
