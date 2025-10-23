@@ -227,6 +227,7 @@ export const businessProfile = pgTable("business_profile", {
   bankName: text("bank_name"),
   accountNumber: text("account_number"),
   accountName: text("account_name"),
+  paymentQrCode: text("payment_qr_code"), // DuitNow / Bank QR code image URL
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

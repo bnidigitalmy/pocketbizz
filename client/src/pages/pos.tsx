@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package, Printer, Share2, Download } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, DollarSign, Receipt, Package, Printer, Share2, Download, QrCode } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
@@ -39,7 +39,7 @@ export default function POSPage() {
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "online" | "kredit">("tunai");
+  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "online" | "qr" | "kredit">("tunai");
   const [searchQuery, setSearchQuery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
@@ -168,18 +168,9 @@ export default function POSPage() {
       return;
     }
 
-    if (!customerName.trim()) {
-      toast({
-        title: "Nama Pelanggan Diperlukan",
-        description: "Sila masukkan nama pelanggan",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const saleData = {
       sale: {
-        customerName: customerName.trim(),
+        customerName: customerName.trim() || "Walk-in Customer",
         paymentMethod,
         totalAmount: subtotal.toFixed(2),
         saleDate: new Date().toISOString().split('T')[0],
@@ -401,7 +392,7 @@ export default function POSPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto mb-4">
+                <div className="space-y-3 mb-4">
                   {cart.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       Troli kosong
@@ -480,12 +471,12 @@ export default function POSPage() {
                 {/* Customer & Payment Details */}
                 <div className="space-y-4 border-t pt-4">
                   <div>
-                    <Label htmlFor="customer-name">Nama Pelanggan</Label>
+                    <Label htmlFor="customer-name">Nama Pelanggan <span className="text-muted-foreground text-xs">(Pilihan)</span></Label>
                     <Input
                       id="customer-name"
                       data-testid="input-customer-name"
                       type="text"
-                      placeholder="Nama pelanggan..."
+                      placeholder="Nama pelanggan (tidak wajib)..."
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="mt-1"
@@ -508,6 +499,12 @@ export default function POSPage() {
                             Tunai
                           </span>
                         </SelectItem>
+                        <SelectItem value="qr" data-testid="option-qr">
+                          <span className="flex items-center gap-2">
+                            <QrCode className="w-4 h-4" />
+                            QR Code / DuitNow
+                          </span>
+                        </SelectItem>
                         <SelectItem value="online" data-testid="option-online">
                           <span className="flex items-center gap-2">
                             <CreditCard className="w-4 h-4" />
@@ -523,6 +520,40 @@ export default function POSPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* QR Code Display */}
+                  {paymentMethod === "qr" && (
+                    <div className="bg-muted/50 p-4 rounded-lg border">
+                      {businessProfile?.paymentQrCode ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-center text-muted-foreground font-medium">
+                            Imbas QR Code untuk bayaran
+                          </p>
+                          <div className="flex justify-center">
+                            <img 
+                              src={businessProfile.paymentQrCode} 
+                              alt="Payment QR Code" 
+                              className="max-w-[200px] max-h-[200px] rounded-lg border-2"
+                              data-testid="img-payment-qr"
+                            />
+                          </div>
+                          <p className="text-xs text-center text-muted-foreground">
+                            Selepas pembayaran, tekan butang "Proses Jualan"
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <QrCode className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground">
+                            QR Code belum disediakan
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sila upload QR code di halaman Tetapan
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Total */}
                   <div className="bg-primary/10 p-5 md:p-4 rounded-lg">
