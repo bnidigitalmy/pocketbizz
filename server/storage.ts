@@ -4,6 +4,7 @@ import {
   ingredients,
   productionBatches,
   vendors,
+  suppliers,
   deliveries,
   deliveryItems,
   sales,
@@ -28,6 +29,8 @@ import {
   type InsertProductionBatch,
   type Vendor,
   type InsertVendor,
+  type Supplier,
+  type InsertSupplier,
   type Delivery,
   type InsertDelivery,
   type DeliveryItem,
@@ -615,6 +618,33 @@ export class DatabaseStorage implements IStorage {
   async createVendor(vendor: InsertVendor): Promise<Vendor> {
     const [newVendor] = await db.insert(vendors).values(vendor).returning();
     return newVendor;
+  }
+
+  // Suppliers (for Purchase Orders - beli bahan mentah)
+  async getSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return supplier || undefined;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [newSupplier] = await db.insert(suppliers).values(supplier).returning();
+    return newSupplier;
+  }
+
+  async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier> {
+    const [updated] = await db.update(suppliers)
+      .set(supplier)
+      .where(eq(suppliers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSupplier(id: string): Promise<void> {
+    await db.delete(suppliers).where(eq(suppliers.id, id));
   }
 
   // Deliveries

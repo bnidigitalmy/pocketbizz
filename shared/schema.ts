@@ -147,12 +147,22 @@ export const productionBatches = pgTable("production_batches", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Vendors Table
+// Vendors Table (kedai untuk hantar produk jual - consignment)
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   phone: text("phone"),
   address: text("address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Suppliers Table (tempat beli bahan mentah - purchase orders)
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  address: text("address"),
+  email: text("email"), // For sending POs via email
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -284,7 +294,7 @@ export const shoppingCart = pgTable("shopping_cart", {
 export const purchaseOrders = pgTable("purchase_orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   poNumber: text("po_number").notNull().unique(), // PO-20251025-001
-  supplierId: varchar("supplier_id").references(() => vendors.id, { onDelete: "set null" }),
+  supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
   supplierName: text("supplier_name").notNull(), // Denormalized
   supplierPhone: text("supplier_phone"), // Denormalized for easy contact
   status: purchaseOrderStatusEnum("status").default("draft").notNull(),
@@ -314,7 +324,7 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
 export const poTemplates = pgTable("po_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   templateName: text("template_name").notNull(), // User-friendly name
-  supplierId: varchar("supplier_id").references(() => vendors.id, { onDelete: "set null" }),
+  supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
   supplierName: text("supplier_name").notNull(),
   supplierPhone: text("supplier_phone"),
   notes: text("notes"),
@@ -375,6 +385,11 @@ export const vendorsRelations = relations(vendors, ({ many }) => ({
   commissions: many(vendorCommissions),
 }));
 
+export const suppliersRelations = relations(suppliers, ({ many }) => ({
+  purchaseOrders: many(purchaseOrders),
+  templates: many(poTemplates),
+}));
+
 export const vendorCommissionsRelations = relations(vendorCommissions, ({ one }) => ({
   vendor: one(vendors, {
     fields: [vendorCommissions.vendorId],
@@ -394,9 +409,9 @@ export const shoppingCartRelations = relations(shoppingCart, ({ one }) => ({
 }));
 
 export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many }) => ({
-  supplier: one(vendors, {
+  supplier: one(suppliers, {
     fields: [purchaseOrders.supplierId],
-    references: [vendors.id],
+    references: [suppliers.id],
   }),
   items: many(purchaseOrderItems),
   expense: one(expenses, {
@@ -417,9 +432,9 @@ export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one 
 }));
 
 export const poTemplatesRelations = relations(poTemplates, ({ one, many }) => ({
-  supplier: one(vendors, {
+  supplier: one(suppliers, {
     fields: [poTemplates.supplierId],
-    references: [vendors.id],
+    references: [suppliers.id],
   }),
   items: many(poTemplateItems),
 }));
@@ -505,6 +520,11 @@ export const insertProductionBatchSchema = createInsertSchema(productionBatches)
 });
 
 export const insertVendorSchema = createInsertSchema(vendors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({
   id: true,
   createdAt: true,
 });
@@ -598,6 +618,9 @@ export type InsertProductionBatch = z.infer<typeof insertProductionBatchSchema>;
 
 export type Vendor = typeof vendors.$inferSelect;
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
+
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
 
 export type Delivery = typeof deliveries.$inferSelect;
 export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
