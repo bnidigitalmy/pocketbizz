@@ -65,10 +65,7 @@ export default function PurchaseOrders() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest(`/api/purchase-orders/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
+      return await apiRequest("PATCH", `/api/purchase-orders/${id}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
@@ -81,10 +78,7 @@ export default function PurchaseOrders() {
 
   const markReceivedMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/purchase-orders/${id}/receive`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
+      return await apiRequest("POST", `/api/purchase-orders/${id}/receive`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
@@ -108,9 +102,7 @@ export default function PurchaseOrders() {
 
   const deletePOMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/purchase-orders/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/purchase-orders/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });

@@ -100,9 +100,7 @@ export default function ShoppingList() {
 
   const removeCartItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
-      await apiRequest(`/api/shopping-cart/${itemId}`, {
-        method: "DELETE",
-      });
+      await apiRequest("DELETE", `/api/shopping-cart/${itemId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/shopping-cart"] });
@@ -118,17 +116,14 @@ export default function ShoppingList() {
       const stockItem = allStockItems.find(s => s.id === data.stockItemId);
       if (!stockItem) throw new Error("Stock item not found");
 
-      await apiRequest("/api/shopping-cart", {
-        method: "POST",
-        body: JSON.stringify({
-          stockItemId: data.stockItemId,
-          stockItemName: stockItem.name,
-          shortageQty: data.quantity,
-          unit: stockItem.unit,
-          notes: data.notes || null,
-          productionBatchId: null,
-          productName: null,
-        }),
+      await apiRequest("POST", "/api/shopping-cart", {
+        stockItemId: data.stockItemId,
+        stockItemName: stockItem.name,
+        shortageQty: data.quantity,
+        unit: stockItem.unit,
+        notes: data.notes || null,
+        productionBatchId: null,
+        productName: null,
       });
     },
     onSuccess: () => {
@@ -173,20 +168,17 @@ export default function ShoppingList() {
         const newQty = editableCartItems[item.id];
         if (newQty && newQty !== item.shortageQty) {
           // Remove old item
-          await apiRequest(`/api/shopping-cart/${item.id}`, { method: "DELETE" });
+          await apiRequest("DELETE", `/api/shopping-cart/${item.id}`);
           
           // Add updated item
-          await apiRequest("/api/shopping-cart", {
-            method: "POST",
-            body: JSON.stringify({
-              stockItemId: item.stockItemId,
-              stockItemName: item.stockItemName,
-              shortageQty: newQty,
-              unit: item.unit,
-              notes: item.notes,
-              productionBatchId: item.productionBatchId,
-              productName: item.productName,
-            }),
+          await apiRequest("POST", "/api/shopping-cart", {
+            stockItemId: item.stockItemId,
+            stockItemName: item.stockItemName,
+            shortageQty: newQty,
+            unit: item.unit,
+            notes: item.notes,
+            productionBatchId: item.productionBatchId,
+            productName: item.productName,
           });
         }
       }
@@ -196,18 +188,15 @@ export default function ShoppingList() {
       const freshCart = await fetch("/api/shopping-cart").then(r => r.json());
       const freshCartIds = freshCart.map((item: CartItem) => item.id);
 
-      const response = await apiRequest("/api/purchase-orders/from-cart", {
-        method: "POST",
-        body: JSON.stringify({
-          supplierId: selectedSupplierId,
-          supplierName,
-          supplierPhone,
-          notes: poNotes || null,
-          cartItemIds: freshCartIds,
-        }),
+      const response = await apiRequest("POST", "/api/purchase-orders/from-cart", {
+        supplierId: selectedSupplierId,
+        supplierName,
+        supplierPhone,
+        notes: poNotes || null,
+        cartItemIds: freshCartIds,
       });
 
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
