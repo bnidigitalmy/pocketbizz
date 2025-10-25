@@ -49,7 +49,7 @@ interface CartItem {
   createdAt: string;
 }
 
-interface Vendor {
+interface Supplier {
   id: string;
   name: string;
   email: string | null;
@@ -85,8 +85,8 @@ export default function ShoppingList() {
     queryKey: ["/api/shopping-cart"],
   });
 
-  const { data: vendors = [] } = useQuery<Vendor[]>({
-    queryKey: ["/api/vendors"],
+  const { data: suppliers = [] } = useQuery<Supplier[]>({
+    queryKey: ["/api/suppliers"],
   });
 
   // Initialize editable quantities when cart loads
@@ -150,10 +150,10 @@ export default function ShoppingList() {
       let supplierPhone: string | null = null;
       
       if (selectedSupplierId) {
-        const vendor = vendors.find(v => v.id === selectedSupplierId);
-        if (vendor) {
-          supplierName = vendor.name;
-          supplierPhone = vendor.phone;
+        const supplier = suppliers.find(s => s.id === selectedSupplierId);
+        if (supplier) {
+          supplierName = supplier.name;
+          supplierPhone = supplier.phone;
         }
       } else if (customSupplierName.trim()) {
         supplierName = customSupplierName.trim();
@@ -496,9 +496,9 @@ export default function ShoppingList() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="custom">+ Supplier Baru (Manual)</SelectItem>
-                            {vendors.map(vendor => (
-                              <SelectItem key={vendor.id} value={vendor.id}>
-                                {vendor.name}
+                            {suppliers.map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
