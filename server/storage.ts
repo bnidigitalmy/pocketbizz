@@ -189,23 +189,23 @@ export interface IStorage {
   getMonthlyData(userId: string): Promise<any[]>;
   
   // Advanced Analytics
-  getProductPerformanceAnalytics(): Promise<any>;
-  getVendorPerformanceLeaderboard(): Promise<any[]>;
-  getAgentPerformanceLeaderboard(): Promise<any[]>;
-  getSalesTrendData(days: number): Promise<any[]>;
+  getProductPerformanceAnalytics(userId: string): Promise<any>;
+  getVendorPerformanceLeaderboard(userId: string): Promise<any[]>;
+  getAgentPerformanceLeaderboard(userId: string): Promise<any[]>;
+  getSalesTrendData(userId: string, days: number): Promise<any[]>;
   
   // Claims
   getClaimsSummary(userId: string, limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
   getClaimDetailsByVendor(userId: string, vendorId: string): Promise<any>;
   
   // Business Profile
-  getBusinessProfile(): Promise<BusinessProfile | undefined>;
-  createOrUpdateBusinessProfile(profile: InsertBusinessProfile): Promise<BusinessProfile>;
+  getBusinessProfile(userId: string): Promise<BusinessProfile | undefined>;
+  createOrUpdateBusinessProfile(userId: string, profile: InsertBusinessProfile): Promise<BusinessProfile>;
   
   // Google Drive Sync
-  logGoogleDriveSync(log: InsertGoogleDriveSyncLog): Promise<GoogleDriveSyncLog>;
-  getGoogleDriveSyncLogs(): Promise<GoogleDriveSyncLog[]>;
-  getGoogleDriveSyncLogsByDelivery(deliveryId: string): Promise<GoogleDriveSyncLog[]>;
+  logGoogleDriveSync(userId: string, log: InsertGoogleDriveSyncLog): Promise<GoogleDriveSyncLog>;
+  getGoogleDriveSyncLogs(userId: string): Promise<GoogleDriveSyncLog[]>;
+  getGoogleDriveSyncLogsByDelivery(userId: string, deliveryId: string): Promise<GoogleDriveSyncLog[]>;
   
   // Vendor Commissions
   getVendorCommission(userId: string, vendorId: string): Promise<VendorCommission | undefined>;
@@ -230,21 +230,21 @@ export interface IStorage {
   deleteRecipeItems(productId: string): Promise<void>;
   
   // Shopping Cart
-  addToShoppingCart(item: InsertShoppingCart): Promise<ShoppingCart>;
-  getShoppingCartItems(): Promise<ShoppingCart[]>;
-  removeFromCart(id: string): Promise<void>;
-  clearCart(): Promise<void>;
-  bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void>;
+  addToShoppingCart(userId: string, item: InsertShoppingCart): Promise<ShoppingCart>;
+  getShoppingCartItems(userId: string): Promise<ShoppingCart[]>;
+  removeFromCart(userId: string, id: string): Promise<void>;
+  clearCart(userId: string): Promise<void>;
+  bulkPurchaseAndUpdateStock(userId: string, cartItemIds: string[]): Promise<void>;
   
   // Purchase Orders (Smart Supplier Order Hub)
-  createPurchaseOrder(order: InsertPurchaseOrder, items: InsertPurchaseOrderItem[]): Promise<PurchaseOrder>;
-  getPurchaseOrders(): Promise<any[]>; // Returns orders with items
-  getPurchaseOrder(id: string): Promise<any | undefined>; // Returns order with items
-  updatePurchaseOrderStatus(id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder>;
-  updatePurchaseOrder(id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any>;
-  deletePurchaseOrder(id: string): Promise<void>;
-  createPurchaseOrderFromCart(supplierId: string | null, supplierName: string, supplierPhone: string | null, notes: string | null, cartItemIds: string[]): Promise<PurchaseOrder>;
-  markPurchaseOrderReceived(id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void>;
+  createPurchaseOrder(userId: string, order: InsertPurchaseOrder, items: InsertPurchaseOrderItem[]): Promise<PurchaseOrder>;
+  getPurchaseOrders(userId: string): Promise<any[]>; // Returns orders with items
+  getPurchaseOrder(userId: string, id: string): Promise<any | undefined>; // Returns order with items
+  updatePurchaseOrderStatus(userId: string, id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder>;
+  updatePurchaseOrder(userId: string, id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any>;
+  deletePurchaseOrder(userId: string, id: string): Promise<void>;
+  createPurchaseOrderFromCart(userId: string, supplierId: string | null, supplierName: string, supplierPhone: string | null, notes: string | null, cartItemIds: string[]): Promise<PurchaseOrder>;
+  markPurchaseOrderReceived(userId: string, id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void>;
   
   // Users & Authentication
   getAllUsers(): Promise<User[]>;
@@ -309,52 +309,58 @@ export interface IStorage {
   getGoalProgress(userId: string, targetMonth: string): Promise<any>;
   
   // Loyalty Program
-  getCustomerByPhone(phone: string): Promise<any | undefined>;
-  createCustomer(customer: any): Promise<any>;
+  getCustomerByPhone(userId: string, phone: string): Promise<any | undefined>;
+  createCustomer(userId: string, customer: any): Promise<any>;
   updateCustomer(id: string, customer: any): Promise<any>;
-  getCustomers(): Promise<any[]>;
+  getCustomers(userId: string): Promise<any[]>;
   awardPoints(customerId: string, points: number, saleId: string | null, description: string): Promise<void>;
-  redeemPoints(customerId: string, points: number, description: string): Promise<void>;
-  getPointsHistory(customerId: string, limit?: number): Promise<any[]>;
+  redeemPoints(userId: string, customerId: string, points: number, description: string): Promise<void>;
+  getPointsHistory(userId: string, customerId: string, limit?: number): Promise<any[]>;
   
   // Broadcast System
-  getMessageTemplates(channel?: string): Promise<any[]>;
-  createMessageTemplate(template: any): Promise<any>;
-  updateMessageTemplate(id: string, template: any): Promise<any>;
-  deleteMessageTemplate(id: string): Promise<void>;
+  getMessageTemplates(userId: string, channel?: string): Promise<any[]>;
+  createMessageTemplate(userId: string, template: any): Promise<any>;
+  updateMessageTemplate(userId: string, id: string, template: any): Promise<any>;
+  deleteMessageTemplate(userId: string, id: string): Promise<void>;
   
-  createBroadcastCampaign(campaign: any): Promise<any>;
-  getBroadcastCampaigns(limit?: number): Promise<any[]>;
-  getBroadcastCampaignById(id: string): Promise<any>;
-  updateBroadcastCampaign(id: string, campaign: any): Promise<any>;
-  deleteBroadcastCampaign(id: string): Promise<void>;
+  createBroadcastCampaign(userId: string, campaign: any): Promise<any>;
+  getBroadcastCampaigns(userId: string, limit?: number): Promise<any[]>;
+  getBroadcastCampaignById(userId: string, id: string): Promise<any>;
+  updateBroadcastCampaign(userId: string, id: string, campaign: any): Promise<any>;
+  deleteBroadcastCampaign(userId: string, id: string): Promise<void>;
   
-  getCustomerSegment(segment: string, customIds?: string[]): Promise<any[]>;
-  sendBroadcast(campaignId: string): Promise<void>;
-  getBroadcastMessages(campaignId: string): Promise<any[]>;
+  getCustomerSegment(userId: string, segment: string, customIds?: string[]): Promise<any[]>;
+  sendBroadcast(userId: string, campaignId: string): Promise<void>;
+  getBroadcastMessages(userId: string, campaignId: string): Promise<any[]>;
   
   // Voucher System
-  createVoucher(voucher: any): Promise<any>;
-  getVouchers(): Promise<any[]>;
-  getVoucherById(id: string): Promise<any | undefined>;
+  createVoucher(userId: string, voucher: any): Promise<any>;
+  getVouchers(userId: string): Promise<any[]>;
+  getVoucherById(userId: string, id: string): Promise<any | undefined>;
   getVoucherByCode(code: string): Promise<any | undefined>;
-  updateVoucher(id: string, voucher: any): Promise<any>;
-  deleteVoucher(id: string): Promise<void>;
-  validateVoucher(code: string, customerId: string | null, totalAmount: number): Promise<{ valid: boolean; voucher?: any; discount?: number; error?: string }>;
+  updateVoucher(userId: string, id: string, voucher: any): Promise<any>;
+  deleteVoucher(userId: string, id: string): Promise<void>;
+  validateVoucher(userId: string, code: string, customerId: string | null, totalAmount: number): Promise<{ valid: boolean; voucher?: any; discount?: number; error?: string }>;
   redeemVoucher(voucherId: string, customerId: string | null, saleId: string | null, originalAmount: number, finalAmount: number, discountApplied: number): Promise<void>;
-  getVoucherUsageHistory(voucherId: string): Promise<any[]>;
+  getVoucherUsageHistory(userId: string, voucherId: string): Promise<any[]>;
   getCustomerVoucherUsage(customerId: string, voucherId: string): Promise<number>;
   
   // Booking System
-  createBooking(booking: any, items: any[]): Promise<any>;
-  getBookings(limit?: number, status?: string): Promise<any[]>;
-  getBookingById(id: string): Promise<any | undefined>;
-  updateBooking(id: string, booking: any): Promise<any>;
-  deleteBooking(id: string): Promise<void>;
+  createBooking(userId: string, booking: any, items: any[]): Promise<any>;
+  getBookings(userId: string, limit?: number, status?: string): Promise<any[]>;
+  getBookingById(userId: string, id: string): Promise<any | undefined>;
+  updateBooking(userId: string, id: string, booking: any): Promise<any>;
+  deleteBooking(userId: string, id: string): Promise<void>;
   generateBookingNumber(): Promise<string>;
-  getUpcomingBookings(daysAhead: number): Promise<any[]>;
-  markReminderSent(bookingId: string): Promise<void>;
+  getUpcomingBookings(userId: string, daysAhead: number): Promise<any[]>;
+  markReminderSent(userId: string, bookingId: string): Promise<void>;
   getBookingItems(bookingId: string): Promise<any[]>;
+  
+  // PO Templates
+  getAllPOTemplates(userId: string): Promise<any[]>;
+  createPOTemplate(userId: string, data: any): Promise<any>;
+  deletePOTemplate(userId: string, id: string): Promise<void>;
+  createPOFromTemplate(userId: string, templateId: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {

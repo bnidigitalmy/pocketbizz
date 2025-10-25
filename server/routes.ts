@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let hasEarlyBird = false;
       try {
         const earlyBirdSlot = await db.query.earlyBirdTracking.findFirst({
-          where: (tracking, { eq }) => eq(tracking.userId, user.id),
+          where: (tracking, { eq }) => eq(tracking.userId, req.user!.id),
         });
         
         // Auto-apply 70% early bird discount if user has a slot and hasn't subscribed yet
@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const promo = await storage.getPromoCodeByCode(promoCode);
         if (promo && promo.isActive) {
           // Check if user already used this promo
-          const hasUsed = await storage.hasUserUsedPromoCode(user.id, promo.id);
+          const hasUsed = await storage.hasUserUsedPromoCode(req.user!.id, promo.id);
           if (!hasUsed) {
             // Check usage limit
             const usageCount = await storage.getPromoCodeUsageCount(promo.id);
@@ -674,7 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let hasEarlyBird = false;
       try {
         const earlyBirdSlot = await db.query.earlyBirdTracking.findFirst({
-          where: (tracking, { eq }) => eq(tracking.userId, user.id),
+          where: (tracking, { eq }) => eq(tracking.userId, req.user!.id),
         });
         
         // Auto-apply 70% early bird discount if user has a slot and hasn't subscribed yet
@@ -692,7 +692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const promo = await storage.getPromoCodeByCode(promoCode);
         if (promo && promo.isActive) {
           // Check if user already used this promo
-          const hasUsed = await storage.hasUserUsedPromoCode(user.id, promo.id);
+          const hasUsed = await storage.hasUserUsedPromoCode(req.user!.id, promo.id);
           if (!hasUsed) {
             // Check usage limit
             const usageCount = await storage.getPromoCodeUsageCount(promo.id);
@@ -2467,9 +2467,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/export-claims", async (req, res) => {
+  app.get("/api/reports/export-claims", requireAuth, async (req, res) => {
     try {
-      const claimsResult = await storage.getClaimsSummary(1000, 0);
+      const claimsResult = await storage.getClaimsSummary(req.user!.id, 1000, 0);
       
       // CSV headers
       const headers = ['No.', 'Vendor', 'Jumlah Hantar', 'Jumlah Tuntut', 'Pending', 'Sebahagian', 'Penuh', 'Tolakan', 'Belum Bayar (RM)', 'Status'];
@@ -2505,7 +2505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reports/top-products", requireProPlan, async (req, res) => {
     try {
-      const topProducts = await storage.getTopProducts();
+      const topProducts = await storage.getTopProducts(req.user!.id);
       res.json(topProducts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch top products" });
@@ -2514,7 +2514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reports/top-vendors", requireProPlan, async (req, res) => {
     try {
-      const topVendors = await storage.getTopVendors();
+      const topVendors = await storage.getTopVendors(req.user!.id);
       res.json(topVendors);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch top vendors" });
@@ -2523,7 +2523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reports/monthly", requireProPlan, async (req, res) => {
     try {
-      const monthlyData = await storage.getMonthlyData();
+      const monthlyData = await storage.getMonthlyData(req.user!.id);
       res.json(monthlyData);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly data" });
@@ -2531,9 +2531,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Advanced Analytics Endpoints
-  app.get("/api/analytics/product-performance", async (req, res) => {
+  app.get("/api/analytics/product-performance", requireAuth, async (req, res) => {
     try {
-      const analytics = await storage.getProductPerformanceAnalytics();
+      const analytics = await storage.getProductPerformanceAnalytics(req.user!.id);
       res.json(analytics);
     } catch (error) {
       console.error("Product performance error:", error);
@@ -2541,9 +2541,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/vendor-leaderboard", async (req, res) => {
+  app.get("/api/analytics/vendor-leaderboard", requireAuth, async (req, res) => {
     try {
-      const leaderboard = await storage.getVendorPerformanceLeaderboard();
+      const leaderboard = await storage.getVendorPerformanceLeaderboard(req.user!.id);
       res.json(leaderboard);
     } catch (error) {
       console.error("Vendor leaderboard error:", error);
@@ -2551,9 +2551,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/agent-leaderboard", async (req, res) => {
+  app.get("/api/analytics/agent-leaderboard", requireAuth, async (req, res) => {
     try {
-      const leaderboard = await storage.getAgentPerformanceLeaderboard();
+      const leaderboard = await storage.getAgentPerformanceLeaderboard(req.user!.id);
       res.json(leaderboard);
     } catch (error) {
       console.error("Agent leaderboard error:", error);
@@ -2561,10 +2561,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/sales-trend", async (req, res) => {
+  app.get("/api/analytics/sales-trend", requireAuth, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      const trendData = await storage.getSalesTrendData(days);
+      const trendData = await storage.getSalesTrendData(req.user!.id, days);
       res.json(trendData);
     } catch (error) {
       console.error("Sales trend error:", error);
@@ -2648,7 +2648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const result = await storage.getClaimsSummary(limit, offset);
+      const result = await storage.getClaimsSummary(req.user!.id, limit, offset);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch claims summary" });
@@ -2658,7 +2658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/claims/:vendorId/details", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { vendorId } = req.params;
-      const claimDetails = await storage.getClaimDetailsByVendor(vendorId);
+      const claimDetails = await storage.getClaimDetailsByVendor(req.user!.id, vendorId);
       res.json(claimDetails);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch claim details" });
@@ -2669,7 +2669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { paymentStatus } = req.body;
-      const delivery = await storage.updateDeliveryPaymentStatus(id, paymentStatus);
+      const delivery = await storage.updateDeliveryPaymentStatus(req.user!.id, id, paymentStatus);
       res.json(delivery);
     } catch (error) {
       res.status(400).json({ error: "Failed to update payment status" });
@@ -2677,19 +2677,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Business Profile
-  app.get("/api/business-profile", async (req, res) => {
+  app.get("/api/business-profile", requireAuth, async (req, res) => {
     try {
-      const profile = await storage.getBusinessProfile();
+      const profile = await storage.getBusinessProfile(req.user!.id);
       res.json(profile || null);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch business profile" });
     }
   });
 
-  app.post("/api/business-profile", async (req, res) => {
+  app.post("/api/business-profile", requireAuth, async (req, res) => {
     try {
       const data = insertBusinessProfileSchema.parse(req.body);
-      const profile = await storage.createOrUpdateBusinessProfile(data);
+      const profile = await storage.createOrUpdateBusinessProfile(req.user!.id, data);
       res.json(profile);
     } catch (error) {
       res.status(400).json({ error: "Invalid business profile data" });
@@ -2712,7 +2712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const driveFile = await uploadPDFToGoogleDrive(pdfBuffer, fileName);
       
       // Log sync to database
-      const syncLog = await storage.logGoogleDriveSync({
+      const syncLog = await storage.logGoogleDriveSync(req.user!.id, {
         deliveryId: deliveryId || null,
         fileName,
         fileType: fileType || 'invoice',
@@ -2736,7 +2736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/google-drive/files", async (req, res) => {
+  app.get("/api/google-drive/files", requireAuth, async (req, res) => {
     try {
       const files = await listManisBizzFiles();
       res.json(files);
@@ -2748,19 +2748,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/google-drive/sync-logs", async (req, res) => {
+  app.get("/api/google-drive/sync-logs", requireAuth, async (req, res) => {
     try {
-      const logs = await storage.getGoogleDriveSyncLogs();
+      const logs = await storage.getGoogleDriveSyncLogs(req.user!.id);
       res.json(logs);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch sync logs" });
     }
   });
 
-  app.get("/api/google-drive/sync-logs/:deliveryId", async (req, res) => {
+  app.get("/api/google-drive/sync-logs/:deliveryId", requireAuth, async (req, res) => {
     try {
       const { deliveryId } = req.params;
-      const logs = await storage.getGoogleDriveSyncLogsByDelivery(deliveryId);
+      const logs = await storage.getGoogleDriveSyncLogsByDelivery(req.user!.id, deliveryId);
       res.json(logs);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch delivery sync logs" });
@@ -3093,46 +3093,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shopping Cart Routes
-  app.post("/api/shopping-cart", async (req, res) => {
+  app.post("/api/shopping-cart", requireAuth, async (req, res) => {
     try {
       const { insertShoppingCartSchema } = await import("@shared/schema");
       const data = insertShoppingCartSchema.parse(req.body);
-      const item = await storage.addToShoppingCart(data);
+      const item = await storage.addToShoppingCart(req.user!.id, data);
       res.json(item);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid shopping cart data", message: error.message });
     }
   });
 
-  app.get("/api/shopping-cart", async (req, res) => {
+  app.get("/api/shopping-cart", requireAuth, async (req, res) => {
     try {
-      const items = await storage.getShoppingCartItems();
+      const items = await storage.getShoppingCartItems(req.user!.id);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch shopping cart items" });
     }
   });
 
-  app.delete("/api/shopping-cart/:id", async (req, res) => {
+  app.delete("/api/shopping-cart/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.removeFromCart(id);
+      await storage.removeFromCart(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to remove item from cart" });
     }
   });
 
-  app.delete("/api/shopping-cart", async (req, res) => {
+  app.delete("/api/shopping-cart", requireAuth, async (req, res) => {
     try {
-      await storage.clearCart();
+      await storage.clearCart(req.user!.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to clear cart" });
     }
   });
 
-  app.post("/api/shopping-cart/purchase", async (req, res) => {
+  app.post("/api/shopping-cart/purchase", requireAuth, async (req, res) => {
     try {
       const { cartItemIds } = req.body;
       
@@ -3140,7 +3140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Cart item IDs are required" });
       }
       
-      await storage.bulkPurchaseAndUpdateStock(cartItemIds);
+      await storage.bulkPurchaseAndUpdateStock(req.user!.id, cartItemIds);
       res.json({ success: true, message: "Stock updated and cart items removed" });
     } catch (error: any) {
       console.error("Bulk purchase error:", error);
@@ -3151,7 +3151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== PURCHASE ORDERS (Smart Supplier Order Hub) ====================
   
   // Create PO from cart items
-  app.post("/api/purchase-orders/from-cart", async (req, res) => {
+  app.post("/api/purchase-orders/from-cart", requireAuth, async (req, res) => {
     try {
       const { supplierId, supplierName, supplierPhone, notes, cartItemIds } = req.body;
       
@@ -3160,6 +3160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const order = await storage.createPurchaseOrderFromCart(
+        req.user!.id,
         supplierId || null,
         supplierName,
         supplierPhone || null,
@@ -3175,9 +3176,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get all purchase orders
-  app.get("/api/purchase-orders", async (req, res) => {
+  app.get("/api/purchase-orders", requireAuth, async (req, res) => {
     try {
-      const orders = await storage.getPurchaseOrders();
+      const orders = await storage.getPurchaseOrders(req.user!.id);
       res.json(orders);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch purchase orders" });
@@ -3185,10 +3186,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get single purchase order
-  app.get("/api/purchase-orders/:id", async (req, res) => {
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const order = await storage.getPurchaseOrder(id);
+      const order = await storage.getPurchaseOrder(req.user!.id, id);
       
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
@@ -3201,7 +3202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update PO status
-  app.patch("/api/purchase-orders/:id/status", async (req, res) => {
+  app.patch("/api/purchase-orders/:id/status", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { status, notes } = req.body;
@@ -3213,7 +3214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const additionalData: any = {};
       if (notes) additionalData.notes = notes;
       
-      const updated = await storage.updatePurchaseOrderStatus(id, status, additionalData);
+      const updated = await storage.updatePurchaseOrderStatus(req.user!.id, id, status, additionalData);
       res.json(updated);
     } catch (error: any) {
       console.error("Update PO status error:", error);
@@ -3222,12 +3223,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Mark PO as received (auto-create expense & update stock)
-  app.post("/api/purchase-orders/:id/receive", async (req, res) => {
+  app.post("/api/purchase-orders/:id/receive", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { actualPrices } = req.body; // Optional: [{ itemId, price }]
       
-      await storage.markPurchaseOrderReceived(id, actualPrices);
+      await storage.markPurchaseOrderReceived(req.user!.id, id, actualPrices);
       res.json({ success: true, message: "Purchase order marked as received, stock updated, and expense created" });
     } catch (error: any) {
       console.error("Mark PO received error:", error);
@@ -3236,10 +3237,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete PO
-  app.delete("/api/purchase-orders/:id", async (req, res) => {
+  app.delete("/api/purchase-orders/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deletePurchaseOrder(id);
+      await storage.deletePurchaseOrder(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete purchase order" });
@@ -3247,7 +3248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send PO via email
-  app.post("/api/purchase-orders/:id/send-email", async (req, res) => {
+  app.post("/api/purchase-orders/:id/send-email", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { recipientEmail, recipientName, message } = req.body;
@@ -3256,7 +3257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Recipient email is required" });
       }
       
-      const order = await storage.getPurchaseOrder(id);
+      const order = await storage.getPurchaseOrder(req.user!.id, id);
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
@@ -3327,7 +3328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update PO (items, supplier, notes) - only allowed for draft status
-  app.patch("/api/purchase-orders/:id", async (req, res) => {
+  app.patch("/api/purchase-orders/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -3348,7 +3349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = updatePOSchema.parse(req.body);
       
-      const order = await storage.getPurchaseOrder(id);
+      const order = await storage.getPurchaseOrder(req.user!.id, id);
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
@@ -3359,7 +3360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update PO using storage method
-      const updated = await storage.updatePurchaseOrder(id, validatedData);
+      const updated = await storage.updatePurchaseOrder(req.user!.id, id, validatedData);
       
       res.json(updated);
     } catch (error: any) {
@@ -3371,9 +3372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== PO TEMPLATE ROUTES ====================
   
   // Get all PO templates
-  app.get("/api/po-templates", async (req, res) => {
+  app.get("/api/po-templates", requireAuth, async (req, res) => {
     try {
-      const templates = await storage.getAllPOTemplates();
+      const templates = await storage.getAllPOTemplates(req.user!.id);
       res.json(templates);
     } catch (error: any) {
       console.error("Get templates error:", error);
@@ -3382,7 +3383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create PO template from existing PO
-  app.post("/api/po-templates/from-po/:poId", async (req, res) => {
+  app.post("/api/po-templates/from-po/:poId", requireAuth, async (req, res) => {
     try {
       const { poId } = req.params;
       const { templateName } = req.body;
@@ -3391,12 +3392,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Template name is required" });
       }
       
-      const po = await storage.getPurchaseOrder(poId);
+      const po = await storage.getPurchaseOrder(req.user!.id, poId);
       if (!po) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
       
-      const template = await storage.createPOTemplate({
+      const template = await storage.createPOTemplate(req.user!.id, {
         templateName,
         supplierId: po.supplierId,
         supplierName: po.supplierName,
@@ -3413,10 +3414,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create new PO from template
-  app.post("/api/po-templates/:templateId/create-po", async (req, res) => {
+  app.post("/api/po-templates/:templateId/create-po", requireAuth, async (req, res) => {
     try {
       const { templateId } = req.params;
-      const po = await storage.createPOFromTemplate(templateId);
+      const po = await storage.createPOFromTemplate(req.user!.id, templateId);
       res.json(po);
     } catch (error: any) {
       console.error("Create PO from template error:", error);
@@ -3425,10 +3426,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete PO template
-  app.delete("/api/po-templates/:id", async (req, res) => {
+  app.delete("/api/po-templates/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deletePOTemplate(id);
+      await storage.deletePOTemplate(req.user!.id, id);
       res.json({ success: true });
     } catch (error: any) {
       console.error("Delete template error:", error);
@@ -3657,7 +3658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/loyalty/customer/:phone", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { phone } = req.params;
-      const customer = await storage.getCustomerByPhone(phone);
+      const customer = await storage.getCustomerByPhone(req.user!.id, phone);
       res.json(customer || null);
     } catch (error) {
       console.error("Get customer error:", error);
@@ -3676,12 +3677,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = customerSchema.parse(req.body);
       
       // Check if phone already exists
-      const existing = await storage.getCustomerByPhone(data.phone);
+      const existing = await storage.getCustomerByPhone(req.user!.id, data.phone);
       if (existing) {
         return res.status(400).json({ error: "Nombor telefon sudah didaftarkan" });
       }
       
-      const customer = await storage.createCustomer({
+      const customer = await storage.createCustomer(req.user!.id, {
         ...data,
         loyaltyPoints: 0,
       });
@@ -3696,7 +3697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all customers
   app.get("/api/loyalty/customers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const customers = await storage.getCustomers();
+      const customers = await storage.getCustomers(req.user!.id);
       res.json(customers);
     } catch (error) {
       console.error("Get customers error:", error);
@@ -3709,7 +3710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { customerId } = req.params;
       const limit = parseInt(req.query.limit as string) || 50;
-      const history = await storage.getPointsHistory(customerId, limit);
+      const history = await storage.getPointsHistory(req.user!.id, customerId, limit);
       res.json(history);
     } catch (error) {
       console.error("Get points history error:", error);
@@ -3727,7 +3728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const data = redeemSchema.parse(req.body);
-      await storage.redeemPoints(data.customerId, data.points, data.description);
+      await storage.redeemPoints(req.user!.id, data.customerId, data.points, data.description);
       
       // Return updated customer
       const customer = await storage.getCustomerByPhone((await db.select().from(customers).where(eq(customers.id, data.customerId)))[0]?.phone || '');
@@ -3749,7 +3750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/broadcast/templates", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const channel = req.query.channel as string | undefined;
-      const templates = await storage.getMessageTemplates(channel);
+      const templates = await storage.getMessageTemplates(req.user!.id, channel);
       res.json(templates);
     } catch (error) {
       console.error("Get templates error:", error);
@@ -3769,7 +3770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const data = templateSchema.parse(req.body);
-      const template = await storage.createMessageTemplate(data);
+      const template = await storage.createMessageTemplate(req.user!.id, data);
       res.json(template);
     } catch (error) {
       console.error("Create template error:", error);
@@ -3781,7 +3782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const template = await storage.updateMessageTemplate(id, req.body);
+      const template = await storage.updateMessageTemplate(req.user!.id, id, req.body);
       res.json(template);
     } catch (error) {
       console.error("Update template error:", error);
@@ -3793,7 +3794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteMessageTemplate(id);
+      await storage.deleteMessageTemplate(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       console.error("Delete template error:", error);
@@ -3822,7 +3823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Custom segment requires customer IDs" });
       }
       
-      const campaign = await storage.createBroadcastCampaign(data);
+      const campaign = await storage.createBroadcastCampaign(req.user!.id, data);
       res.json(campaign);
     } catch (error) {
       console.error("Create campaign error:", error);
@@ -3834,7 +3835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/broadcast/campaigns", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
-      const campaigns = await storage.getBroadcastCampaigns(limit);
+      const campaigns = await storage.getBroadcastCampaigns(req.user!.id, limit);
       res.json(campaigns);
     } catch (error) {
       console.error("Get campaigns error:", error);
@@ -3846,7 +3847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const campaign = await storage.getBroadcastCampaignById(id);
+      const campaign = await storage.getBroadcastCampaignById(req.user!.id, id);
       if (!campaign) {
         return res.status(404).json({ error: "Campaign not found" });
       }
@@ -3861,7 +3862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const campaign = await storage.updateBroadcastCampaign(id, req.body);
+      const campaign = await storage.updateBroadcastCampaign(req.user!.id, id, req.body);
       res.json(campaign);
     } catch (error) {
       console.error("Update campaign error:", error);
@@ -3873,7 +3874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/broadcast/campaigns/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteBroadcastCampaign(id);
+      await storage.deleteBroadcastCampaign(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       console.error("Delete campaign error:", error);
@@ -3886,7 +3887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { segment } = req.params;
       const customIds = req.query.ids ? (req.query.ids as string).split(',') : undefined;
-      const customers = await storage.getCustomerSegment(segment, customIds);
+      const customers = await storage.getCustomerSegment(req.user!.id, segment, customIds);
       res.json({ count: customers.length, customers });
     } catch (error) {
       console.error("Get segment error:", error);
@@ -3900,10 +3901,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       // Prepare and send broadcast
-      await storage.sendBroadcast(id);
+      await storage.sendBroadcast(req.user!.id, id);
       
       // Get updated campaign
-      const campaign = await storage.getBroadcastCampaignById(id);
+      const campaign = await storage.getBroadcastCampaignById(req.user!.id, id);
       
       // TODO: Integrate with Twilio/Resend to actually send messages
       // For now, we just create the message records
@@ -3923,7 +3924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/broadcast/campaigns/:id/messages", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const messages = await storage.getBroadcastMessages(id);
+      const messages = await storage.getBroadcastMessages(req.user!.id, id);
       res.json(messages);
     } catch (error) {
       console.error("Get broadcast messages error:", error);
@@ -3937,7 +3938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const voucher = await storage.createVoucher(req.body);
+      const voucher = await storage.createVoucher(req.user!.id, req.body);
       res.json(voucher);
     } catch (error: any) {
       console.error("Create voucher error:", error);
@@ -3947,7 +3948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const vouchers = await storage.getVouchers();
+      const vouchers = await storage.getVouchers(req.user!.id);
       res.json(vouchers);
     } catch (error) {
       console.error("Get vouchers error:", error);
@@ -3957,7 +3958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const voucher = await storage.getVoucherById(req.params.id);
+      const voucher = await storage.getVoucherById(req.user!.id, req.params.id);
       if (!voucher) return res.status(404).json({ error: "Voucher not found" });
       res.json(voucher);
     } catch (error) {
@@ -3968,7 +3969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const voucher = await storage.updateVoucher(req.params.id, req.body);
+      const voucher = await storage.updateVoucher(req.user!.id, req.params.id, req.body);
       res.json(voucher);
     } catch (error) {
       console.error("Update voucher error:", error);
@@ -3978,7 +3979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      await storage.deleteVoucher(req.params.id);
+      await storage.deleteVoucher(req.user!.id, req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Delete voucher error:", error);
@@ -3989,7 +3990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/vouchers/validate", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { code, customerId, totalAmount } = req.body;
-      const result = await storage.validateVoucher(code, customerId || null, parseFloat(totalAmount));
+      const result = await storage.validateVoucher(req.user!.id, code, customerId || null, parseFloat(totalAmount));
       res.json(result);
     } catch (error) {
       console.error("Validate voucher error:", error);
@@ -3999,7 +4000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/vouchers/:id/usage", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const usage = await storage.getVoucherUsageHistory(req.params.id);
+      const usage = await storage.getVoucherUsageHistory(req.user!.id, req.params.id);
       res.json(usage);
     } catch (error) {
       console.error("Get voucher usage error:", error);
@@ -4014,7 +4015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { items, ...booking } = req.body;
-      const newBooking = await storage.createBooking(booking, items || []);
+      const newBooking = await storage.createBooking(req.user!.id, booking, items || []);
       res.json(newBooking);
     } catch (error) {
       console.error("Create booking error:", error);
@@ -4026,7 +4027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const status = req.query.status as string | undefined;
-      const bookings = await storage.getBookings(limit, status);
+      const bookings = await storage.getBookings(req.user!.id, limit, status);
       res.json(bookings);
     } catch (error) {
       console.error("Get bookings error:", error);
@@ -4037,7 +4038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bookings/upcoming", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const daysAhead = parseInt(req.query.days as string) || 7;
-      const bookings = await storage.getUpcomingBookings(daysAhead);
+      const bookings = await storage.getUpcomingBookings(req.user!.id, daysAhead);
       res.json(bookings);
     } catch (error) {
       console.error("Get upcoming bookings error:", error);
@@ -4047,7 +4048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const booking = await storage.getBookingById(req.params.id);
+      const booking = await storage.getBookingById(req.user!.id, req.params.id);
       if (!booking) return res.status(404).json({ error: "Booking not found" });
       res.json(booking);
     } catch (error) {
@@ -4058,7 +4059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const booking = await storage.updateBooking(req.params.id, req.body);
+      const booking = await storage.updateBooking(req.user!.id, req.params.id, req.body);
       res.json(booking);
     } catch (error) {
       console.error("Update booking error:", error);
@@ -4068,7 +4069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      await storage.deleteBooking(req.params.id);
+      await storage.deleteBooking(req.user!.id, req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Delete booking error:", error);
@@ -4078,7 +4079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bookings/:id/reminder", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      await storage.markReminderSent(req.params.id);
+      await storage.markReminderSent(req.user!.id, req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Mark reminder sent error:", error);
