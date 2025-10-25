@@ -16,6 +16,8 @@ import {
   recipeItems,
   categories,
   shoppingCart,
+  purchaseOrders,
+  purchaseOrderItems,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -48,6 +50,10 @@ import {
   type InsertCategory,
   type ShoppingCart,
   type InsertShoppingCart,
+  type PurchaseOrder,
+  type InsertPurchaseOrder,
+  type PurchaseOrderItem,
+  type InsertPurchaseOrderItem,
   users,
   type User,
   type InsertUser,
@@ -219,6 +225,15 @@ export interface IStorage {
   removeFromCart(id: string): Promise<void>;
   clearCart(): Promise<void>;
   bulkPurchaseAndUpdateStock(cartItemIds: string[]): Promise<void>;
+  
+  // Purchase Orders (Smart Supplier Order Hub)
+  createPurchaseOrder(order: InsertPurchaseOrder, items: InsertPurchaseOrderItem[]): Promise<PurchaseOrder>;
+  getPurchaseOrders(): Promise<any[]>; // Returns orders with items
+  getPurchaseOrder(id: string): Promise<any | undefined>; // Returns order with items
+  updatePurchaseOrderStatus(id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder>;
+  deletePurchaseOrder(id: string): Promise<void>;
+  createPurchaseOrderFromCart(supplierId: string | null, supplierName: string, supplierPhone: string | null, notes: string | null, cartItemIds: string[]): Promise<PurchaseOrder>;
+  markPurchaseOrderReceived(id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void>;
   
   // Users & Authentication
   getAllUsers(): Promise<User[]>;
@@ -1957,6 +1972,224 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(shoppingCart).where(
         inArray(shoppingCart.id, cartItemIds)
       );
+    });
+  }
+  
+  // Purchase Orders (Smart Supplier Order Hub)
+  async createPurchaseOrder(orderData: InsertPurchaseOrder, items: InsertPurchaseOrderItem[]): Promise<PurchaseOrder> {
+    return await db.transaction(async (tx) => {
+      // Create PO
+      const [order] = await tx.insert(purchaseOrders).values(orderData).returning();
+      
+      // Create PO items
+      const itemsWithPoId = items.map(item => ({ ...item, poId: order.id }));
+      await tx.insert(purchaseOrderItems).values(itemsWithPoId);
+      
+      return order;
+    });
+  }
+  
+  async getPurchaseOrders(): Promise<any[]> {
+    const orders = await db.select().from(purchaseOrders).orderBy(desc(purchaseOrders.createdAt));
+    
+    // Get items for each order
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await db.select()
+          .from(purchaseOrderItems)
+          .where(eq(purchaseOrderItems.poId, order.id));
+        return { ...order, items };
+      })
+    );
+    
+    return ordersWithItems;
+  }
+  
+  async getPurchaseOrder(id: string): Promise<any | undefined> {
+    const [order] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+    
+    if (!order) return undefined;
+    
+    const items = await db.select()
+      .from(purchaseOrderItems)
+      .where(eq(purchaseOrderItems.poId, id));
+    
+    return { ...order, items };
+  }
+  
+  async updatePurchaseOrderStatus(id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder> {
+    const updateData: any = { status, updatedAt: new Date() };
+    
+    if (status === 'sent') {
+      updateData.sentAt = new Date();
+    } else if (status === 'received') {
+      updateData.receivedAt = new Date();
+    }
+    
+    if (additionalData) {
+      Object.assign(updateData, additionalData);
+    }
+    
+    const [updated] = await db.update(purchaseOrders)
+      .set(updateData)
+      .where(eq(purchaseOrders.id, id))
+      .returning();
+    
+    return updated;
+  }
+  
+  async deletePurchaseOrder(id: string): Promise<void> {
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+  }
+  
+  async createPurchaseOrderFromCart(
+    supplierId: string | null,
+    supplierName: string,
+    supplierPhone: string | null,
+    notes: string | null,
+    cartItemIds: string[]
+  ): Promise<PurchaseOrder> {
+    return await db.transaction(async (tx) => {
+      // Get cart items
+      const cartItems = await tx.select().from(shoppingCart).where(
+        inArray(shoppingCart.id, cartItemIds)
+      );
+      
+      // Generate PO number
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+      const count = await tx.select().from(purchaseOrders).where(
+        sql`DATE(${purchaseOrders.createdAt}) = CURRENT_DATE`
+      );
+      const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
+      
+      // Calculate total
+      let total = 0;
+      for (const item of cartItems) {
+        const stockItem = await tx.select().from(stockItems).where(
+          eq(stockItems.id, item.stockItemId)
+        ).limit(1);
+        
+        if (stockItem.length > 0) {
+          const price = parseFloat(stockItem[0].purchasePrice);
+          const qty = parseFloat(item.shortageQty);
+          total += price * qty;
+        }
+      }
+      
+      // Create PO
+      const [order] = await tx.insert(purchaseOrders).values({
+        poNumber,
+        supplierId,
+        supplierName,
+        supplierPhone,
+        totalAmount: total.toFixed(2),
+        notes,
+        status: 'draft',
+      }).returning();
+      
+      // Create PO items from cart
+      const poItems = await Promise.all(cartItems.map(async (cartItem) => {
+        const stockItem = await tx.select().from(stockItems).where(
+          eq(stockItems.id, cartItem.stockItemId)
+        ).limit(1);
+        
+        const estimatedPrice = stockItem.length > 0 
+          ? parseFloat(stockItem[0].purchasePrice) 
+          : 0;
+        
+        return {
+          poId: order.id,
+          stockItemId: cartItem.stockItemId,
+          itemName: cartItem.stockItemName,
+          quantity: cartItem.shortageQty,
+          unit: cartItem.unit,
+          estimatedPrice: estimatedPrice.toFixed(2),
+          notes: cartItem.notes,
+        };
+      }));
+      
+      await tx.insert(purchaseOrderItems).values(poItems);
+      
+      // Optional: Clear cart items
+      await tx.delete(shoppingCart).where(
+        inArray(shoppingCart.id, cartItemIds)
+      );
+      
+      return order;
+    });
+  }
+  
+  async markPurchaseOrderReceived(id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+      
+      if (!order) throw new Error('Purchase order not found');
+      
+      // Update item actual prices if provided
+      if (actualPrices) {
+        for (const { itemId, price } of actualPrices) {
+          await tx.update(purchaseOrderItems)
+            .set({ actualPrice: price.toFixed(2) })
+            .where(eq(purchaseOrderItems.id, itemId));
+        }
+      }
+      
+      // Get all items
+      const items = await tx.select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.poId, id));
+      
+      // Update stock for each item
+      for (const item of items) {
+        if (item.stockItemId) {
+          const [stockItem] = await tx.select().from(stockItems).where(
+            eq(stockItems.id, item.stockItemId)
+          );
+          
+          if (stockItem) {
+            const currentQty = parseFloat(stockItem.currentQuantity);
+            const addedQty = parseFloat(item.quantity);
+            const newQty = currentQty + addedQty;
+            
+            await tx.update(stockItems)
+              .set({ 
+                currentQuantity: newQty.toString(),
+                updatedAt: new Date()
+              })
+              .where(eq(stockItems.id, item.stockItemId));
+          }
+        }
+      }
+      
+      // Calculate actual total
+      let actualTotal = parseFloat(order.totalAmount);
+      if (actualPrices && actualPrices.length > 0) {
+        actualTotal = 0;
+        for (const item of items) {
+          const price = item.actualPrice ? parseFloat(item.actualPrice) : parseFloat(item.estimatedPrice || '0');
+          actualTotal += price * parseFloat(item.quantity);
+        }
+      }
+      
+      // Create expense record
+      const [expense] = await tx.insert(expenses).values({
+        category: 'bahan',
+        description: `Pembelian bahan - ${order.poNumber} (${order.supplierName})`,
+        amount: actualTotal.toFixed(2),
+        expenseDate: new Date().toISOString().split('T')[0],
+      }).returning();
+      
+      // Update PO status to received and link expense
+      await tx.update(purchaseOrders)
+        .set({ 
+          status: 'received',
+          receivedAt: new Date(),
+          expenseId: expense.id,
+          totalAmount: actualTotal.toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseOrders.id, id));
     });
   }
   
