@@ -5,6 +5,7 @@ import {
   Package,
   Box,
   ShoppingCart,
+  FileText,
   Truck,
   DollarSign,
   Receipt,
@@ -78,6 +79,11 @@ const stockManagementItems = [
     title: "Senarai Belian",
     url: "/shopping-list",
     icon: ShoppingCart,
+  },
+  {
+    title: "Purchase Order",
+    url: "/purchase-orders",
+    icon: FileText,
   },
 ];
 

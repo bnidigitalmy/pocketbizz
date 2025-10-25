@@ -25,6 +25,7 @@ import Production from "@/pages/production";
 import FinishedProducts from "@/pages/finished-products";
 import Stock from "@/pages/stock";
 import ShoppingList from "@/pages/shopping-list";
+import PurchaseOrders from "@/pages/purchase-orders";
 import Vendors from "@/pages/vendors";
 import Deliveries from "@/pages/deliveries";
 import Sales from "@/pages/sales";
@@ -75,6 +76,7 @@ function AppRouter() {
         <Route path="/finished-products" component={FinishedProducts} />
         <Route path="/stock" component={Stock} />
         <Route path="/shopping-list" component={ShoppingList} />
+        <Route path="/purchase-orders" component={PurchaseOrders} />
         <Route path="/vendors" component={Vendors} />
         <Route path="/deliveries" component={Deliveries} />
         <Route path="/sales" component={Sales} />
