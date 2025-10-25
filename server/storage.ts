@@ -124,64 +124,69 @@ import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Products
-  getProducts(): Promise<Product[]>;
-  getProduct(id: string): Promise<Product | undefined>;
-  createProduct(product: InsertProduct, recipeItemsList: any[]): Promise<Product>;
-  updateProduct(id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product>;
-  deleteProduct(id: string): Promise<void>;
+  getProducts(userId: string): Promise<Product[]>;
+  getProduct(userId: string, id: string): Promise<Product | undefined>;
+  createProduct(userId: string, product: InsertProduct, recipeItemsList: any[]): Promise<Product>;
+  updateProduct(userId: string, id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product>;
+  deleteProduct(userId: string, id: string): Promise<void>;
   
   // Recipe Items
   getRecipeItems(productId: string): Promise<any[]>;
   
   // Ingredients (legacy)
-  getIngredients(productId: string): Promise<Ingredient[]>;
+  getIngredients(userId: string, productId: string): Promise<Ingredient[]>;
   
   // Production
-  getProductionBatches(): Promise<ProductionBatch[]>;
-  createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch>;
+  getProductionBatches(userId: string): Promise<ProductionBatch[]>;
+  createProductionBatch(userId: string, batch: InsertProductionBatch): Promise<ProductionBatch>;
   
   // Finished Products (Finished Goods Inventory)
-  getFinishedProductsSummary(): Promise<any[]>;
-  getBatchesByProduct(productId: string): Promise<any[]>;
-  deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }>;
-  previewBatchDeduction(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }>;
+  getFinishedProductsSummary(userId: string): Promise<any[]>;
+  getBatchesByProduct(userId: string, productId: string): Promise<any[]>;
+  deductFromBatches(userId: string, productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }>;
+  previewBatchDeduction(userId: string, productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }>;
   
   // Vendors
-  getVendors(): Promise<Vendor[]>;
-  getVendor(id: string): Promise<Vendor | undefined>;
-  createVendor(vendor: InsertVendor): Promise<Vendor>;
+  getVendors(userId: string): Promise<Vendor[]>;
+  getVendor(userId: string, id: string): Promise<Vendor | undefined>;
+  createVendor(userId: string, vendor: InsertVendor): Promise<Vendor>;
+  
+  // Suppliers
+  getSuppliers(userId: string): Promise<Supplier[]>;
+  getSupplier(userId: string, id: string): Promise<Supplier | undefined>;
+  createSupplier(userId: string, supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(userId: string, id: string, supplier: Partial<InsertSupplier>): Promise<Supplier>;
+  deleteSupplier(userId: string, id: string): Promise<void>;
   
   // Deliveries
-  getDeliveries(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
-  getDelivery(id: string): Promise<any>;
-  getLastDeliveryForVendor(vendorId: string): Promise<any | null>;
-  checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null>;
-  createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
-  updateDeliveryStatus(id: string, status: string): Promise<void>;
-  updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any>;
-  updateDeliveryItemRejection(itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void>;
+  getDeliveries(userId: string, limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
+  getDelivery(userId: string, id: string): Promise<any>;
+  getLastDeliveryForVendor(userId: string, vendorId: string): Promise<any | null>;
+  checkDuplicateDelivery(userId: string, vendorId: string, deliveryDate: string): Promise<any | null>;
+  createDelivery(userId: string, delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery>;
+  updateDeliveryStatus(userId: string, id: string, status: string): Promise<void>;
+  updateDeliveryPaymentStatus(userId: string, id: string, paymentStatus: string): Promise<any>;
+  updateDeliveryItemRejection(userId: string, itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void>;
+  getAllDeliveries(userId: string): Promise<any[]>;
   
   // POS Sales
-  getSales(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
-  getSale(id: string): Promise<any>;
-  createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale>;
-  generateReceiptNumber(): Promise<string>;
-  getAllSales(startDate?: string, endDate?: string): Promise<any[]>;
-  
-  // Deliveries Export
-  getAllDeliveries(): Promise<any[]>;
+  getSales(userId: string, limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
+  getSale(userId: string, id: string): Promise<any>;
+  createSale(userId: string, sale: InsertSale, items: InsertSalesItem[]): Promise<Sale>;
+  generateReceiptNumber(userId: string): Promise<string>;
+  getAllSales(userId: string, startDate?: string, endDate?: string): Promise<any[]>;
   
   // Expenses
-  getExpenses(): Promise<Expense[]>;
-  createExpense(expense: InsertExpense): Promise<Expense>;
+  getExpenses(userId: string): Promise<Expense[]>;
+  createExpense(userId: string, expense: InsertExpense): Promise<Expense>;
   
   // Reports
-  getDashboardStats(): Promise<any>;
-  getProfitLossReport(): Promise<any>;
-  getWeeklyProfitSummary(): Promise<any>;
-  getTopProducts(): Promise<any[]>;
-  getTopVendors(): Promise<any[]>;
-  getMonthlyData(): Promise<any[]>;
+  getDashboardStats(userId: string): Promise<any>;
+  getProfitLossReport(userId: string): Promise<any>;
+  getWeeklyProfitSummary(userId: string): Promise<any>;
+  getTopProducts(userId: string): Promise<any[]>;
+  getTopVendors(userId: string): Promise<any[]>;
+  getMonthlyData(userId: string): Promise<any[]>;
   
   // Advanced Analytics
   getProductPerformanceAnalytics(): Promise<any>;
@@ -190,8 +195,8 @@ export interface IStorage {
   getSalesTrendData(days: number): Promise<any[]>;
   
   // Claims
-  getClaimsSummary(limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
-  getClaimDetailsByVendor(vendorId: string): Promise<any>;
+  getClaimsSummary(userId: string, limit?: number, offset?: number): Promise<{ data: any[], hasMore: boolean, total: number }>;
+  getClaimDetailsByVendor(userId: string, vendorId: string): Promise<any>;
   
   // Business Profile
   getBusinessProfile(): Promise<BusinessProfile | undefined>;
@@ -203,21 +208,21 @@ export interface IStorage {
   getGoogleDriveSyncLogsByDelivery(deliveryId: string): Promise<GoogleDriveSyncLog[]>;
   
   // Vendor Commissions
-  getVendorCommission(vendorId: string): Promise<VendorCommission | undefined>;
-  createOrUpdateVendorCommission(commission: InsertVendorCommission): Promise<VendorCommission>;
-  deleteVendorCommission(vendorId: string): Promise<void>;
+  getVendorCommission(userId: string, vendorId: string): Promise<VendorCommission | undefined>;
+  createOrUpdateVendorCommission(userId: string, commission: InsertVendorCommission): Promise<VendorCommission>;
+  deleteVendorCommission(userId: string, vendorId: string): Promise<void>;
   
   // Stock Items (Warehouse Inventory)
-  getStockItems(): Promise<StockItem[]>;
-  getStockItem(id: string): Promise<StockItem | undefined>;
-  createStockItem(item: InsertStockItem): Promise<StockItem>;
-  updateStockItem(id: string, item: Partial<InsertStockItem>): Promise<StockItem>;
-  deleteStockItem(id: string): Promise<void>;
-  getLowStockItems(): Promise<StockItem[]>;
+  getStockItems(userId: string): Promise<StockItem[]>;
+  getStockItem(userId: string, id: string): Promise<StockItem | undefined>;
+  createStockItem(userId: string, item: InsertStockItem): Promise<StockItem>;
+  updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>): Promise<StockItem>;
+  deleteStockItem(userId: string, id: string): Promise<void>;
+  getLowStockItems(userId: string): Promise<StockItem[]>;
   
   // Categories
-  getCategories(): Promise<Category[]>;
-  createCategory(category: InsertCategory): Promise<Category>;
+  getCategories(userId: string): Promise<Category[]>;
+  createCategory(userId: string, category: InsertCategory): Promise<Category>;
   
   // Recipe Items
   getRecipeItems(productId: string): Promise<RecipeItem[]>;
@@ -354,13 +359,16 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Products
-  async getProducts(): Promise<Product[]> {
-    const result = await db.select().from(products).orderBy(desc(products.createdAt));
+  async getProducts(userId: string): Promise<Product[]> {
+    const result = await db.select().from(products)
+      .where(eq(products.userId, userId))
+      .orderBy(desc(products.createdAt));
     
     // Get ingredients for each product
     const productsWithIngredients = await Promise.all(
       result.map(async (product) => {
-        const productIngredients = await db.select().from(ingredients).where(eq(ingredients.productId, product.id));
+        const productIngredients = await db.select().from(ingredients)
+          .where(and(eq(ingredients.productId, product.id), eq(ingredients.userId, userId)));
         return { ...product, ingredients: productIngredients };
       })
     );
@@ -368,19 +376,21 @@ export class DatabaseStorage implements IStorage {
     return productsWithIngredients as any;
   }
 
-  async getProduct(id: string): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.id, id));
+  async getProduct(userId: string, id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products)
+      .where(and(eq(products.id, id), eq(products.userId, userId)));
     return product || undefined;
   }
 
-  async createProduct(product: InsertProduct, recipeItemsList: any[]): Promise<Product> {
-    const [newProduct] = await db.insert(products).values(product).returning();
+  async createProduct(userId: string, product: InsertProduct, recipeItemsList: any[]): Promise<Product> {
+    const [newProduct] = await db.insert(products).values({ ...product, userId }).returning();
     
     // Insert recipe items (new stock-based system)
     if (recipeItemsList.length > 0) {
       const recipeItemsWithProductId = recipeItemsList.map(item => ({
         ...item,
         productId: newProduct.id,
+        userId,
       }));
       await db.insert(recipeItems).values(recipeItemsWithProductId);
     }
@@ -388,18 +398,22 @@ export class DatabaseStorage implements IStorage {
     return newProduct;
   }
 
-  async updateProduct(id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product> {
-    const [updatedProduct] = await db.update(products).set(product).where(eq(products.id, id)).returning();
+  async updateProduct(userId: string, id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product> {
+    const [updatedProduct] = await db.update(products).set(product)
+      .where(and(eq(products.id, id), eq(products.userId, userId)))
+      .returning();
     
     // Update recipe items if provided
     if (recipeItemsList && recipeItemsList.length > 0) {
-      // Delete existing recipe items
-      await db.delete(recipeItems).where(eq(recipeItems.productId, id));
+      // Delete existing recipe items (MUST filter by userId for security!)
+      await db.delete(recipeItems)
+        .where(and(eq(recipeItems.productId, id), eq(recipeItems.userId, userId)));
       
       // Insert new recipe items
       const recipeItemsWithProductId = recipeItemsList.map(item => ({
         ...item,
         productId: id,
+        userId,
       }));
       await db.insert(recipeItems).values(recipeItemsWithProductId);
     }
@@ -407,31 +421,36 @@ export class DatabaseStorage implements IStorage {
     return updatedProduct;
   }
 
-  async deleteProduct(id: string): Promise<void> {
-    // Delete recipe items first (foreign key constraint)
-    await db.delete(recipeItems).where(eq(recipeItems.productId, id));
+  async deleteProduct(userId: string, id: string): Promise<void> {
+    // Delete recipe items first (MUST filter by userId for security!)
+    await db.delete(recipeItems)
+      .where(and(eq(recipeItems.productId, id), eq(recipeItems.userId, userId)));
     
     // Delete the product
-    await db.delete(products).where(eq(products.id, id));
+    await db.delete(products)
+      .where(and(eq(products.id, id), eq(products.userId, userId)));
   }
 
   // Ingredients
-  async getIngredients(productId: string): Promise<Ingredient[]> {
-    return await db.select().from(ingredients).where(eq(ingredients.productId, productId));
+  async getIngredients(userId: string, productId: string): Promise<Ingredient[]> {
+    return await db.select().from(ingredients)
+      .where(and(eq(ingredients.productId, productId), eq(ingredients.userId, userId)));
   }
 
   // Production
-  async getProductionBatches(): Promise<ProductionBatch[]> {
-    return await db.select().from(productionBatches).orderBy(desc(productionBatches.batchDate));
+  async getProductionBatches(userId: string): Promise<ProductionBatch[]> {
+    return await db.select().from(productionBatches)
+      .where(eq(productionBatches.userId, userId))
+      .orderBy(desc(productionBatches.batchDate));
   }
 
-  async createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch> {
-    const [newBatch] = await db.insert(productionBatches).values(batch).returning();
+  async createProductionBatch(userId: string, batch: InsertProductionBatch): Promise<ProductionBatch> {
+    const [newBatch] = await db.insert(productionBatches).values({ ...batch, userId }).returning();
     return newBatch;
   }
 
   // Finished Products (Finished Goods Inventory)
-  async getFinishedProductsSummary(): Promise<any[]> {
+  async getFinishedProductsSummary(userId: string): Promise<any[]> {
     // Aggregate batches by product, sum remaining quantities, get nearest expiry
     const summary = await db
       .select({
@@ -442,13 +461,16 @@ export class DatabaseStorage implements IStorage {
         batchCount: sql<string>`COUNT(*)`,
       })
       .from(productionBatches)
-      .where(sql`${productionBatches.remainingQty} > 0`)
+      .where(and(
+        eq(productionBatches.userId, userId),
+        sql`${productionBatches.remainingQty} > 0`
+      ))
       .groupBy(productionBatches.productId, productionBatches.productName);
     
     return summary;
   }
 
-  async getBatchesByProduct(productId: string): Promise<any[]> {
+  async getBatchesByProduct(userId: string, productId: string): Promise<any[]> {
     // Get all batches for a product with expiry status
     // Order by: non-null expiry dates first (ascending), then null expiry, then by creation date for deterministic ordering
     const batches = await db
@@ -456,6 +478,7 @@ export class DatabaseStorage implements IStorage {
       .from(productionBatches)
       .where(
         and(
+          eq(productionBatches.userId, userId),
           eq(productionBatches.productId, productId),
           sql`${productionBatches.remainingQty} > 0`
         )
@@ -469,7 +492,7 @@ export class DatabaseStorage implements IStorage {
     return batches;
   }
 
-  async previewBatchDeduction(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }> {
+  async previewBatchDeduction(userId: string, productId: string, quantity: number): Promise<{ success: boolean; deductions: any[]; totalAvailable: number }> {
     // Preview FIFO deduction WITHOUT modifying database - read-only simulation
     // Get batches ordered by FIFO (same logic as actual deduction)
     const batches = await db
@@ -477,6 +500,7 @@ export class DatabaseStorage implements IStorage {
       .from(productionBatches)
       .where(
         and(
+          eq(productionBatches.userId, userId),
           eq(productionBatches.productId, productId),
           sql`${productionBatches.remainingQty} > 0`
         )
@@ -538,7 +562,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async deductFromBatches(productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }> {
+  async deductFromBatches(userId: string, productId: string, quantity: number): Promise<{ success: boolean; deductions: any[] }> {
     // FIFO deduction with transaction and locking to prevent race conditions and data loss
     return await db.transaction(async (tx) => {
       // Step 1: Lock and get batches ordered by FIFO
@@ -547,6 +571,7 @@ export class DatabaseStorage implements IStorage {
         .from(productionBatches)
         .where(
           and(
+            eq(productionBatches.userId, userId),
             eq(productionBatches.productId, productId),
             sql`${productionBatches.remainingQty} > 0`
           )
@@ -606,57 +631,66 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Vendors
-  async getVendors(): Promise<Vendor[]> {
-    return await db.select().from(vendors).orderBy(desc(vendors.createdAt));
+  async getVendors(userId: string): Promise<Vendor[]> {
+    return await db.select().from(vendors)
+      .where(eq(vendors.userId, userId))
+      .orderBy(desc(vendors.createdAt));
   }
 
-  async getVendor(id: string): Promise<Vendor | undefined> {
-    const [vendor] = await db.select().from(vendors).where(eq(vendors.id, id));
+  async getVendor(userId: string, id: string): Promise<Vendor | undefined> {
+    const [vendor] = await db.select().from(vendors)
+      .where(and(eq(vendors.id, id), eq(vendors.userId, userId)));
     return vendor || undefined;
   }
 
-  async createVendor(vendor: InsertVendor): Promise<Vendor> {
-    const [newVendor] = await db.insert(vendors).values(vendor).returning();
+  async createVendor(userId: string, vendor: InsertVendor): Promise<Vendor> {
+    const [newVendor] = await db.insert(vendors).values({ ...vendor, userId }).returning();
     return newVendor;
   }
 
   // Suppliers (for Purchase Orders - beli bahan mentah)
-  async getSuppliers(): Promise<Supplier[]> {
-    return await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  async getSuppliers(userId: string): Promise<Supplier[]> {
+    return await db.select().from(suppliers)
+      .where(eq(suppliers.userId, userId))
+      .orderBy(desc(suppliers.createdAt));
   }
 
-  async getSupplier(id: string): Promise<Supplier | undefined> {
-    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+  async getSupplier(userId: string, id: string): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers)
+      .where(and(eq(suppliers.id, id), eq(suppliers.userId, userId)));
     return supplier || undefined;
   }
 
-  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
-    const [newSupplier] = await db.insert(suppliers).values(supplier).returning();
+  async createSupplier(userId: string, supplier: InsertSupplier): Promise<Supplier> {
+    const [newSupplier] = await db.insert(suppliers).values({ ...supplier, userId }).returning();
     return newSupplier;
   }
 
-  async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier> {
+  async updateSupplier(userId: string, id: string, supplier: Partial<InsertSupplier>): Promise<Supplier> {
     const [updated] = await db.update(suppliers)
       .set(supplier)
-      .where(eq(suppliers.id, id))
+      .where(and(eq(suppliers.id, id), eq(suppliers.userId, userId)))
       .returning();
     return updated;
   }
 
-  async deleteSupplier(id: string): Promise<void> {
-    await db.delete(suppliers).where(eq(suppliers.id, id));
+  async deleteSupplier(userId: string, id: string): Promise<void> {
+    await db.delete(suppliers)
+      .where(and(eq(suppliers.id, id), eq(suppliers.userId, userId)));
   }
 
   // Deliveries
-  async getDeliveries(limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+  async getDeliveries(userId: string, limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
     // Get total count
-    const totalResult = await db.select({ count: sql<number>`count(*)` }).from(deliveries);
+    const totalResult = await db.select({ count: sql<number>`count(*)` }).from(deliveries)
+      .where(eq(deliveries.userId, userId));
     const total = Number(totalResult[0]?.count || 0);
     
     // Get paginated deliveries
     const result = await db
       .select()
       .from(deliveries)
+      .where(eq(deliveries.userId, userId))
       .orderBy(desc(deliveries.deliveryDate))
       .limit(limit + 1) // Fetch one extra to check if there's more
       .offset(offset);
@@ -667,7 +701,8 @@ export class DatabaseStorage implements IStorage {
     // Get items for each delivery with commission breakdown
     const deliveriesWithItems = await Promise.all(
       deliveriesToReturn.map(async (delivery) => {
-        const items = await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, delivery.id));
+        const items = await db.select().from(deliveryItems)
+          .where(and(eq(deliveryItems.deliveryId, delivery.id), eq(deliveryItems.userId, userId)));
         
         // Calculate gross, rejected, net amounts
         let grossAmount = 0;
@@ -682,7 +717,7 @@ export class DatabaseStorage implements IStorage {
         });
         
         const netAmount = grossAmount - rejectedAmount;
-        const commission = await this.calculateCommission(delivery.vendorId, netAmount);
+        const commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
         const claimableAmount = netAmount - commission;
         
         return { 
@@ -704,11 +739,13 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getDelivery(id: string): Promise<any> {
-    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.id, id));
+  async getDelivery(userId: string, id: string): Promise<any> {
+    const [delivery] = await db.select().from(deliveries)
+      .where(and(eq(deliveries.id, id), eq(deliveries.userId, userId)));
     if (!delivery) return undefined;
     
-    const items = await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, id));
+    const items = await db.select().from(deliveryItems)
+      .where(and(eq(deliveryItems.deliveryId, id), eq(deliveryItems.userId, userId)));
     
     // Calculate gross, rejected, net amounts, and commission
     let grossAmount = 0;
@@ -723,7 +760,7 @@ export class DatabaseStorage implements IStorage {
     });
     
     const netAmount = grossAmount - rejectedAmount;
-    const commission = await this.calculateCommission(delivery.vendorId, netAmount);
+    const commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
     const claimableAmount = netAmount - commission;
     
     return { 
@@ -737,11 +774,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getLastDeliveryForVendor(vendorId: string): Promise<any | null> {
+  async getLastDeliveryForVendor(userId: string, vendorId: string): Promise<any | null> {
     const [lastDelivery] = await db
       .select()
       .from(deliveries)
-      .where(eq(deliveries.vendorId, vendorId))
+      .where(and(eq(deliveries.vendorId, vendorId), eq(deliveries.userId, userId)))
       .orderBy(desc(deliveries.deliveryDate))
       .limit(1);
     
@@ -751,7 +788,7 @@ export class DatabaseStorage implements IStorage {
     const items = await db
       .select()
       .from(deliveryItems)
-      .where(eq(deliveryItems.deliveryId, lastDelivery.id));
+      .where(and(eq(deliveryItems.deliveryId, lastDelivery.id), eq(deliveryItems.userId, userId)));
     
     return {
       ...lastDelivery,
@@ -759,12 +796,13 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async checkDuplicateDelivery(vendorId: string, deliveryDate: string): Promise<any | null> {
+  async checkDuplicateDelivery(userId: string, vendorId: string, deliveryDate: string): Promise<any | null> {
     const [existing] = await db
       .select()
       .from(deliveries)
       .where(
         and(
+          eq(deliveries.userId, userId),
           eq(deliveries.vendorId, vendorId),
           eq(deliveries.deliveryDate, deliveryDate)
         )
@@ -774,25 +812,29 @@ export class DatabaseStorage implements IStorage {
     return existing || null;
   }
 
-  async createDelivery(delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {
+  async createDelivery(userId: string, delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {
     // Use transaction with advisory lock to prevent race conditions in invoice number generation
     return await db.transaction(async (tx) => {
       // Format: INV-YYYYMMDD-XXXX
       const date = new Date(delivery.deliveryDate);
       const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
       
-      // Use PostgreSQL advisory lock to serialize invoice generation per date
-      // Convert date string to integer for advisory lock (e.g., 20251015 -> numeric)
-      const lockId = parseInt(dateStr);
+      // Use PostgreSQL advisory lock to serialize invoice generation per date per user
+      // Combine user hash + date for unique lock ID per user
+      const userHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const lockId = parseInt(dateStr) * 1000000 + (userHash % 1000000);
       
-      // Acquire advisory lock for this date (automatically released at transaction end)
+      // Acquire advisory lock for this user+date (automatically released at transaction end)
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
       
-      // Now safely find the latest invoice number for this date
+      // Now safely find the latest invoice number for this date FOR THIS USER
       const latestInvoice = await tx
         .select()
         .from(deliveries)
-        .where(sql`${deliveries.invoiceNumber} LIKE ${'INV-' + dateStr + '-%'}`)
+        .where(and(
+          eq(deliveries.userId, userId),
+          sql`${deliveries.invoiceNumber} LIKE ${'INV-' + dateStr + '-%'}`
+        ))
         .orderBy(desc(deliveries.invoiceNumber))
         .limit(1);
       
@@ -812,6 +854,7 @@ export class DatabaseStorage implements IStorage {
       // Insert delivery with generated invoice number
       const [newDelivery] = await tx.insert(deliveries).values({
         ...delivery,
+        userId,
         invoiceNumber,
       }).returning();
       
@@ -820,6 +863,7 @@ export class DatabaseStorage implements IStorage {
         const itemsWithDeliveryId = items.map(item => ({
           ...item,
           deliveryId: newDelivery.id,
+          userId,
         }));
         await tx.insert(deliveryItems).values(itemsWithDeliveryId);
       }
@@ -828,39 +872,42 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateDeliveryStatus(id: string, status: string): Promise<void> {
+  async updateDeliveryStatus(userId: string, id: string, status: string): Promise<void> {
     await db.update(deliveries)
       .set({ status: status as any })
-      .where(eq(deliveries.id, id));
+      .where(and(eq(deliveries.id, id), eq(deliveries.userId, userId)));
   }
 
-  async updateDeliveryPaymentStatus(id: string, paymentStatus: string): Promise<any> {
+  async updateDeliveryPaymentStatus(userId: string, id: string, paymentStatus: string): Promise<any> {
     const [updated] = await db.update(deliveries)
       .set({ paymentStatus: paymentStatus as any })
-      .where(eq(deliveries.id, id))
+      .where(and(eq(deliveries.id, id), eq(deliveries.userId, userId)))
       .returning();
     return updated;
   }
 
-  async updateDeliveryItemRejection(itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void> {
+  async updateDeliveryItemRejection(userId: string, itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void> {
     await db.update(deliveryItems)
       .set({ 
         rejectedQty,
         rejectionReason 
       })
-      .where(eq(deliveryItems.id, itemId));
+      .where(and(eq(deliveryItems.id, itemId), eq(deliveryItems.userId, userId)));
   }
 
   // POS Sales
-  async generateReceiptNumber(): Promise<string> {
+  async generateReceiptNumber(userId: string): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
     
-    // Get today's sales count for sequence number
+    // Get today's sales count for sequence number FOR THIS USER
     const todaySales = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(sales)
-      .where(eq(sales.saleDate, today.toISOString().split('T')[0]));
+      .where(and(
+        eq(sales.saleDate, today.toISOString().split('T')[0]),
+        eq(sales.userId, userId)
+      ));
     
     const sequence = (todaySales[0]?.count || 0) + 1;
     const paddedSequence = sequence.toString().padStart(4, '0');
@@ -868,7 +915,7 @@ export class DatabaseStorage implements IStorage {
     return `RES-${dateStr}-${paddedSequence}`;
   }
 
-  async getAllSales(startDate?: string, endDate?: string): Promise<any[]> {
+  async getAllSales(userId: string, startDate?: string, endDate?: string): Promise<any[]> {
     let query = db
       .select({
         id: sales.id,
@@ -882,21 +929,22 @@ export class DatabaseStorage implements IStorage {
         totalItems: sql<number>`COUNT(${salesItems.id})`,
       })
       .from(sales)
-      .leftJoin(salesItems, eq(sales.id, salesItems.saleId))
+      .leftJoin(salesItems, and(eq(sales.id, salesItems.saleId), eq(salesItems.userId, userId)))
+      .where(eq(sales.userId, userId))
       .groupBy(sales.id, sales.saleDate, sales.receiptNumber)
       .orderBy(desc(sales.saleDate));
 
     if (startDate) {
-      query = query.where(sql`${sales.saleDate} >= ${startDate}`);
+      query = query.where(and(eq(sales.userId, userId), sql`${sales.saleDate} >= ${startDate}`));
     }
     if (endDate) {
-      query = query.where(sql`${sales.saleDate} <= ${endDate}`);
+      query = query.where(and(eq(sales.userId, userId), sql`${sales.saleDate} <= ${endDate}`));
     }
 
     return await query;
   }
 
-  async getAllDeliveries(): Promise<any[]> {
+  async getAllDeliveries(userId: string): Promise<any[]> {
     const result = await db
       .select({
         id: deliveries.id,
@@ -915,25 +963,28 @@ export class DatabaseStorage implements IStorage {
         notes: deliveries.notes,
       })
       .from(deliveries)
-      .innerJoin(vendors, eq(deliveries.vendorId, vendors.id))
-      .innerJoin(deliveryItems, eq(deliveries.id, deliveryItems.deliveryId))
-      .innerJoin(products, eq(deliveryItems.productId, products.id))
+      .innerJoin(vendors, and(eq(deliveries.vendorId, vendors.id), eq(vendors.userId, userId)))
+      .innerJoin(deliveryItems, and(eq(deliveries.id, deliveryItems.deliveryId), eq(deliveryItems.userId, userId)))
+      .innerJoin(products, and(eq(deliveryItems.productId, products.id), eq(products.userId, userId)))
+      .where(eq(deliveries.userId, userId))
       .orderBy(desc(deliveries.deliveryDate));
 
     return result;
   }
 
-  async getSales(limit: number = 50, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+  async getSales(userId: string, limit: number = 50, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
     // Get total count
     const countResult = await db
       .select({ count: sql<number>`COUNT(*)` })
-      .from(sales);
+      .from(sales)
+      .where(eq(sales.userId, userId));
     const total = countResult[0]?.count || 0;
 
     // Get sales with items
     const salesData = await db
       .select()
       .from(sales)
+      .where(eq(sales.userId, userId))
       .orderBy(desc(sales.saleDate), desc(sales.createdAt))
       .limit(limit + 1)
       .offset(offset);
@@ -947,7 +998,7 @@ export class DatabaseStorage implements IStorage {
         const items = await db
           .select()
           .from(salesItems)
-          .where(eq(salesItems.saleId, sale.id));
+          .where(and(eq(salesItems.saleId, sale.id), eq(salesItems.userId, userId)));
         
         return {
           ...sale,
@@ -963,11 +1014,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getSale(id: string): Promise<any> {
+  async getSale(userId: string, id: string): Promise<any> {
     const [sale] = await db
       .select()
       .from(sales)
-      .where(eq(sales.id, id))
+      .where(and(eq(sales.id, id), eq(sales.userId, userId)))
       .limit(1);
 
     if (!sale) return null;
@@ -975,7 +1026,7 @@ export class DatabaseStorage implements IStorage {
     const items = await db
       .select()
       .from(salesItems)
-      .where(eq(salesItems.saleId, id));
+      .where(and(eq(salesItems.saleId, id), eq(salesItems.userId, userId)));
 
     return {
       ...sale,
@@ -983,15 +1034,16 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createSale(sale: InsertSale, items: InsertSalesItem[]): Promise<Sale> {
+  async createSale(userId: string, sale: InsertSale, items: InsertSalesItem[]): Promise<Sale> {
     // Use transaction for atomic sale creation with FIFO stock deduction
     return await db.transaction(async (tx) => {
       // Step 1: Generate receipt number
-      const receiptNumber = await this.generateReceiptNumber();
+      const receiptNumber = await this.generateReceiptNumber(userId);
       
       // Step 2: Create the sale record
       const [newSale] = await tx.insert(sales).values({
         ...sale,
+        userId,
         receiptNumber,
       }).returning();
 
@@ -1000,7 +1052,7 @@ export class DatabaseStorage implements IStorage {
       
       for (const item of items) {
         // Deduct from finished goods using FIFO
-        const deductionResult = await this.deductFromBatches(item.productId, item.quantity);
+        const deductionResult = await this.deductFromBatches(userId, item.productId, item.quantity);
         
         if (!deductionResult.success) {
           // Rollback transaction if insufficient stock
@@ -1016,6 +1068,7 @@ export class DatabaseStorage implements IStorage {
           const [salesItem] = await tx.insert(salesItems).values({
             ...item,
             saleId: newSale.id,
+            userId,
             quantity, // Quantity from this batch
             totalPrice: (unitPrice * deduction.deductedQty).toFixed(2),
             totalCost: (unitCost * deduction.deductedQty).toFixed(2),
@@ -1033,12 +1086,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Expenses
-  async getExpenses(): Promise<Expense[]> {
-    return await db.select().from(expenses).orderBy(desc(expenses.expenseDate));
+  async getExpenses(userId: string): Promise<Expense[]> {
+    return await db.select().from(expenses)
+      .where(eq(expenses.userId, userId))
+      .orderBy(desc(expenses.expenseDate));
   }
 
-  async createExpense(expense: InsertExpense): Promise<Expense> {
-    const [newExpense] = await db.insert(expenses).values(expense).returning();
+  async createExpense(userId: string, expense: InsertExpense): Promise<Expense> {
+    const [newExpense] = await db.insert(expenses).values({ ...expense, userId }).returning();
     return newExpense;
   }
 
@@ -1617,8 +1672,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Helper function to calculate commission
-  private async calculateCommission(vendorId: string, amount: number): Promise<number> {
-    const commission = await this.getVendorCommission(vendorId);
+  private async calculateCommission(userId: string, vendorId: string, amount: number): Promise<number> {
+    const commission = await this.getVendorCommission(userId, vendorId);
     
     if (!commission) {
       return 0;
@@ -1652,18 +1707,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Claims
-  async getClaimsSummary(limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
-    // Get all unique vendors from deliveries
+  async getClaimsSummary(userId: string, limit: number = 20, offset: number = 0): Promise<{ data: any[], hasMore: boolean, total: number }> {
+    // Get all unique vendors from deliveries FOR THIS USER
     const uniqueVendors = await db.selectDistinct({
       vendorId: deliveries.vendorId,
       vendorName: deliveries.vendorName,
     })
-      .from(deliveries);
+      .from(deliveries)
+      .where(eq(deliveries.userId, userId));
 
     // Calculate detailed claims for each vendor with latest delivery date and overdue days
     const claimsSummary = await Promise.all(
       uniqueVendors.map(async (vendor) => {
-        const details = await this.getClaimDetailsByVendor(vendor.vendorId);
+        const details = await this.getClaimDetailsByVendor(userId, vendor.vendorId);
         
         // Get latest delivery date for this vendor
         const latestDelivery = details.deliveries && details.deliveries.length > 0 
@@ -1719,11 +1775,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getClaimDetailsByVendor(vendorId: string): Promise<any> {
-    // Get all deliveries for this vendor
+  async getClaimDetailsByVendor(userId: string, vendorId: string): Promise<any> {
+    // Get all deliveries for this vendor FOR THIS USER
     const vendorDeliveries = await db.select()
       .from(deliveries)
-      .where(eq(deliveries.vendorId, vendorId))
+      .where(and(eq(deliveries.vendorId, vendorId), eq(deliveries.userId, userId)))
       .orderBy(desc(deliveries.deliveryDate));
 
     // Get items for each delivery with detailed per-item calculation
@@ -1731,7 +1787,7 @@ export class DatabaseStorage implements IStorage {
       vendorDeliveries.map(async (delivery) => {
         const items = await db.select()
           .from(deliveryItems)
-          .where(eq(deliveryItems.deliveryId, delivery.id));
+          .where(and(eq(deliveryItems.deliveryId, delivery.id), eq(deliveryItems.userId, userId)));
         
         // Calculate gross, rejected, and net amounts for this delivery
         let grossAmount = 0;
@@ -1746,7 +1802,7 @@ export class DatabaseStorage implements IStorage {
         });
 
         const netAmount = grossAmount - rejectedAmount;
-        const commission = await this.calculateCommission(vendorId, netAmount);
+        const commission = await this.calculateCommission(userId, vendorId, netAmount);
         const claimableAmount = netAmount - commission;
 
         // Calculate per-item commission and claimable amounts
@@ -1868,76 +1924,86 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Vendor Commissions
-  async getVendorCommission(vendorId: string): Promise<VendorCommission | undefined> {
+  async getVendorCommission(userId: string, vendorId: string): Promise<VendorCommission | undefined> {
     const [commission] = await db.select()
       .from(vendorCommissions)
-      .where(eq(vendorCommissions.vendorId, vendorId))
+      .where(and(eq(vendorCommissions.vendorId, vendorId), eq(vendorCommissions.userId, userId)))
       .limit(1);
     return commission || undefined;
   }
 
-  async createOrUpdateVendorCommission(commission: InsertVendorCommission): Promise<VendorCommission> {
+  async createOrUpdateVendorCommission(userId: string, commission: InsertVendorCommission): Promise<VendorCommission> {
     // Check if commission exists for this vendor
-    const existing = await this.getVendorCommission(commission.vendorId);
+    const existing = await this.getVendorCommission(userId, commission.vendorId);
     
     if (existing) {
       // Update existing commission
       const [updated] = await db.update(vendorCommissions)
         .set({ ...commission, updatedAt: new Date() })
-        .where(eq(vendorCommissions.vendorId, commission.vendorId))
+        .where(and(eq(vendorCommissions.vendorId, commission.vendorId), eq(vendorCommissions.userId, userId)))
         .returning();
       return updated;
     } else {
       // Create new commission
-      const [newCommission] = await db.insert(vendorCommissions).values(commission).returning();
+      const [newCommission] = await db.insert(vendorCommissions).values({ ...commission, userId }).returning();
       return newCommission;
     }
   }
 
-  async deleteVendorCommission(vendorId: string): Promise<void> {
-    await db.delete(vendorCommissions).where(eq(vendorCommissions.vendorId, vendorId));
+  async deleteVendorCommission(userId: string, vendorId: string): Promise<void> {
+    await db.delete(vendorCommissions)
+      .where(and(eq(vendorCommissions.vendorId, vendorId), eq(vendorCommissions.userId, userId)));
   }
   
   // Stock Items (Warehouse Inventory)
-  async getStockItems(): Promise<StockItem[]> {
-    return await db.select().from(stockItems).orderBy(desc(stockItems.createdAt));
+  async getStockItems(userId: string): Promise<StockItem[]> {
+    return await db.select().from(stockItems)
+      .where(eq(stockItems.userId, userId))
+      .orderBy(desc(stockItems.createdAt));
   }
   
-  async getStockItem(id: string): Promise<StockItem | undefined> {
-    const result = await db.select().from(stockItems).where(eq(stockItems.id, id));
+  async getStockItem(userId: string, id: string): Promise<StockItem | undefined> {
+    const result = await db.select().from(stockItems)
+      .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)));
     return result[0];
   }
   
-  async createStockItem(item: InsertStockItem): Promise<StockItem> {
-    const result = await db.insert(stockItems).values(item).returning();
+  async createStockItem(userId: string, item: InsertStockItem): Promise<StockItem> {
+    const result = await db.insert(stockItems).values({ ...item, userId }).returning();
     return result[0];
   }
   
-  async updateStockItem(id: string, item: Partial<InsertStockItem>): Promise<StockItem> {
+  async updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>): Promise<StockItem> {
     const result = await db.update(stockItems)
       .set({ ...item, updatedAt: new Date() })
-      .where(eq(stockItems.id, id))
+      .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)))
       .returning();
     return result[0];
   }
   
-  async deleteStockItem(id: string): Promise<void> {
-    await db.delete(stockItems).where(eq(stockItems.id, id));
+  async deleteStockItem(userId: string, id: string): Promise<void> {
+    await db.delete(stockItems)
+      .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)));
   }
   
-  async getLowStockItems(): Promise<StockItem[]> {
+  async getLowStockItems(userId: string): Promise<StockItem[]> {
     return await db.select().from(stockItems)
-      .where(sql`${stockItems.currentQuantity} <= ${stockItems.lowStockThreshold}`)
+      .where(and(
+        eq(stockItems.userId, userId),
+        sql`${stockItems.currentQuantity} <= ${stockItems.lowStockThreshold}`
+      ))
       .orderBy(stockItems.currentQuantity);
   }
   
   // Categories
-  async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories).orderBy(categories.name);
+  async getCategories(userId: string): Promise<Category[]> {
+    return await db.select().from(categories)
+      .where(eq(categories.userId, userId))
+      .orderBy(categories.name);
   }
   
-  async createCategory(category: InsertCategory): Promise<Category> {
-    const result = await db.insert(categories).values(category).returning();
+  async createCategory(userId: string, category: InsertCategory): Promise<Category> {
+    const result = await db.insert(categories).values({ ...category, userId }).returning();
     return result[0];
   }
   
