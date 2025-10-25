@@ -8,6 +8,7 @@ import {
   insertProductSchema,
   insertProductionBatchSchema,
   insertVendorSchema,
+  insertSupplierSchema,
   insertDeliverySchema,
   insertSaleSchema,
   insertSalesItemSchema,
@@ -1635,6 +1636,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(vendor);
     } catch (error) {
       res.status(400).json({ error: "Invalid vendor data" });
+    }
+  });
+
+  // Suppliers (Pembekal untuk Purchase Orders)
+  app.get("/api/suppliers", async (req, res) => {
+    try {
+      const suppliers = await storage.getSuppliers();
+      res.json(suppliers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch suppliers" });
+    }
+  });
+
+  app.post("/api/suppliers", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const data = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(data);
+      res.json(supplier);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid supplier data" });
+    }
+  });
+
+  app.patch("/api/suppliers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertSupplierSchema.partial().parse(req.body);
+      const supplier = await storage.updateSupplier(id, data);
+      res.json(supplier);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid supplier data" });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteSupplier(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete supplier" });
     }
   });
 
