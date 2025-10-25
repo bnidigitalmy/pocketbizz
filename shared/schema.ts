@@ -310,6 +310,30 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
   notes: text("notes"),
 });
 
+// Purchase Order Templates Table (for recurring/template POs)
+export const poTemplates = pgTable("po_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateName: text("template_name").notNull(), // User-friendly name
+  supplierId: varchar("supplier_id").references(() => vendors.id, { onDelete: "set null" }),
+  supplierName: text("supplier_name").notNull(),
+  supplierPhone: text("supplier_phone"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// PO Template Items Table
+export const poTemplateItems = pgTable("po_template_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull().references(() => poTemplates.id, { onDelete: "cascade" }),
+  stockItemId: varchar("stock_item_id").references(() => stockItems.id, { onDelete: "set null" }),
+  itemName: text("item_name").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unit: text("unit").notNull(),
+  estimatedPrice: decimal("estimated_price", { precision: 10, scale: 2 }).default("0"),
+  notes: text("notes"),
+});
+
 // Relations
 export const stockItemsRelations = relations(stockItems, ({ many }) => ({
   recipeItems: many(recipeItems),
@@ -388,6 +412,25 @@ export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one 
   }),
   stockItem: one(stockItems, {
     fields: [purchaseOrderItems.stockItemId],
+    references: [stockItems.id],
+  }),
+}));
+
+export const poTemplatesRelations = relations(poTemplates, ({ one, many }) => ({
+  supplier: one(vendors, {
+    fields: [poTemplates.supplierId],
+    references: [vendors.id],
+  }),
+  items: many(poTemplateItems),
+}));
+
+export const poTemplateItemsRelations = relations(poTemplateItems, ({ one }) => ({
+  template: one(poTemplates, {
+    fields: [poTemplateItems.templateId],
+    references: [poTemplates.id],
+  }),
+  stockItem: one(stockItems, {
+    fields: [poTemplateItems.stockItemId],
     references: [stockItems.id],
   }),
 }));
@@ -524,6 +567,16 @@ export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderIte
   id: true,
 });
 
+export const insertPOTemplateSchema = createInsertSchema(poTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPOTemplateItemSchema = createInsertSchema(poTemplateItems).omit({
+  id: true,
+});
+
 // Types
 export type StockItem = typeof stockItems.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
@@ -577,6 +630,12 @@ export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
 
 export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
 export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
+
+export type POTemplate = typeof poTemplates.$inferSelect;
+export type InsertPOTemplate = z.infer<typeof insertPOTemplateSchema>;
+
+export type POTemplateItem = typeof poTemplateItems.$inferSelect;
+export type InsertPOTemplateItem = z.infer<typeof insertPOTemplateItemSchema>;
 
 // ==================== SUBSCRIPTION & BILLING SYSTEM ====================
 
