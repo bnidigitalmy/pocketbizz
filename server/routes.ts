@@ -3098,6 +3098,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PURCHASE ORDERS (Smart Supplier Order Hub) ====================
+  
+  // Create PO from cart items
+  app.post("/api/purchase-orders/from-cart", async (req, res) => {
+    try {
+      const { supplierId, supplierName, supplierPhone, notes, cartItemIds } = req.body;
+      
+      if (!supplierName || !Array.isArray(cartItemIds) || cartItemIds.length === 0) {
+        return res.status(400).json({ error: "Supplier name and cart items are required" });
+      }
+      
+      const order = await storage.createPurchaseOrderFromCart(
+        supplierId || null,
+        supplierName,
+        supplierPhone || null,
+        notes || null,
+        cartItemIds
+      );
+      
+      res.json(order);
+    } catch (error: any) {
+      console.error("Create PO from cart error:", error);
+      res.status(500).json({ error: "Failed to create purchase order", message: error.message });
+    }
+  });
+  
+  // Get all purchase orders
+  app.get("/api/purchase-orders", async (req, res) => {
+    try {
+      const orders = await storage.getPurchaseOrders();
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch purchase orders" });
+    }
+  });
+  
+  // Get single purchase order
+  app.get("/api/purchase-orders/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await storage.getPurchaseOrder(id);
+      
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch purchase order" });
+    }
+  });
+  
+  // Update PO status
+  app.patch("/api/purchase-orders/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+      
+      const additionalData: any = {};
+      if (notes) additionalData.notes = notes;
+      
+      const updated = await storage.updatePurchaseOrderStatus(id, status, additionalData);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Update PO status error:", error);
+      res.status(500).json({ error: "Failed to update purchase order status", message: error.message });
+    }
+  });
+  
+  // Mark PO as received (auto-create expense & update stock)
+  app.post("/api/purchase-orders/:id/receive", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { actualPrices } = req.body; // Optional: [{ itemId, price }]
+      
+      await storage.markPurchaseOrderReceived(id, actualPrices);
+      res.json({ success: true, message: "Purchase order marked as received, stock updated, and expense created" });
+    } catch (error: any) {
+      console.error("Mark PO received error:", error);
+      res.status(500).json({ error: "Failed to mark purchase order as received", message: error.message });
+    }
+  });
+  
+  // Delete PO
+  app.delete("/api/purchase-orders/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePurchaseOrder(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete purchase order" });
+    }
+  });
+
   // ==================== ADMIN ROUTES ====================
   
   // Admin: Get dashboard statistics
