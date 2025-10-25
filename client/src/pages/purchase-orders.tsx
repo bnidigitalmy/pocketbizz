@@ -82,7 +82,7 @@ export default function PurchaseOrders() {
     queryKey: ["/api/purchase-orders"],
   });
   
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [] } = useQuery<any[]>({
     queryKey: ["/api/po-templates"],
   });
 
@@ -964,6 +964,136 @@ export default function PurchaseOrders() {
               data-testid="button-confirm-receive"
             >
               {markReceivedMutation.isPending ? "Merekod..." : "Sahkan Terima"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Save Template Dialog */}
+      <Dialog open={saveTemplateDialogOpen} onOpenChange={setSaveTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Simpan sebagai Template</DialogTitle>
+            <DialogDescription>
+              Template membolehkan anda cipta PO baharu dengan item yang sama
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Nama Template *</Label>
+              <Input
+                id="template-name"
+                placeholder="Contoh: Pesanan Bulanan Supplier ABC"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                data-testid="input-template-name"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSaveTemplateDialogOpen(false);
+                setTemplateName("");
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (!templateName.trim()) {
+                  toast({
+                    title: "Nama diperlukan",
+                    description: "Sila masukkan nama template",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (selectedPO) {
+                  saveTemplateMutation.mutate({ 
+                    poId: selectedPO.id, 
+                    templateName: templateName.trim() 
+                  });
+                }
+              }}
+              disabled={saveTemplateMutation.isPending}
+              data-testid="button-confirm-save-template"
+            >
+              {saveTemplateMutation.isPending ? "Menyimpan..." : "Simpan Template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Templates List Dialog */}
+      <Dialog open={templatesDialogOpen} onOpenChange={setTemplatesDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>PO Templates</DialogTitle>
+            <DialogDescription>
+              {templates.length > 0 
+                ? `${templates.length} template tersimpan` 
+                : "Tiada template tersimpan"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {templates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Tiada template. Simpan PO sebagai template untuk kegunaan semula.</p>
+              </div>
+            ) : (
+              templates.map((template: any) => (
+                <Card key={template.id} className="hover-elevate">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="text-base">{template.templateName}</CardTitle>
+                        <CardDescription className="mt-1">
+                          {template.supplierName}
+                          {template.supplierPhone && ` • ${template.supplierPhone}`}
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => createFromTemplateMutation.mutate(template.id)}
+                          disabled={createFromTemplateMutation.isPending}
+                          data-testid={`button-use-template-${template.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Guna
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteTemplateMutation.mutate(template.id)}
+                          disabled={deleteTemplateMutation.isPending}
+                          data-testid={`button-delete-template-${template.id}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="text-sm text-muted-foreground">
+                      {template.items?.length || 0} item
+                      {template.notes && ` • ${template.notes}`}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplatesDialogOpen(false)}>
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>

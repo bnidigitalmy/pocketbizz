@@ -2183,14 +2183,14 @@ export class DatabaseStorage implements IStorage {
       );
       const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
       
-      // Calculate total
+      // Calculate total from template items
       const totalAmount = templateItems.reduce((sum, item) => {
         const price = parseFloat(item.estimatedPrice || "0");
-        const qty = parseFloat(item.quantity);
+        const qty = parseFloat(item.quantity || "0");
         return sum + (price * qty);
       }, 0);
       
-      // Create PO
+      // Create PO with calculated total
       const [order] = await tx.insert(purchaseOrders).values({
         poNumber,
         supplierId: template.supplierId,
