@@ -2,10 +2,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Share2, Check, X, Clock, Send, Package, ChevronRight } from "lucide-react";
+import { FileText, Download, Share2, Check, X, Clock, Send, Package, ChevronRight, Printer } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { downloadPOPDF } from "@/lib/po-pdf-generator";
 import {
   Dialog,
   DialogContent,
@@ -173,6 +174,38 @@ export default function PurchaseOrders() {
     });
   };
 
+  const handleDownloadPDF = (po: PurchaseOrder) => {
+    try {
+      downloadPOPDF({
+        poNumber: po.poNumber,
+        supplierName: po.supplierName,
+        supplierPhone: po.supplierPhone,
+        totalAmount: po.totalAmount,
+        notes: po.notes,
+        createdAt: po.createdAt,
+        status: po.status,
+        items: po.items.map(item => ({
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          estimatedPrice: item.estimatedPrice || "0",
+          notes: item.notes
+        }))
+      });
+
+      toast({
+        title: "PDF dimuat turun",
+        description: `${po.poNumber}.pdf telah dimuat turun`,
+      });
+    } catch (error) {
+      toast({
+        title: "Ralat",
+        description: "Gagal menjana PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleViewDetails = (po: PurchaseOrder) => {
     setSelectedPO(po);
     setDetailDialogOpen(true);
@@ -331,6 +364,15 @@ export default function PurchaseOrders() {
                       Lihat
                     </Button>
 
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadPDF(po)}
+                      data-testid={`button-pdf-${po.id}`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+
                     {po.status === 'draft' && (
                       <Button
                         variant="default"
@@ -467,6 +509,14 @@ export default function PurchaseOrders() {
           )}
 
           <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => selectedPO && handleDownloadPDF(selectedPO)}
+              data-testid="button-download-pdf"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Muat Turun PDF
+            </Button>
             <Button
               variant="outline"
               onClick={() => selectedPO && handleShareWhatsApp(selectedPO)}
