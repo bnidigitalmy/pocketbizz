@@ -231,6 +231,7 @@ export interface IStorage {
   getPurchaseOrders(): Promise<any[]>; // Returns orders with items
   getPurchaseOrder(id: string): Promise<any | undefined>; // Returns order with items
   updatePurchaseOrderStatus(id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder>;
+  updatePurchaseOrder(id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any>;
   deletePurchaseOrder(id: string): Promise<void>;
   createPurchaseOrderFromCart(supplierId: string | null, supplierName: string, supplierPhone: string | null, notes: string | null, cartItemIds: string[]): Promise<PurchaseOrder>;
   markPurchaseOrderReceived(id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void>;
@@ -2038,6 +2039,62 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   
+  async updatePurchaseOrder(id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Update PO basic info
+      const updateData: any = { updatedAt: new Date() };
+      if (data.supplierName !== undefined) updateData.supplierName = data.supplierName;
+      if (data.supplierPhone !== undefined) updateData.supplierPhone = data.supplierPhone;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      
+      await tx
+        .update(purchaseOrders)
+        .set(updateData)
+        .where(eq(purchaseOrders.id, id));
+      
+      // Update items if provided (including empty array to clear items)
+      if (data.items !== undefined) {
+        // Delete old items
+        await tx.delete(purchaseOrderItems).where(eq(purchaseOrderItems.poId, id));
+        
+        // Insert new items if any
+        if (data.items.length > 0) {
+          await tx.insert(purchaseOrderItems).values(
+            data.items.map((item: any) => ({
+              poId: id,
+              stockItemId: item.stockItemId || null,
+              itemName: item.itemName,
+              quantity: item.quantity,
+              unit: item.unit,
+              estimatedPrice: item.estimatedPrice || null,
+              notes: item.notes || null,
+            }))
+          );
+        }
+        
+        // Recalculate total
+        const totalAmount = data.items.reduce((sum: number, item: any) => {
+          const price = parseFloat(item.estimatedPrice || "0");
+          const qty = parseFloat(item.quantity || "0");
+          return sum + (price * qty);
+        }, 0);
+        
+        await tx
+          .update(purchaseOrders)
+          .set({ totalAmount: totalAmount.toString() })
+          .where(eq(purchaseOrders.id, id));
+      }
+      
+      // Return fresh updated PO with items
+      const [updatedPO] = await tx.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+      const items = await tx.select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.poId, id));
+      
+      return { ...updatedPO, items };
+    });
+  }
+
   async deletePurchaseOrder(id: string): Promise<void> {
     await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
   }

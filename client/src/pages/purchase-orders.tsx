@@ -68,6 +68,12 @@ export default function PurchaseOrders() {
     recipientName: "",
     message: ""
   });
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    supplierName: "",
+    supplierPhone: "",
+    notes: ""
+  });
 
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/purchase-orders"],
@@ -140,6 +146,28 @@ export default function PurchaseOrders() {
       toast({
         title: "Ralat",
         description: error.message || "Gagal menghantar email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updatePOMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof editForm }) => {
+      return await apiRequest("PATCH", `/api/purchase-orders/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      setEditDialogOpen(false);
+      setEditForm({ supplierName: "", supplierPhone: "", notes: "" });
+      toast({
+        title: "PO dikemaskini",
+        description: "Purchase order telah dikemaskini",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal kemaskini PO",
         variant: "destructive",
       });
     },
@@ -262,6 +290,34 @@ export default function PurchaseOrders() {
     sendEmailMutation.mutate({ 
       id: selectedPO.id, 
       data: emailForm 
+    });
+  };
+
+  const handleOpenEditDialog = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setEditForm({
+      supplierName: po.supplierName,
+      supplierPhone: po.supplierPhone || "",
+      notes: po.notes || ""
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdatePO = () => {
+    if (!selectedPO) return;
+    
+    if (!editForm.supplierName.trim()) {
+      toast({
+        title: "Nama supplier diperlukan",
+        description: "Sila masukkan nama supplier",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePOMutation.mutate({ 
+      id: selectedPO.id, 
+      data: editForm 
     });
   };
 
@@ -433,18 +489,28 @@ export default function PurchaseOrders() {
                     </Button>
 
                     {po.status === 'draft' && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          updateStatusMutation.mutate({ id: po.id, status: 'sent' });
-                          handleShareWhatsApp(po);
-                        }}
-                        data-testid={`button-send-${po.id}`}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Hantar
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEditDialog(po)}
+                          data-testid={`button-edit-${po.id}`}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            updateStatusMutation.mutate({ id: po.id, status: 'sent' });
+                            handleShareWhatsApp(po);
+                          }}
+                          data-testid={`button-send-${po.id}`}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Hantar
+                        </Button>
+                      </>
                     )}
 
                     {po.status === 'sent' && (
@@ -690,6 +756,83 @@ export default function PurchaseOrders() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit PO Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Purchase Order</DialogTitle>
+            <DialogDescription>
+              Kemaskini maklumat supplier dan nota PO
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPO && (
+            <div className="space-y-4">
+              <div className="space-y-2 p-3 bg-muted rounded-md">
+                <p className="text-sm">
+                  <strong>PO Number:</strong> {selectedPO.poNumber}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Status: Draft
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-supplier-name">Nama Supplier *</Label>
+                <Input
+                  id="edit-supplier-name"
+                  type="text"
+                  value={editForm.supplierName}
+                  onChange={(e) => setEditForm({ ...editForm, supplierName: e.target.value })}
+                  data-testid="input-edit-supplier-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-supplier-phone">Telefon Supplier (Pilihan)</Label>
+                <Input
+                  id="edit-supplier-phone"
+                  type="tel"
+                  placeholder="0123456789"
+                  value={editForm.supplierPhone}
+                  onChange={(e) => setEditForm({ ...editForm, supplierPhone: e.target.value })}
+                  data-testid="input-edit-supplier-phone"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Nota (Pilihan)</Label>
+                <Textarea
+                  id="edit-notes"
+                  placeholder="Nota tambahan..."
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={3}
+                  data-testid="input-edit-notes"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEditDialogOpen(false)}
+              disabled={updatePOMutation.isPending}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleUpdatePO}
+              disabled={updatePOMutation.isPending}
+              data-testid="button-save-edit"
+            >
+              {updatePOMutation.isPending ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Receive Confirmation Dialog */}
       <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
         <DialogContent>
@@ -712,8 +855,8 @@ export default function PurchaseOrders() {
                 <strong>Jumlah:</strong> RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
               </p>
               <p className="text-sm text-muted-foreground mt-4">
-                ✅ Stok akan ditambah<br />
-                ✅ Perbelanjaan akan direkod
+                Stok akan ditambah<br />
+                Perbelanjaan akan direkod
               </p>
             </div>
           )}

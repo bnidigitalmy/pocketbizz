@@ -3276,6 +3276,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update PO (items, supplier, notes) - only allowed for draft status
+  app.patch("/api/purchase-orders/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Validate request body
+      const updatePOSchema = z.object({
+        supplierName: z.string().optional(),
+        supplierPhone: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        items: z.array(z.object({
+          stockItemId: z.string().nullable().optional(),
+          itemName: z.string(),
+          quantity: z.string(),
+          unit: z.string(),
+          estimatedPrice: z.string().nullable().optional(),
+          notes: z.string().nullable().optional(),
+        })).optional(),
+      });
+      
+      const validatedData = updatePOSchema.parse(req.body);
+      
+      const order = await storage.getPurchaseOrder(id);
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      
+      // Only allow editing draft POs
+      if (order.status !== 'draft') {
+        return res.status(400).json({ error: "Only draft purchase orders can be edited" });
+      }
+      
+      // Update PO using storage method
+      const updated = await storage.updatePurchaseOrder(id, validatedData);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Update PO error:", error);
+      res.status(500).json({ error: "Failed to update purchase order", message: error.message });
+    }
+  });
+
   // ==================== ADMIN ROUTES ====================
   
   // Admin: Get dashboard statistics
