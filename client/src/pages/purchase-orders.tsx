@@ -128,16 +128,17 @@ export default function PurchaseOrders() {
       return await apiRequest("POST", `/api/purchase-orders/${id}/send-email`, data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       setEmailDialogOpen(false);
       setEmailForm({ recipientEmail: "", recipientName: "", message: "" });
       toast({
-        title: "Email dihantar! ✉️",
+        title: "Email dihantar",
         description: "PO telah berjaya dihantar ke supplier",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Ralat!",
+        title: "Ralat",
         description: error.message || "Gagal menghantar email",
         variant: "destructive",
       });
