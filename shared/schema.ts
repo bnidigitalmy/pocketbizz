@@ -71,6 +71,7 @@ export const voucherTypeEnum = pgEnum("voucher_type", ["percentage", "fixed_amou
 export const voucherStatusEnum = pgEnum("voucher_status", ["active", "used", "expired", "cancelled"]);
 export const bookingStatusEnum = pgEnum("booking_status", ["pending", "confirmed", "in_progress", "ready", "completed", "cancelled"]);
 export const bookingDeliveryTypeEnum = pgEnum("booking_delivery_type", ["pickup", "delivery"]);
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "received", "cancelled"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -279,6 +280,36 @@ export const shoppingCart = pgTable("shopping_cart", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Purchase Orders Table (Smart Supplier Order Hub)
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  poNumber: text("po_number").notNull().unique(), // PO-20251025-001
+  supplierId: varchar("supplier_id").references(() => vendors.id, { onDelete: "set null" }),
+  supplierName: text("supplier_name").notNull(), // Denormalized
+  supplierPhone: text("supplier_phone"), // Denormalized for easy contact
+  status: purchaseOrderStatusEnum("status").default("draft").notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).default("0").notNull(),
+  notes: text("notes"),
+  sentAt: timestamp("sent_at"),
+  receivedAt: timestamp("received_at"),
+  expenseId: varchar("expense_id").references(() => expenses.id, { onDelete: "set null" }), // Link to expense when received
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Purchase Order Items Table
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  poId: varchar("po_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  stockItemId: varchar("stock_item_id").references(() => stockItems.id, { onDelete: "set null" }),
+  itemName: text("item_name").notNull(), // Denormalized
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unit: text("unit").notNull(),
+  estimatedPrice: decimal("estimated_price", { precision: 10, scale: 2 }).default("0"), // Per unit estimate
+  actualPrice: decimal("actual_price", { precision: 10, scale: 2 }), // Actual price when received
+  notes: text("notes"),
+});
+
 // Relations
 export const stockItemsRelations = relations(stockItems, ({ many }) => ({
   recipeItems: many(recipeItems),
@@ -335,6 +366,29 @@ export const shoppingCartRelations = relations(shoppingCart, ({ one }) => ({
   productionBatch: one(productionBatches, {
     fields: [shoppingCart.productionBatchId],
     references: [productionBatches.id],
+  }),
+}));
+
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many }) => ({
+  supplier: one(vendors, {
+    fields: [purchaseOrders.supplierId],
+    references: [vendors.id],
+  }),
+  items: many(purchaseOrderItems),
+  expense: one(expenses, {
+    fields: [purchaseOrders.expenseId],
+    references: [expenses.id],
+  }),
+}));
+
+export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one }) => ({
+  purchaseOrder: one(purchaseOrders, {
+    fields: [purchaseOrderItems.poId],
+    references: [purchaseOrders.id],
+  }),
+  stockItem: one(stockItems, {
+    fields: [purchaseOrderItems.stockItemId],
+    references: [stockItems.id],
   }),
 }));
 
@@ -460,6 +514,16 @@ export const insertShoppingCartSchema = createInsertSchema(shoppingCart).omit({
   createdAt: true,
 });
 
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems).omit({
+  id: true,
+});
+
 // Types
 export type StockItem = typeof stockItems.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
@@ -507,6 +571,12 @@ export type InsertVendorCommission = z.infer<typeof insertVendorCommissionSchema
 
 export type ShoppingCart = typeof shoppingCart.$inferSelect;
 export type InsertShoppingCart = z.infer<typeof insertShoppingCartSchema>;
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
 
 // ==================== SUBSCRIPTION & BILLING SYSTEM ====================
 
