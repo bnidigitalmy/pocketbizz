@@ -9,6 +9,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Trust proxy for Replit deployment (required for secure cookies behind proxy)
+app.set('trust proxy', 1);
+
 // PostgreSQL session store
 const PgSession = ConnectPgSimple(session);
 const pgPool = new Pool({
@@ -28,8 +31,10 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // 'none' required for cross-origin cookies in production
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
+    proxy: true, // Trust the reverse proxy for secure cookie handling
   })
 );
 
