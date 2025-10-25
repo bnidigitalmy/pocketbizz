@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Calendar, MapPin, Phone, User, Package, Clock, CheckCircle, XCircle, AlertCircle, Minus, Trash2 } from "lucide-react";
+import { Plus, Calendar, MapPin, Phone, User, Package, Clock, CheckCircle, XCircle, AlertCircle, Minus, Trash2, FileText, Download, Share2 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +29,7 @@ export default function Bookings() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [viewingInvoice, setViewingInvoice] = useState<any>(null);
 
   // Form states
   const [customerName, setCustomerName] = useState("");
@@ -64,6 +67,11 @@ export default function Bookings() {
   // Fetch products for item selection
   const { data: products = [] } = useQuery({
     queryKey: ["/api/products"],
+  });
+
+  // Fetch business profile for invoice
+  const { data: businessProfile } = useQuery({
+    queryKey: ["/api/business-profile"],
   });
 
   // Create booking mutation
@@ -291,6 +299,167 @@ export default function Bookings() {
 
   const pendingCount = bookings.filter((b: any) => b.status === "pending").length;
   const confirmedCount = bookings.filter((b: any) => b.status === "confirmed").length;
+
+  // Generate PDF Invoice
+  const generatePDF = (booking: any) => {
+    const doc = new jsPDF();
+    const profile = businessProfile || {};
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text(profile.businessName || "Tempahan Invoice", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(profile.address || "", 14, 28);
+    doc.text(`Tel: ${profile.phone || ""}`, 14, 33);
+    doc.text(`Email: ${profile.email || ""}`, 14, 38);
+    
+    // Invoice Number
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Tempahan: ${booking.bookingNumber}`, 14, 50);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Tarikh: ${new Date().toLocaleDateString("ms-MY")}`, 14, 56);
+    
+    // Customer Details
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("PELANGGAN:", 14, 68);
+    doc.setFont("helvetica", "normal");
+    doc.text(booking.customerName, 14, 74);
+    doc.text(booking.customerPhone, 14, 80);
+    if (booking.customerEmail) doc.text(booking.customerEmail, 14, 86);
+    
+    // Event Details
+    doc.text(`Majlis: ${booking.eventType}`, 14, booking.customerEmail ? 92 : 86);
+    doc.text(`Tarikh Hantar: ${new Date(booking.deliveryDate).toLocaleDateString("ms-MY")}`, 14, booking.customerEmail ? 98 : 92);
+    
+    // Items Table
+    const tableData = (booking.items || []).map((item: any) => [
+      item.productName,
+      item.quantity.toString(),
+      `RM${parseFloat(item.unitPrice || 0).toFixed(2)}`,
+      `RM${parseFloat(item.subtotal || item.totalPrice || 0).toFixed(2)}`
+    ]);
+    
+    const startY = booking.customerEmail ? 108 : 102;
+    autoTable(doc, {
+      startY,
+      head: [['Produk', 'Kuantiti', 'Harga', 'Jumlah']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 10 },
+    });
+    
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY || startY + 40;
+    const itemsTotal = (booking.items || []).reduce((sum: number, item: any) => 
+      sum + parseFloat(item.subtotal || item.totalPrice || 0), 0
+    );
+    
+    doc.text(`Subtotal: RM${itemsTotal.toFixed(2)}`, 140, finalY + 10);
+    
+    if (booking.discountAmount && parseFloat(booking.discountAmount) > 0) {
+      doc.setTextColor(0, 128, 0);
+      doc.text(`Diskaun: -RM${parseFloat(booking.discountAmount).toFixed(2)}`, 140, finalY + 16);
+      doc.setTextColor(0, 0, 0);
+    }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`JUMLAH: RM${parseFloat(booking.totalAmount).toFixed(2)}`, 140, finalY + 24);
+    
+    if (booking.depositPaid && parseFloat(booking.depositPaid) > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Deposit: RM${parseFloat(booking.depositPaid).toFixed(2)}`, 140, finalY + 30);
+      const balance = parseFloat(booking.totalAmount) - parseFloat(booking.depositPaid);
+      doc.text(`Baki: RM${balance.toFixed(2)}`, 140, finalY + 36);
+    }
+    
+    // Payment Details
+    if (profile.accountNumber) {
+      doc.setFont("helvetica", "bold");
+      doc.text("MAKLUMAT PEMBAYARAN:", 14, finalY + 48);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Bank: ${profile.bankName || ""}`, 14, finalY + 54);
+      doc.text(`No. Akaun: ${profile.accountNumber || ""}`, 14, finalY + 60);
+      doc.text(`Nama: ${profile.accountName || profile.businessName || ""}`, 14, finalY + 66);
+    }
+    
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Terima kasih atas tempahan anda!", 105, 280, { align: "center" });
+    
+    doc.save(`Tempahan-${booking.bookingNumber}.pdf`);
+    
+    toast({
+      title: "PDF Dijana",
+      description: `Invoice ${booking.bookingNumber} telah dimuat turun`,
+    });
+  };
+
+  // Share via WhatsApp
+  const shareWhatsApp = (booking: any) => {
+    const profile = businessProfile || {};
+    const itemsTotal = (booking.items || []).reduce((sum: number, item: any) => 
+      sum + parseFloat(item.subtotal || item.totalPrice || 0), 0
+    );
+    
+    let message = `*TEMPAHAN INVOICE*%0A%0A`;
+    message += `*${profile.businessName || "PocketBizz"}*%0A`;
+    message += `No. Tempahan: ${booking.bookingNumber}%0A%0A`;
+    
+    message += `*PELANGGAN*%0A`;
+    message += `${booking.customerName}%0A`;
+    message += `${booking.customerPhone}%0A%0A`;
+    
+    message += `*MAJLIS*%0A`;
+    message += `Jenis: ${booking.eventType}%0A`;
+    message += `Tarikh Hantar: ${new Date(booking.deliveryDate).toLocaleDateString("ms-MY")}%0A%0A`;
+    
+    if (booking.items && booking.items.length > 0) {
+      message += `*PRODUK*%0A`;
+      booking.items.forEach((item: any) => {
+        message += `• ${item.productName} (${item.quantity}x) - RM${parseFloat(item.subtotal || item.totalPrice || 0).toFixed(2)}%0A`;
+      });
+      message += `%0A`;
+    }
+    
+    message += `Subtotal: RM${itemsTotal.toFixed(2)}%0A`;
+    if (booking.discountAmount && parseFloat(booking.discountAmount) > 0) {
+      message += `Diskaun: -RM${parseFloat(booking.discountAmount).toFixed(2)}%0A`;
+    }
+    message += `*JUMLAH: RM${parseFloat(booking.totalAmount).toFixed(2)}*%0A`;
+    
+    if (booking.depositPaid && parseFloat(booking.depositPaid) > 0) {
+      message += `Deposit: RM${parseFloat(booking.depositPaid).toFixed(2)}%0A`;
+      const balance = parseFloat(booking.totalAmount) - parseFloat(booking.depositPaid);
+      message += `Baki: RM${balance.toFixed(2)}%0A`;
+    }
+    
+    if (profile.accountNumber) {
+      message += `%0A*MAKLUMAT PEMBAYARAN*%0A`;
+      message += `Bank: ${profile.bankName || ""}%0A`;
+      message += `No. Akaun: ${profile.accountNumber}%0A`;
+      message += `Nama: ${profile.accountName || profile.businessName}%0A`;
+    }
+    
+    const phone = booking.customerPhone.replace(/[^0-9]/g, "");
+    const waPhone = phone.startsWith("60") ? phone : `60${phone.startsWith("0") ? phone.substring(1) : phone}`;
+    const url = `https://wa.me/${waPhone}?text=${message}`;
+    
+    window.open(url, "_blank");
+    
+    toast({
+      title: "WhatsApp Dibuka",
+      description: "Invoice akan dihantar kepada pelanggan",
+    });
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -708,7 +877,28 @@ export default function Bookings() {
                           {booking.eventType.charAt(0).toUpperCase() + booking.eventType.slice(1)}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {/* Invoice Actions */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => generatePDF(booking)}
+                          data-testid={`button-download-pdf-${booking.id}`}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          PDF
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => shareWhatsApp(booking)}
+                          data-testid={`button-share-whatsapp-${booking.id}`}
+                        >
+                          <Share2 className="w-3 h-3 mr-1" />
+                          WhatsApp
+                        </Button>
+                        
+                        {/* Status Actions */}
                         {booking.status === "pending" && (
                           <Button
                             size="sm"
