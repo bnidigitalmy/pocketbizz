@@ -3196,6 +3196,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send PO via email
+  app.post("/api/purchase-orders/:id/send-email", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { recipientEmail, recipientName, message } = req.body;
+      
+      if (!recipientEmail) {
+        return res.status(400).json({ error: "Recipient email is required" });
+      }
+      
+      const order = await storage.getPurchaseOrder(id);
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      
+      // Import resend client and PDF generator
+      const { getUncachableResendClient } = await import("./resend-client");
+      const { getPOPDFBlob } = await import("../client/src/lib/po-pdf-generator");
+      
+      // Generate PDF as buffer
+      const pdfBlob = getPOPDFBlob({
+        poNumber: order.poNumber,
+        supplierName: order.supplierName,
+        supplierPhone: order.supplierPhone,
+        totalAmount: order.totalAmount,
+        notes: order.notes,
+        createdAt: order.createdAt,
+        status: order.status,
+        items: order.items.map((item: any) => ({
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          estimatedPrice: item.estimatedPrice || "0",
+          notes: item.notes
+        }))
+      });
+      
+      // Convert blob to buffer
+      const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
+      
+      // Get resend client
+      const { client, fromEmail } = await getUncachableResendClient();
+      
+      // Prepare email content
+      const emailSubject = `Purchase Order: ${order.poNumber}`;
+      const emailHtml = `
+        <h2>Purchase Order dari PocketBizz</h2>
+        <p>Dear ${recipientName || order.supplierName},</p>
+        ${message ? `<p>${message}</p>` : ''}
+        <p>Sila semak Purchase Order yang dilampirkan. Terima kasih!</p>
+        <hr />
+        <p><strong>PO Number:</strong> ${order.poNumber}</p>
+        <p><strong>Supplier:</strong> ${order.supplierName}</p>
+        <p><strong>Jumlah:</strong> RM ${parseFloat(order.totalAmount).toFixed(2)}</p>
+        <p><strong>Bilangan Item:</strong> ${order.items.length}</p>
+        <br />
+        <p>Best regards,<br />PocketBizz Team</p>
+      `;
+      
+      // Send email with PDF attachment
+      await client.emails.send({
+        from: fromEmail,
+        to: recipientEmail,
+        subject: emailSubject,
+        html: emailHtml,
+        attachments: [
+          {
+            filename: `${order.poNumber}.pdf`,
+            content: pdfBuffer,
+          }
+        ]
+      });
+      
+      res.json({ success: true, message: "Email sent successfully" });
+    } catch (error: any) {
+      console.error("Send PO email error:", error);
+      res.status(500).json({ error: "Failed to send email", message: error.message });
+    }
+  });
+
   // ==================== ADMIN ROUTES ====================
   
   // Admin: Get dashboard statistics

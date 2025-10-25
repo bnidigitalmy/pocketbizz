@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Share2, Check, X, Clock, Send, Package, ChevronRight, Printer } from "lucide-react";
+import { FileText, Download, Share2, Check, X, Clock, Send, Package, ChevronRight, Printer, Mail } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -23,6 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 
 interface PurchaseOrderItem {
@@ -59,6 +62,12 @@ export default function PurchaseOrders() {
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailForm, setEmailForm] = useState({
+    recipientEmail: "",
+    recipientName: "",
+    message: ""
+  });
 
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/purchase-orders"],
@@ -110,6 +119,27 @@ export default function PurchaseOrders() {
       toast({
         title: "PO dipadam",
         description: "Purchase order telah dipadam",
+      });
+    },
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof emailForm }) => {
+      return await apiRequest("POST", `/api/purchase-orders/${id}/send-email`, data);
+    },
+    onSuccess: () => {
+      setEmailDialogOpen(false);
+      setEmailForm({ recipientEmail: "", recipientName: "", message: "" });
+      toast({
+        title: "Email dihantar! ✉️",
+        description: "PO telah berjaya dihantar ke supplier",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat!",
+        description: error.message || "Gagal menghantar email",
+        variant: "destructive",
       });
     },
   });
@@ -204,6 +234,34 @@ export default function PurchaseOrders() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenEmailDialog = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setEmailForm({
+      recipientEmail: "",
+      recipientName: po.supplierName,
+      message: ""
+    });
+    setEmailDialogOpen(true);
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedPO) return;
+    
+    if (!emailForm.recipientEmail) {
+      toast({
+        title: "Email diperlukan",
+        description: "Sila masukkan alamat email supplier",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    sendEmailMutation.mutate({ 
+      id: selectedPO.id, 
+      data: emailForm 
+    });
   };
 
   const handleViewDetails = (po: PurchaseOrder) => {
@@ -519,6 +577,17 @@ export default function PurchaseOrders() {
             </Button>
             <Button
               variant="outline"
+              onClick={() => {
+                setDetailDialogOpen(false);
+                selectedPO && handleOpenEmailDialog(selectedPO);
+              }}
+              data-testid="button-email-po"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Email
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => selectedPO && handleShareWhatsApp(selectedPO)}
               data-testid="button-share-po"
             >
@@ -527,6 +596,94 @@ export default function PurchaseOrders() {
             </Button>
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
               Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hantar PO melalui Email</DialogTitle>
+            <DialogDescription>
+              PO akan dihantar sebagai lampiran PDF ke email supplier
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPO && (
+            <div className="space-y-4">
+              <div className="space-y-2 p-3 bg-muted rounded-md">
+                <p className="text-sm">
+                  <strong>PO Number:</strong> {selectedPO.poNumber}
+                </p>
+                <p className="text-sm">
+                  <strong>Jumlah:</strong> RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recipient-email">Email Supplier *</Label>
+                <Input
+                  id="recipient-email"
+                  type="email"
+                  placeholder="supplier@example.com"
+                  value={emailForm.recipientEmail}
+                  onChange={(e) => setEmailForm({ ...emailForm, recipientEmail: e.target.value })}
+                  data-testid="input-recipient-email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recipient-name">Nama Supplier (Pilihan)</Label>
+                <Input
+                  id="recipient-name"
+                  type="text"
+                  placeholder="Nama supplier"
+                  value={emailForm.recipientName}
+                  onChange={(e) => setEmailForm({ ...emailForm, recipientName: e.target.value })}
+                  data-testid="input-recipient-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="message">Mesej Tambahan (Pilihan)</Label>
+                <Textarea
+                  id="message"
+                  placeholder="Tambah mesej kepada supplier..."
+                  value={emailForm.message}
+                  onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                  rows={3}
+                  data-testid="input-message"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEmailDialogOpen(false)}
+              disabled={sendEmailMutation.isPending}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={sendEmailMutation.isPending}
+              data-testid="button-send-email"
+            >
+              {sendEmailMutation.isPending ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
+                  Menghantar...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Hantar Email
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
