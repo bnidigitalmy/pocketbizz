@@ -23,6 +23,7 @@ import {
   Award,
   Send,
   Ticket,
+  CalendarCheck,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -116,6 +117,11 @@ const salesOperationsItems = [
     title: "Voucher",
     url: "/vouchers",
     icon: Ticket,
+  },
+  {
+    title: "Tempahan",
+    url: "/bookings",
+    icon: CalendarCheck,
   },
   {
     title: "Tuntutan",

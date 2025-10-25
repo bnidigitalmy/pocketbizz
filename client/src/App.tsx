@@ -46,6 +46,7 @@ import AdminUsers from "@/pages/admin-users";
 import Customers from "@/pages/customers";
 import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
+import Bookings from "@/pages/bookings";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -81,6 +82,7 @@ function AppRouter() {
         <Route path="/customers" component={Customers} />
         <Route path="/broadcast" component={Broadcast} />
         <Route path="/vouchers" component={Vouchers} />
+        <Route path="/bookings" component={Bookings} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/claims" component={Claims} />
         <Route path="/reports" component={Reports} />

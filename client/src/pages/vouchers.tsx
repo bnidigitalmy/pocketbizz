@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Ticket, TrendingUp, Calendar, Users, Edit, Trash2 } from "lucide-react";
+import { Plus, Ticket, TrendingUp, Calendar, Users, Edit, Trash2, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ export default function Vouchers() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<any>(null);
+  const [viewingUsageVoucher, setViewingUsageVoucher] = useState<any>(null);
 
   // Form state
   const [code, setCode] = useState("");
@@ -40,6 +41,12 @@ export default function Vouchers() {
   // Fetch vouchers
   const { data: vouchers = [], isLoading } = useQuery({
     queryKey: ["/api/vouchers"],
+  });
+
+  // Fetch voucher usage history
+  const { data: voucherUsage = [] } = useQuery({
+    queryKey: ["/api/vouchers", viewingUsageVoucher?.id, "usage"],
+    enabled: !!viewingUsageVoucher?.id,
   });
 
   // Create voucher mutation
@@ -408,6 +415,16 @@ export default function Vouchers() {
                     <Separator />
 
                     <div className="flex gap-2">
+                      {voucher.currentUsage > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewingUsageVoucher(voucher)}
+                          data-testid={`button-view-usage-${voucher.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -476,6 +493,62 @@ export default function Vouchers() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Usage History Dialog */}
+      <Dialog open={!!viewingUsageVoucher} onOpenChange={(open) => !open && setViewingUsageVoucher(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sejarah Penggunaan Voucher</DialogTitle>
+            <DialogDescription>
+              {viewingUsageVoucher?.code} - {viewingUsageVoucher?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {voucherUsage.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Tiada rekod penggunaan
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {voucherUsage.map((usage: any) => (
+                  <Card key={usage.id}>
+                    <CardContent className="p-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{usage.customerName || "Walk-in"}</span>
+                          </div>
+                          {usage.customerPhone && (
+                            <div className="text-sm text-muted-foreground">
+                              {usage.customerPhone}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(usage.usedAt).toLocaleString("ms-MY")}
+                          </div>
+                        </div>
+                        <div className="space-y-1 text-right md:text-left">
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Asal: </span>
+                            <span className="font-medium">RM{parseFloat(usage.originalAmount).toFixed(2)}</span>
+                          </div>
+                          <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                            Diskaun: -RM{parseFloat(usage.discountApplied).toFixed(2)}
+                          </div>
+                          <div className="text-base font-bold">
+                            Bayar: RM{parseFloat(usage.finalAmount).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
