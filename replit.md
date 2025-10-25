@@ -22,7 +22,7 @@ The frontend leverages React 18, TypeScript, Vite, Wouter for routing, TanStack 
 ### Feature Specifications
 -   **Stock Management**: CRUD operations, recipe builder with auto-cost/profit, flexible pricing, unit conversion, variable packaging.
 -   **Stock Replenishment**: Low stock alerts, shopping list with WhatsApp sharing, and print format.
--   **Context-Aware Shopping Cart**: Automatically adds production shortages and low stock items to a unified shopping list, generating professional purchase orders.
+-   **Smart Supplier Order Hub**: Advanced purchase order management system with draft→sent→received workflow. Features include editable shopping cart with quantity adjustments, manual item addition, multi-supplier selection, professional PDF purchase orders, WhatsApp PO sharing to suppliers, automatic stock replenishment upon receipt, auto-expense creation linked to purchases, PO history tracking, and repeat order functionality. Replaces basic shopping cart with full procurement lifecycle management.
 -   **Production Planning**: Intelligent planning with material calculation, real-time stock validation, shortage alerts, and automatic stock deduction. Supports batch tracking.
 -   **Finished Goods Inventory with FIFO Batch Tracking**: Two-tier inventory system (raw materials vs. finished products) with FIFO-based deduction for deliveries/sales, including atomic deductions and expiry alerts.
 -   **POS (Point of Sale) System**: Transaction-based sales with unique receipt numbers, multiple items per sale, various payment methods, profit tracking, FIFO stock deduction, optional customer tracking, PDF receipt generation (A4 + thermal 58mm/80mm formats), and DuitNow QR code payment integration.
