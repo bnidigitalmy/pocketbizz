@@ -1152,9 +1152,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Products
-  app.get("/api/products", async (req, res) => {
+  app.get("/api/products", requireAuth, async (req, res) => {
     try {
-      const products = await storage.getProducts();
+      const products = await storage.getProducts(req.user!.id);
       res.json(products);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
@@ -1165,7 +1165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check product limit for trial users
       if (req.user) {
-        const currentProducts = await storage.getProducts();
+        const currentProducts = await storage.getProducts(req.user.id);
         const userProductCount = currentProducts.length;
         const productLimit = await getUserProductLimit(req.user);
         
@@ -1205,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recipeItemsWithCost = [];
       
       for (const item of recipeItems) {
-        const stockItem = await storage.getStockItem(item.stockItemId);
+        const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
         if (stockItem) {
           const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
           const usageUnit = item.usageUnit || stockItem.unit; // Default to stock unit if not provided
@@ -1243,6 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
       
       const product = await storage.createProduct(
+        req.user!.id,
         {
           ...productData,
           unitsPerBatch: unitsPerBatch,
@@ -1262,7 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/products/:id", async (req, res) => {
+  app.put("/api/products/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const productSchema = insertProductSchema.extend({
@@ -1290,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (recipeItems && recipeItems.length > 0) {
         for (const item of recipeItems) {
-          const stockItem = await storage.getStockItem(item.stockItemId);
+          const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
           if (stockItem) {
             const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
             const usageUnit = item.usageUnit || stockItem.unit;
@@ -1337,6 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         const product = await storage.updateProduct(
+          req.user!.id,
           id,
           updateData,
           recipeItemsWithCost.length > 0 ? recipeItemsWithCost : undefined
@@ -1350,7 +1352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateData.unitsPerBatch = parseInt(productData.unitsPerBatch as string);
         }
         
-        const product = await storage.updateProduct(id, updateData, undefined);
+        const product = await storage.updateProduct(req.user!.id, id, updateData, undefined);
         res.json(product);
       }
     } catch (error) {
@@ -1359,10 +1361,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteProduct(id);
+      await storage.deleteProduct(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       console.error("Product deletion error:", error);
@@ -1370,10 +1372,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/recipe-items/:productId", async (req, res) => {
+  app.get("/api/recipe-items/:productId", requireAuth, async (req, res) => {
     try {
       const { productId } = req.params;
-      const items = await storage.getRecipeItems(productId);
+      const items = await storage.getRecipeItems(req.user!.id, productId);
       res.json(items);
     } catch (error) {
       console.error("Recipe items fetch error:", error);
@@ -1382,9 +1384,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Production
-  app.get("/api/production", async (req, res) => {
+  app.get("/api/production", requireAuth, async (req, res) => {
     try {
-      const batches = await storage.getProductionBatches();
+      const batches = await storage.getProductionBatches(req.user!.id);
       res.json(batches);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch production batches" });
@@ -1394,7 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/production", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertProductionBatchSchema.parse(req.body);
-      const batch = await storage.createProductionBatch(data);
+      const batch = await storage.createProductionBatch(req.user!.id, data);
       res.json(batch);
     } catch (error) {
       res.status(400).json({ error: "Invalid batch data" });
@@ -1402,7 +1404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Production Planning - Preview materials needed and check stock
-  app.post("/api/production/plan-preview", async (req, res) => {
+  app.post("/api/production/plan-preview", requireAuth, async (req, res) => {
     try {
       const { productId, quantity } = req.body;
       
@@ -1411,13 +1413,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get product details
-      const product = await storage.getProduct(productId);
+      const product = await storage.getProduct(req.user!.id, productId);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
 
       // Get recipe items for this product
-      const recipeItems = await storage.getRecipeItems(productId);
+      const recipeItems = await storage.getRecipeItems(req.user!.id, productId);
       if (recipeItems.length === 0) {
         return res.status(400).json({ error: "No recipe found for this product" });
       }
@@ -1427,7 +1429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allStockSufficient = true;
 
       for (const item of recipeItems) {
-        const stockItem = await storage.getStockItem(item.stockItemId);
+        const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
         if (!stockItem) continue;
 
         // Calculate quantity needed for production
@@ -1490,17 +1492,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get product details
-      const product = await storage.getProduct(productId);
+      const product = await storage.getProduct(req.user!.id, productId);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
 
       // Verify stock availability again before deduction
-      const recipeItems = await storage.getRecipeItems(productId);
+      const recipeItems = await storage.getRecipeItems(req.user!.id, productId);
       const { convertUnit } = await import("@shared/schema");
 
       for (const item of recipeItems) {
-        const stockItem = await storage.getStockItem(item.stockItemId);
+        const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
         if (!stockItem) {
           return res.status(400).json({ error: `Stock item not found: ${item.stockItemId}` });
         }
@@ -1532,11 +1534,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: notes || null
       };
 
-      const batch = await storage.createProductionBatch(batchData);
+      const batch = await storage.createProductionBatch(req.user!.id, batchData);
 
       // Deduct stock for each material
       for (const item of recipeItems) {
-        const stockItem = await storage.getStockItem(item.stockItemId);
+        const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
         if (!stockItem) continue;
 
         const quantityNeeded = parseFloat(item.quantityNeeded) * quantity;
@@ -1548,7 +1550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const newQuantity = parseFloat(stockItem.currentQuantity) - convertedQuantity;
 
-        await storage.updateStockItem(item.stockItemId, {
+        await storage.updateStockItem(req.user!.id, item.stockItemId, {
           currentQuantity: newQuantity.toString()
         });
       }
@@ -1565,9 +1567,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Finished Products (Finished Goods Inventory)
-  app.get("/api/finished-products", async (req, res) => {
+  app.get("/api/finished-products", requireAuth, async (req, res) => {
     try {
-      const summary = await storage.getFinishedProductsSummary();
+      const summary = await storage.getFinishedProductsSummary(req.user!.id);
       res.json(summary);
     } catch (error) {
       console.error("Finished products summary error:", error);
@@ -1576,9 +1578,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get low finished products (total quantity < 10)
-  app.get("/api/finished-products/low", async (req, res) => {
+  app.get("/api/finished-products/low", requireAuth, async (req, res) => {
     try {
-      const summary = await storage.getFinishedProductsSummary();
+      const summary = await storage.getFinishedProductsSummary(req.user!.id);
       // Filter products with low total quantity (< 10 units)
       const lowProducts = summary.filter((product: any) => {
         const totalQty = parseFloat(product.totalQuantity || "0");
@@ -1591,10 +1593,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/finished-products/:productId/batches", async (req, res) => {
+  app.get("/api/finished-products/:productId/batches", requireAuth, async (req, res) => {
     try {
       const { productId } = req.params;
-      const batches = await storage.getBatchesByProduct(productId);
+      const batches = await storage.getBatchesByProduct(req.user!.id, productId);
       res.json(batches);
     } catch (error) {
       console.error("Batches by product error:", error);
@@ -1603,7 +1605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preview batch deduction (FIFO simulation without actual deduction)
-  app.post("/api/batches/preview", async (req, res) => {
+  app.post("/api/batches/preview", requireAuth, async (req, res) => {
     try {
       const { productId, quantity } = req.body;
       
@@ -1611,7 +1613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Product ID and quantity are required" });
       }
       
-      const preview = await storage.previewBatchDeduction(productId, parseFloat(quantity));
+      const preview = await storage.previewBatchDeduction(req.user!.id, productId, parseFloat(quantity));
       res.json(preview);
     } catch (error) {
       console.error("Batch preview error:", error);
@@ -1620,9 +1622,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendors
-  app.get("/api/vendors", async (req, res) => {
+  app.get("/api/vendors", requireAuth, async (req, res) => {
     try {
-      const vendors = await storage.getVendors();
+      const vendors = await storage.getVendors(req.user!.id);
       res.json(vendors);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch vendors" });
@@ -1632,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/vendors", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertVendorSchema.parse(req.body);
-      const vendor = await storage.createVendor(data);
+      const vendor = await storage.createVendor(req.user!.id, data);
       res.json(vendor);
     } catch (error) {
       res.status(400).json({ error: "Invalid vendor data" });
@@ -1640,9 +1642,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers (Pembekal untuk Purchase Orders)
-  app.get("/api/suppliers", async (req, res) => {
+  app.get("/api/suppliers", requireAuth, async (req, res) => {
     try {
-      const suppliers = await storage.getSuppliers();
+      const suppliers = await storage.getSuppliers(req.user!.id);
       res.json(suppliers);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch suppliers" });
@@ -1652,7 +1654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/suppliers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertSupplierSchema.parse(req.body);
-      const supplier = await storage.createSupplier(data);
+      const supplier = await storage.createSupplier(req.user!.id, data);
       res.json(supplier);
     } catch (error) {
       res.status(400).json({ error: "Invalid supplier data" });
@@ -1663,7 +1665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertSupplierSchema.partial().parse(req.body);
-      const supplier = await storage.updateSupplier(id, data);
+      const supplier = await storage.updateSupplier(req.user!.id, id, data);
       res.json(supplier);
     } catch (error) {
       res.status(400).json({ error: "Invalid supplier data" });
@@ -1673,7 +1675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/suppliers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteSupplier(id);
+      await storage.deleteSupplier(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete supplier" });
@@ -1684,7 +1686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
     try {
       const { vendorId } = req.params;
-      const commission = await storage.getVendorCommission(vendorId);
+      const commission = await storage.getVendorCommission(req.user!.id, vendorId);
       res.json(commission || null);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch vendor commission" });
@@ -1743,7 +1745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         vendorId,
       };
       
-      const commission = await storage.createOrUpdateVendorCommission(data);
+      const commission = await storage.createOrUpdateVendorCommission(req.user!.id, data);
       res.json(commission);
     } catch (error: any) {
       console.error("Commission update error:", error);
@@ -1754,7 +1756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
     try {
       const { vendorId } = req.params;
-      await storage.deleteVendorCommission(vendorId);
+      await storage.deleteVendorCommission(req.user!.id, vendorId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete commission" });
@@ -1762,28 +1764,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stock Items (Warehouse Inventory)
-  app.get("/api/stock", async (req, res) => {
+  app.get("/api/stock", requireAuth, async (req, res) => {
     try {
-      const items = await storage.getStockItems();
+      const items = await storage.getStockItems(req.user!.id);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stock items" });
     }
   });
 
-  app.get("/api/stock/low", async (req, res) => {
+  app.get("/api/stock/low", requireAuth, async (req, res) => {
     try {
-      const items = await storage.getLowStockItems();
+      const items = await storage.getLowStockItems(req.user!.id);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch low stock items" });
     }
   });
 
-  app.get("/api/stock/:id", async (req, res) => {
+  app.get("/api/stock/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const item = await storage.getStockItem(id);
+      const item = await storage.getStockItem(req.user!.id, id);
       if (!item) {
         return res.status(404).json({ error: "Stock item not found" });
       }
@@ -1796,7 +1798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stock", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const data = insertStockItemSchema.parse(req.body);
-      const item = await storage.createStockItem(data);
+      const item = await storage.createStockItem(req.user!.id, data);
       res.json(item);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid stock item data", message: error.message });
@@ -1807,7 +1809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertStockItemSchema.partial().parse(req.body);
-      const item = await storage.updateStockItem(id, data);
+      const item = await storage.updateStockItem(req.user!.id, id, data);
       res.json(item);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid stock item data", message: error.message });
@@ -1846,7 +1848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { additionalQuantity, newPurchasePrice, newPackageSize } = validationResult.data;
 
       // Get current stock item
-      const currentItem = await storage.getStockItem(id);
+      const currentItem = await storage.getStockItem(req.user!.id, id);
       if (!currentItem) {
         return res.status(404).json({ error: "Stock item not found" });
       }
@@ -1886,7 +1888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update the stock item
-      const updatedItem = await storage.updateStockItem(id, updateData);
+      const updatedItem = await storage.updateStockItem(req.user!.id, id, updateData);
       res.json(updatedItem);
     } catch (error: any) {
       console.error("Stock replenishment error:", error);
@@ -1897,7 +1899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/stock/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteStockItem(id);
+      await storage.deleteStockItem(req.user!.id, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete stock item" });
@@ -1905,19 +1907,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories
-  app.get("/api/categories", async (req, res) => {
+  app.get("/api/categories", requireAuth, async (req, res) => {
     try {
-      const categories = await storage.getCategories();
+      const categories = await storage.getCategories(req.user!.id);
       res.json(categories);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch categories" });
     }
   });
 
-  app.post("/api/categories", async (req, res) => {
+  app.post("/api/categories", requireAuth, async (req, res) => {
     try {
       const data = insertCategorySchema.parse(req.body);
-      const category = await storage.createCategory(data);
+      const category = await storage.createCategory(req.user!.id, data);
       res.json(category);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid category data", message: error.message });
@@ -1925,31 +1927,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deliveries
-  app.get("/api/deliveries", async (req, res) => {
+  app.get("/api/deliveries", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const result = await storage.getDeliveries(limit, offset);
+      const result = await storage.getDeliveries(req.user!.id, limit, offset);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch deliveries" });
     }
   });
 
-  app.get("/api/deliveries/recent", async (req, res) => {
+  app.get("/api/deliveries/recent", requireAuth, async (req, res) => {
     try {
-      const result = await storage.getDeliveries(5, 0);
+      const result = await storage.getDeliveries(req.user!.id, 5, 0);
       res.json(result.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recent deliveries" });
     }
   });
 
-  app.get("/api/deliveries/last/:vendorId", async (req, res) => {
+  app.get("/api/deliveries/last/:vendorId", requireAuth, async (req, res) => {
     try {
       const { vendorId } = req.params;
-      const lastDelivery = await storage.getLastDeliveryForVendor(vendorId);
+      const lastDelivery = await storage.getLastDeliveryForVendor(req.user!.id, vendorId);
       
       if (!lastDelivery) {
         return res.status(404).json({ error: "No previous delivery found for this vendor" });
@@ -1981,6 +1983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for duplicate delivery (same vendor + same date)
       if (!force) {
         const existingDelivery = await storage.checkDuplicateDelivery(
+          req.user!.id,
           deliveryData.vendorId,
           deliveryData.deliveryDate
         );
@@ -2012,7 +2015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Deduct from finished goods batches using FIFO
       for (const item of items) {
-        const deductionResult = await storage.deductFromBatches(item.productId, item.quantity);
+        const deductionResult = await storage.deductFromBatches(req.user!.id, item.productId, item.quantity);
         if (!deductionResult.success) {
           return res.status(400).json({ 
             error: `Insufficient finished goods stock for ${item.productName}`,
@@ -2021,7 +2024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const delivery = await storage.createDelivery(deliveryData, deliveryItems);
+      const delivery = await storage.createDelivery(req.user!.id, deliveryData, deliveryItems);
       res.json(delivery);
     } catch (error) {
       console.error("Delivery creation error:", error);
@@ -2029,18 +2032,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/deliveries/:id/status", async (req, res) => {
+  app.patch("/api/deliveries/:id/status", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      await storage.updateDeliveryStatus(id, status);
+      await storage.updateDeliveryStatus(req.user!.id, id, status);
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: "Failed to update status" });
     }
   });
 
-  app.patch("/api/delivery-items/:itemId/rejection", async (req, res) => {
+  app.patch("/api/delivery-items/:itemId/rejection", requireAuth, async (req, res) => {
     try {
       const { itemId } = req.params;
       
@@ -2061,6 +2064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = rejectionSchema.parse(req.body);
       
       await storage.updateDeliveryItemRejection(
+        req.user!.id,
         itemId,
         validatedData.rejectedQty,
         validatedData.rejectionReason || null
@@ -2082,7 +2086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const result = await storage.getSales(limit, offset);
+      const result = await storage.getSales(req.user!.id, limit, offset);
       res.json(result);
     } catch (error) {
       console.error('[ERROR] GET /api/sales failed:', error);
@@ -2093,7 +2097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sales/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const sale = await storage.getSale(id);
+      const sale = await storage.getSale(req.user!.id, id);
       
       if (!sale) {
         return res.status(404).json({ error: "Sale not found" });
@@ -2143,7 +2147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Redeem points before sale creation
         try {
-          await storage.redeemPoints(customerId, points, `Tebusan diskaun: RM${discount.toFixed(2)}`);
+          await storage.redeemPoints(req.user!.id, customerId, points, `Tebusan diskaun: RM${discount.toFixed(2)}`);
         } catch (redeemError: any) {
           console.error('Failed to redeem points:', redeemError);
           return res.status(400).json({ error: redeemError.message || "Failed to redeem points" });
@@ -2159,6 +2163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Redeem voucher atomically
           const finalAmount = originalAmount - discount;
           await storage.redeemVoucher(
+            req.user!.id,
             voucherId,
             customerId || null,
             null, // saleId will be null initially, could update later if needed
@@ -2175,6 +2180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { customerId, points } = validated.pointsRedemption;
             try {
               await storage.awardPoints(
+                req.user!.id,
                 customerId,
                 points,
                 null,
@@ -2192,13 +2198,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create sale with FIFO stock deduction (atomic transaction)
       let sale;
       try {
-        sale = await storage.createSale(validated.sale, validated.items);
+        sale = await storage.createSale(req.user!.id, validated.sale, validated.items);
       } catch (saleError: any) {
         // If sale creation fails after redemption, we need to reverse the redemption
         if (validated.pointsRedemption) {
           const { customerId, points } = validated.pointsRedemption;
           try {
             await storage.awardPoints(
+              req.user!.id,
               customerId,
               points,
               null,
@@ -2224,6 +2231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (pointsToAward > 0) {
           try {
             await storage.awardPoints(
+              req.user!.id,
               validated.sale.customerId,
               pointsToAward,
               sale.id,
@@ -2255,19 +2263,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Expenses
-  app.get("/api/expenses", async (req, res) => {
+  app.get("/api/expenses", requireAuth, async (req, res) => {
     try {
-      const expenses = await storage.getExpenses();
+      const expenses = await storage.getExpenses(req.user!.id);
       res.json(expenses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch expenses" });
     }
   });
 
-  app.post("/api/expenses", async (req, res) => {
+  app.post("/api/expenses", requireAuth, async (req, res) => {
     try {
       const data = insertExpenseSchema.parse(req.body);
-      const expense = await storage.createExpense(data);
+      const expense = await storage.createExpense(req.user!.id, data);
       res.json(expense);
     } catch (error) {
       res.status(400).json({ error: "Invalid expense data" });
@@ -2275,9 +2283,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard
-  app.get("/api/dashboard/stats", async (req, res) => {
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const stats = await storage.getDashboardStats(req.user!.id);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
@@ -2287,7 +2295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reports
   app.get("/api/reports/profit-loss", requireProPlan, async (req, res) => {
     try {
-      const report = await storage.getProfitLossReport();
+      const report = await storage.getProfitLossReport(req.user!.id);
       res.json(report);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch profit/loss report" });
@@ -2295,9 +2303,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Weekly profit summary with week-over-week comparison
-  app.get("/api/reports/weekly-summary", async (req, res) => {
+  app.get("/api/reports/weekly-summary", requireAuth, async (req, res) => {
     try {
-      const summary = await storage.getWeeklyProfitSummary();
+      const summary = await storage.getWeeklyProfitSummary(req.user!.id);
       res.json(summary);
     } catch (error) {
       console.error("Weekly summary error:", error);
@@ -2306,13 +2314,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Daily Task Checklist - auto-generate today's tasks
-  app.get("/api/tasks/daily", async (req, res) => {
+  app.get("/api/tasks/daily", requireAuth, async (req, res) => {
     try {
       const tasks = [];
       const today = new Date().toISOString().split('T')[0];
 
       // 1. Low stock items need restocking
-      const lowStock = await storage.getLowStockItems();
+      const lowStock = await storage.getLowStockItems(req.user!.id);
       if (lowStock.length > 0) {
         tasks.push({
           id: "restock",
@@ -2325,7 +2333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Low finished products need production
-      const finishedProducts = await storage.getFinishedProductsSummary();
+      const finishedProducts = await storage.getFinishedProductsSummary(req.user!.id);
       const lowFinished = finishedProducts.filter((p: any) => {
         const qty = parseFloat(p.totalQuantity || "0");
         return qty > 0 && qty < 10;
@@ -2342,7 +2350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 3. Pending/Claimed deliveries (need to collect payment)
-      const claimsResult = await storage.getClaimsSummary(100, 0);
+      const claimsResult = await storage.getClaimsSummary(req.user!.id, 100, 0);
       const pendingPayments = claimsResult.data.filter((claim: any) => {
         const pending = parseFloat(claim.pendingAmount || "0");
         const partial = parseFloat(claim.partialAmount || "0");
@@ -2363,7 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 4. Check for expiring batches (< 3 days)
-      const stats = await storage.getDashboardStats();
+      const stats = await storage.getDashboardStats(req.user!.id);
       if (stats.expiringSoonCount > 0) {
         tasks.push({
           id: "expiry",
@@ -2383,12 +2391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV/Excel Export Endpoints
-  app.get("/api/reports/export-sales", async (req, res) => {
+  app.get("/api/reports/export-sales", requireAuth, async (req, res) => {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
       
-      const sales = await storage.getAllSales(startDate, endDate);
+      const sales = await storage.getAllSales(req.user!.id, startDate, endDate);
       
       // CSV headers
       const headers = ['No.', 'Tarikh', 'No. Resit', 'Jumlah Produk', 'Jumlah (RM)', 'Kos (RM)', 'Untung (RM)', 'Kaedah Bayaran', 'Pelanggan'];
@@ -2421,9 +2429,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/export-deliveries", async (req, res) => {
+  app.get("/api/reports/export-deliveries", requireAuth, async (req, res) => {
     try {
-      const deliveries = await storage.getAllDeliveries();
+      const deliveries = await storage.getAllDeliveries(req.user!.id);
       
       // CSV headers
       const headers = ['No.', 'Tarikh', 'Vendor', 'Produk', 'Kuantiti', 'Jumlah (RM)', 'Status', 'Bayaran', 'Catatan'];
