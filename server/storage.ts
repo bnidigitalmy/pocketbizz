@@ -18,6 +18,8 @@ import {
   shoppingCart,
   purchaseOrders,
   purchaseOrderItems,
+  poTemplates,
+  poTemplateItems,
   type Product, 
   type InsertProduct,
   type Ingredient,
@@ -2097,6 +2099,129 @@ export class DatabaseStorage implements IStorage {
 
   async deletePurchaseOrder(id: string): Promise<void> {
     await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+  }
+  
+  // PO Template Management
+  async getAllPOTemplates(): Promise<any[]> {
+    const templates = await db.select().from(poTemplates).orderBy(desc(poTemplates.createdAt));
+    
+    // Fetch items for each template
+    const templatesWithItems = await Promise.all(
+      templates.map(async (template) => {
+        const items = await db.select()
+          .from(poTemplateItems)
+          .where(eq(poTemplateItems.templateId, template.id));
+        return { ...template, items };
+      })
+    );
+    
+    return templatesWithItems;
+  }
+  
+  async createPOTemplate(data: {
+    templateName: string;
+    supplierId?: string | null;
+    supplierName: string;
+    supplierPhone?: string | null;
+    notes?: string | null;
+    items: any[];
+  }): Promise<any> {
+    return await db.transaction(async (tx) => {
+      const [template] = await tx.insert(poTemplates).values({
+        templateName: data.templateName,
+        supplierId: data.supplierId || null,
+        supplierName: data.supplierName,
+        supplierPhone: data.supplierPhone || null,
+        notes: data.notes || null,
+      }).returning();
+      
+      if (data.items && data.items.length > 0) {
+        await tx.insert(poTemplateItems).values(
+          data.items.map((item: any) => ({
+            templateId: template.id,
+            stockItemId: item.stockItemId || null,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedPrice: item.estimatedPrice || "0",
+            notes: item.notes || null,
+          }))
+        );
+      }
+      
+      const items = await tx.select()
+        .from(poTemplateItems)
+        .where(eq(poTemplateItems.templateId, template.id));
+      
+      return { ...template, items };
+    });
+  }
+  
+  async deletePOTemplate(id: string): Promise<void> {
+    await db.delete(poTemplates).where(eq(poTemplates.id, id));
+  }
+  
+  async createPOFromTemplate(templateId: string): Promise<any> {
+    return await db.transaction(async (tx) => {
+      const [template] = await tx.select()
+        .from(poTemplates)
+        .where(eq(poTemplates.id, templateId));
+      
+      if (!template) {
+        throw new Error("Template not found");
+      }
+      
+      const templateItems = await tx.select()
+        .from(poTemplateItems)
+        .where(eq(poTemplateItems.templateId, templateId));
+      
+      // Generate PO number
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+      const count = await tx.select().from(purchaseOrders).where(
+        sql`DATE(${purchaseOrders.createdAt}) = CURRENT_DATE`
+      );
+      const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
+      
+      // Calculate total
+      const totalAmount = templateItems.reduce((sum, item) => {
+        const price = parseFloat(item.estimatedPrice || "0");
+        const qty = parseFloat(item.quantity);
+        return sum + (price * qty);
+      }, 0);
+      
+      // Create PO
+      const [order] = await tx.insert(purchaseOrders).values({
+        poNumber,
+        supplierId: template.supplierId,
+        supplierName: template.supplierName,
+        supplierPhone: template.supplierPhone,
+        totalAmount: totalAmount.toFixed(2),
+        notes: template.notes,
+        status: 'draft',
+      }).returning();
+      
+      // Create PO items from template
+      if (templateItems.length > 0) {
+        await tx.insert(purchaseOrderItems).values(
+          templateItems.map((item) => ({
+            poId: order.id,
+            stockItemId: item.stockItemId,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedPrice: item.estimatedPrice,
+            notes: item.notes,
+          }))
+        );
+      }
+      
+      const items = await tx.select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.poId, order.id));
+      
+      return { ...order, items };
+    });
   }
   
   async createPurchaseOrderFromCart(

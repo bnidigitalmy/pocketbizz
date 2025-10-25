@@ -3317,6 +3317,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update purchase order", message: error.message });
     }
   });
+  
+  // ==================== PO TEMPLATE ROUTES ====================
+  
+  // Get all PO templates
+  app.get("/api/po-templates", async (req, res) => {
+    try {
+      const templates = await storage.getAllPOTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  });
+  
+  // Create PO template from existing PO
+  app.post("/api/po-templates/from-po/:poId", async (req, res) => {
+    try {
+      const { poId } = req.params;
+      const { templateName } = req.body;
+      
+      if (!templateName) {
+        return res.status(400).json({ error: "Template name is required" });
+      }
+      
+      const po = await storage.getPurchaseOrder(poId);
+      if (!po) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      
+      const template = await storage.createPOTemplate({
+        templateName,
+        supplierId: po.supplierId,
+        supplierName: po.supplierName,
+        supplierPhone: po.supplierPhone,
+        notes: po.notes,
+        items: po.items || [],
+      });
+      
+      res.json(template);
+    } catch (error: any) {
+      console.error("Create template error:", error);
+      res.status(500).json({ error: "Failed to create template", message: error.message });
+    }
+  });
+  
+  // Create new PO from template
+  app.post("/api/po-templates/:templateId/create-po", async (req, res) => {
+    try {
+      const { templateId } = req.params;
+      const po = await storage.createPOFromTemplate(templateId);
+      res.json(po);
+    } catch (error: any) {
+      console.error("Create PO from template error:", error);
+      res.status(500).json({ error: "Failed to create PO from template", message: error.message });
+    }
+  });
+  
+  // Delete PO template
+  app.delete("/api/po-templates/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePOTemplate(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete template error:", error);
+      res.status(500).json({ error: "Failed to delete template" });
+    }
+  });
 
   // ==================== ADMIN ROUTES ====================
   

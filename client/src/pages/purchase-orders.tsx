@@ -74,9 +74,16 @@ export default function PurchaseOrders() {
     supplierPhone: "",
     notes: ""
   });
+  const [saveTemplateDialogOpen, setSaveTemplateDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
 
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/purchase-orders"],
+  });
+  
+  const { data: templates = [] } = useQuery({
+    queryKey: ["/api/po-templates"],
   });
 
   const updateStatusMutation = useMutation({
@@ -168,6 +175,70 @@ export default function PurchaseOrders() {
       toast({
         title: "Ralat",
         description: error.message || "Gagal kemaskini PO",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const saveTemplateMutation = useMutation({
+    mutationFn: async ({ poId, templateName }: { poId: string; templateName: string }) => {
+      return await apiRequest("POST", `/api/po-templates/from-po/${poId}`, { templateName });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/po-templates"] });
+      setSaveTemplateDialogOpen(false);
+      setTemplateName("");
+      setSelectedPO(null);
+      toast({
+        title: "Template disimpan",
+        description: "PO template telah berjaya disimpan",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal simpan template",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createFromTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      return await apiRequest("POST", `/api/po-templates/${templateId}/create-po`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      setTemplatesDialogOpen(false);
+      toast({
+        title: "PO dicipta",
+        description: "Purchase order baharu telah dicipta dari template",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal cipta PO dari template",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/po-templates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/po-templates"] });
+      toast({
+        title: "Template dipadam",
+        description: "Template telah berjaya dipadam",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal padam template",
         variant: "destructive",
       });
     },
@@ -351,14 +422,24 @@ export default function PurchaseOrders() {
           <h1 className="text-3xl font-bold">📦 Purchase Orders</h1>
           <p className="text-muted-foreground">Urus pesanan pembelian dari supplier</p>
         </div>
-        <Button 
-          onClick={() => setLocation("/shopping-list")}
-          variant="default"
-          data-testid="button-back-to-cart"
-        >
-          <ChevronRight className="h-4 w-4 mr-2 rotate-180" />
-          Kembali ke Cart
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setTemplatesDialogOpen(true)}
+            variant="outline"
+            data-testid="button-templates"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Templates ({templates.length})
+          </Button>
+          <Button 
+            onClick={() => setLocation("/shopping-list")}
+            variant="default"
+            data-testid="button-back-to-cart"
+          >
+            <ChevronRight className="h-4 w-4 mr-2 rotate-180" />
+            Kembali ke Cart
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -634,6 +715,17 @@ export default function PurchaseOrders() {
           )}
 
           <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDetailDialogOpen(false);
+                setSaveTemplateDialogOpen(true);
+              }}
+              data-testid="button-save-template"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Simpan Template
+            </Button>
             <Button
               variant="outline"
               onClick={() => selectedPO && handleDownloadPDF(selectedPO)}
