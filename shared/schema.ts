@@ -1027,7 +1027,10 @@ export const bookings = pgTable("bookings", {
   deliveryPostcode: text("delivery_postcode"),
   
   // Financial
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total order amount
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // Total order amount after discount
+  discountType: voucherTypeEnum("discount_type"), // percentage or fixed_amount
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }), // Discount value (e.g., 10 for 10% or RM10)
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }), // Calculated discount amount
   depositPaid: decimal("deposit_paid", { precision: 10, scale: 2 }).notNull().default("0"), // Deposit paid
   balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull(), // Remaining balance
   paymentMethod: paymentMethodEnum("payment_method").notNull().default("tunai"),

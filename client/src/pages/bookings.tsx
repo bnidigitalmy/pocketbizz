@@ -44,7 +44,17 @@ export default function Bookings() {
   // Booking items
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState("1");
-  const [bookingItems, setBookingItems] = useState<Array<{productId: string, productName: string, quantity: number}>>([]);
+  const [bookingItems, setBookingItems] = useState<Array<{
+    productId: string, 
+    productName: string, 
+    quantity: number,
+    unitPrice: number,
+    subtotal: number
+  }>>([]);
+  
+  // Discount
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [discountValue, setDiscountValue] = useState("0");
 
   // Fetch bookings
   const { data: bookings = [], isLoading } = useQuery({
@@ -139,7 +149,33 @@ export default function Bookings() {
     setBookingItems([]);
     setSelectedProductId("");
     setSelectedQuantity("1");
+    setDiscountType("percentage");
+    setDiscountValue("0");
   };
+
+  // Calculate totals
+  const calculateTotals = () => {
+    const itemsTotal = bookingItems.reduce((sum, item) => sum + item.subtotal, 0);
+    
+    let discountAmount = 0;
+    if (discountValue && parseFloat(discountValue) > 0) {
+      if (discountType === "percentage") {
+        discountAmount = (itemsTotal * parseFloat(discountValue)) / 100;
+      } else {
+        discountAmount = parseFloat(discountValue);
+      }
+    }
+    
+    const finalTotal = Math.max(0, itemsTotal - discountAmount);
+    
+    return {
+      itemsTotal,
+      discountAmount,
+      finalTotal
+    };
+  };
+
+  const totals = calculateTotals();
 
   const handleAddItem = () => {
     if (!selectedProductId) {
@@ -164,12 +200,18 @@ export default function Bookings() {
       return;
     }
 
+    const quantity = parseInt(selectedQuantity) || 1;
+    const unitPrice = parseFloat(product.sellingPrice) || 0;
+    const subtotal = quantity * unitPrice;
+
     setBookingItems([
       ...bookingItems,
       {
         productId: product.id,
         productName: product.name,
-        quantity: parseInt(selectedQuantity) || 1,
+        quantity,
+        unitPrice,
+        subtotal
       }
     ]);
 
@@ -190,7 +232,8 @@ export default function Bookings() {
     setBookingItems(bookingItems.map(item => {
       if (item.productId === productId) {
         const newQuantity = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQuantity };
+        const newSubtotal = newQuantity * item.unitPrice;
+        return { ...item, quantity: newQuantity, subtotal: newSubtotal };
       }
       return item;
     }));
@@ -216,8 +259,11 @@ export default function Bookings() {
       deliveryTime: deliveryTime || null,
       deliveryLocation: deliveryLocation || null,
       notes: notes || null,
-      totalAmount: totalAmount ? parseFloat(totalAmount) : null,
+      totalAmount: totals.finalTotal,
       depositAmount: depositAmount ? parseFloat(depositAmount) : null,
+      discountType,
+      discountValue: parseFloat(discountValue) || 0,
+      discountAmount: totals.discountAmount,
       status: "pending",
       items: bookingItems,
     });
@@ -387,34 +433,6 @@ export default function Bookings() {
               </div>
 
               <div className="space-y-3 border rounded-lg p-4 bg-accent/5">
-                <h3 className="font-semibold text-sm">Bayaran</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="total-amount">Jumlah Keseluruhan (RM)</Label>
-                    <Input
-                      id="total-amount"
-                      type="number"
-                      placeholder="0.00"
-                      value={totalAmount}
-                      onChange={(e) => setTotalAmount(e.target.value)}
-                      data-testid="input-total-amount"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="deposit-amount">Deposit (RM)</Label>
-                    <Input
-                      id="deposit-amount"
-                      type="number"
-                      placeholder="0.00"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      data-testid="input-deposit-amount"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 border rounded-lg p-4 bg-accent/5">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <Package className="w-4 h-4" />
                   Produk Tempahan
@@ -427,7 +445,7 @@ export default function Bookings() {
                     <SelectContent>
                       {products.map((product: any) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name}
+                          {product.name} - RM{parseFloat(product.sellingPrice || 0).toFixed(2)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -455,45 +473,134 @@ export default function Bookings() {
                   <div className="space-y-2 mt-3">
                     <Label className="text-xs text-muted-foreground">Item Ditempah:</Label>
                     {bookingItems.map((item) => (
-                      <div key={item.productId} className="flex items-center justify-between bg-background p-2 rounded border">
-                        <span className="text-sm font-medium">{item.productName}</span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUpdateQuantity(item.productId, -1)}
-                            className="h-7 w-7 p-0"
-                            data-testid={`button-decrease-${item.productId}`}
-                          >
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <span className="text-sm w-8 text-center">{item.quantity}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUpdateQuantity(item.productId, 1)}
-                            className="h-7 w-7 p-0"
-                            data-testid={`button-increase-${item.productId}`}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                      <div key={item.productId} className="bg-background p-3 rounded border space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{item.productName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              RM{item.unitPrice.toFixed(2)} × {item.quantity}
+                            </div>
+                          </div>
+                          <div className="text-sm font-bold">
+                            RM{item.subtotal.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleUpdateQuantity(item.productId, -1)}
+                              className="h-7 w-7 p-0"
+                              data-testid={`button-decrease-${item.productId}`}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="text-sm w-8 text-center">{item.quantity}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleUpdateQuantity(item.productId, 1)}
+                              className="h-7 w-7 p-0"
+                              data-testid={`button-increase-${item.productId}`}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveItem(item.productId)}
-                            className="h-7 w-7 p-0 text-destructive"
+                            className="h-7 text-destructive"
                             data-testid={`button-remove-${item.productId}`}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Buang
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
+                
+                {/* Total Summary */}
+                {bookingItems.length > 0 && (
+                  <div className="mt-4 space-y-2 bg-background p-3 rounded border">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal:</span>
+                      <span className="font-medium">RM{totals.itemsTotal.toFixed(2)}</span>
+                    </div>
+                    {totals.discountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                        <span>Diskaun:</span>
+                        <span className="font-medium">-RM{totals.discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <Separator />
+                    <div className="flex justify-between text-base font-bold">
+                      <span>Jumlah Akhir:</span>
+                      <span>RM{totals.finalTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Discount Section */}
+              {bookingItems.length > 0 && (
+                <div className="space-y-3 border rounded-lg p-4 bg-accent/5">
+                  <h3 className="font-semibold text-sm">Diskaun (Opsional)</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="discount-type">Jenis Diskaun</Label>
+                      <Select value={discountType} onValueChange={(v) => setDiscountType(v as "percentage" | "fixed")}>
+                        <SelectTrigger id="discount-type" data-testid="select-discount-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Peratusan (%)</SelectItem>
+                          <SelectItem value="fixed">Jumlah Tetap (RM)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="discount-value">
+                        {discountType === "percentage" ? "Peratusan (%)" : "Jumlah (RM)"}
+                      </Label>
+                      <Input
+                        id="discount-value"
+                        type="number"
+                        min="0"
+                        max={discountType === "percentage" ? "100" : undefined}
+                        placeholder="0"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        data-testid="input-discount-value"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Deposit */}
+              <div className="space-y-3 border rounded-lg p-4 bg-accent/5">
+                <h3 className="font-semibold text-sm">Deposit</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="deposit-amount">Deposit Awal (RM)</Label>
+                  <Input
+                    id="deposit-amount"
+                    type="number"
+                    placeholder="0.00"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    data-testid="input-deposit-amount"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Baki perlu dibayar: RM{(totals.finalTotal - (parseFloat(depositAmount) || 0)).toFixed(2)}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
