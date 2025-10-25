@@ -134,9 +134,18 @@ export default function Products() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      return apiRequest("POST", "/api/products", data);
+      console.log("[DEBUG] Creating product, data:", data);
+      try {
+        const res = await apiRequest("POST", "/api/products", data);
+        console.log("[DEBUG] Product created successfully, status:", res.status);
+        return res.json();
+      } catch (err) {
+        console.error("[DEBUG] Error in mutationFn:", err);
+        throw err;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[DEBUG] onSuccess called, data:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: "Berjaya!",
@@ -147,9 +156,15 @@ export default function Products() {
       form.reset();
     },
     onError: (error: any) => {
+      console.error("[DEBUG] onError called!");
+      console.error("[DEBUG] Error object:", error);
+      console.error("[DEBUG] Error message:", error?.message);
+      console.error("[DEBUG] Error data:", error?.data);
+      const message = error?.message || error?.data?.message || "Gagal menambah produk.";
+      console.log("[DEBUG] Showing toast with message:", message);
       toast({
         title: "Ralat",
-        description: error.message || "Gagal menambah produk.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -157,7 +172,8 @@ export default function Products() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormValues }) => {
-      return apiRequest("PUT", `/api/products/${id}`, data);
+      const res = await apiRequest("PUT", `/api/products/${id}`, data);
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
@@ -170,9 +186,11 @@ export default function Products() {
       form.reset();
     },
     onError: (error: any) => {
+      console.error("Update product error:", error);
+      const message = error?.message || error?.data?.message || "Gagal mengemaskini produk.";
       toast({
         title: "Ralat",
-        description: error.message || "Gagal mengemaskini produk.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -180,7 +198,8 @@ export default function Products() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/products/${id}`);
+      const res = await apiRequest("DELETE", `/api/products/${id}`);
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
@@ -191,9 +210,11 @@ export default function Products() {
       setProductToDelete(null);
     },
     onError: (error: any) => {
+      console.error("Delete product error:", error);
+      const message = error?.message || error?.data?.message || "Gagal memadam produk.";
       toast({
         title: "Ralat",
-        description: error.message || "Gagal memadam produk.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -291,15 +312,20 @@ export default function Products() {
 
       // Submit product with normalized category name
       const productData = { ...data, category: categoryName };
+      
       if (editingProduct) {
         updateMutation.mutate({ id: editingProduct.id, data: productData });
       } else {
+        console.log("[DEBUG] About to call createMutation.mutate");
         createMutation.mutate(productData);
+        console.log("[DEBUG] createMutation.mutate called, isPending:", createMutation.isPending);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[DEBUG] Caught error in handleSubmit:", error);
+      const message = error?.message || error?.data?.message || "Gagal menyimpan produk";
       toast({
         title: "Ralat",
-        description: "Gagal menyimpan produk",
+        description: message,
         variant: "destructive",
       });
     }
