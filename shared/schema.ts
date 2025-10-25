@@ -76,6 +76,7 @@ export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft",
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // e.g., "Tepung Gandum", "Gula Pasir", "Telur"
   unit: text("unit").notNull(), // e.g., "kg", "gram", "liter", "ml", "pcs"
   packageSize: decimal("package_size", { precision: 10, scale: 2 }).notNull().default("1"), // Size of package purchased (e.g., 500 for 500gram, 1.4 for 1.4kg)
@@ -90,13 +91,15 @@ export const stockItems = pgTable("stock_items", {
 // Categories Table (Product Categories)
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(), // Category name must be unique
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // Category name must be unique within user scope
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Products Table
 export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   category: text("category").notNull(),
   imageUrl: text("image_url"),
@@ -126,6 +129,7 @@ export const recipeItems = pgTable("recipe_items", {
 // Ingredients Table
 export const ingredients = pgTable("ingredients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   quantity: text("quantity").notNull(),
@@ -136,6 +140,7 @@ export const ingredients = pgTable("ingredients", {
 // Production Batches Table
 export const productionBatches = pgTable("production_batches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
@@ -150,6 +155,7 @@ export const productionBatches = pgTable("production_batches", {
 // Vendors Table (kedai untuk hantar produk jual - consignment)
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   phone: text("phone"),
   address: text("address"),
@@ -159,6 +165,7 @@ export const vendors = pgTable("vendors", {
 // Suppliers Table (tempat beli bahan mentah - purchase orders)
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   phone: text("phone"),
   address: text("address"),
@@ -169,6 +176,7 @@ export const suppliers = pgTable("suppliers", {
 // Deliveries Table
 export const deliveries = pgTable("deliveries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   invoiceNumber: text("invoice_number").unique(), // Format: INV-YYYYMMDD-XXXX
   vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
   vendorName: text("vendor_name").notNull(),
@@ -196,6 +204,7 @@ export const deliveryItems = pgTable("delivery_items", {
 // POS Sales Table (Transactions)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   receiptNumber: text("receipt_number").notNull().unique(), // Format: RES-YYYYMMDD-XXXX
   customerName: text("customer_name"), // Optional customer name
   customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }), // Link to customer for loyalty
@@ -226,6 +235,7 @@ export const salesItems = pgTable("sales_items", {
 // Expenses Table
 export const expenses = pgTable("expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   category: expenseCategoryEnum("category").notNull(),
   description: text("description").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -237,6 +247,7 @@ export const expenses = pgTable("expenses", {
 // Business Profile Table (for letterhead/invoice branding)
 export const businessProfile = pgTable("business_profile", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   businessName: text("business_name").notNull(),
   registrationNumber: text("registration_number"),
   address: text("address"),
@@ -254,6 +265,7 @@ export const businessProfile = pgTable("business_profile", {
 // Google Drive Sync Log Table (track uploaded files)
 export const googleDriveSyncLog = pgTable("google_drive_sync_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   deliveryId: varchar("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(), // 'invoice', 'claim_statement', 'thermal_invoice', 'thermal_claim'
@@ -267,6 +279,7 @@ export const googleDriveSyncLog = pgTable("google_drive_sync_log", {
 // Vendor Commissions Table (commission setup per vendor)
 export const vendorCommissions = pgTable("vendor_commissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
   commissionType: commissionTypeEnum("commission_type").notNull(),
   // For percentage type
@@ -280,6 +293,7 @@ export const vendorCommissions = pgTable("vendor_commissions", {
 // Shopping Cart Table (items to purchase with production context)
 export const shoppingCart = pgTable("shopping_cart", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   stockItemId: varchar("stock_item_id").notNull().references(() => stockItems.id, { onDelete: "cascade" }),
   stockItemName: text("stock_item_name").notNull(), // Denormalized for easy display
   shortageQty: decimal("shortage_qty", { precision: 10, scale: 2 }).notNull(), // Exact shortage quantity
@@ -293,6 +307,7 @@ export const shoppingCart = pgTable("shopping_cart", {
 // Purchase Orders Table (Smart Supplier Order Hub)
 export const purchaseOrders = pgTable("purchase_orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   poNumber: text("po_number").notNull().unique(), // PO-20251025-001
   supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
   supplierName: text("supplier_name").notNull(), // Denormalized
@@ -323,6 +338,7 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
 // Purchase Order Templates Table (for recurring/template POs)
 export const poTemplates = pgTable("po_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   templateName: text("template_name").notNull(), // User-friendly name
   supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
   supplierName: text("supplier_name").notNull(),
@@ -491,12 +507,14 @@ export const salesItemsRelations = relations(salesItems, ({ one }) => ({
 // Insert Schemas
 export const insertStockItemSchema = createInsertSchema(stockItems).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
@@ -506,31 +524,37 @@ export const insertRecipeItemSchema = createInsertSchema(recipeItems).omit({
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export const insertIngredientSchema = createInsertSchema(ingredients).omit({
   id: true,
+  userId: true,
 });
 
 export const insertProductionBatchSchema = createInsertSchema(productionBatches).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertVendorSchema = createInsertSchema(vendors).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertDeliverySchema = createInsertSchema(deliveries).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
@@ -540,6 +564,7 @@ export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
+  userId: true,
   receiptNumber: true,
   createdAt: true,
 });
@@ -552,33 +577,39 @@ export const insertSalesItemSchema = createInsertSchema(salesItems).omit({
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertBusinessProfileSchema = createInsertSchema(businessProfile).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export const insertGoogleDriveSyncLogSchema = createInsertSchema(googleDriveSyncLog).omit({
   id: true,
+  userId: true,
   syncedAt: true,
 });
 
 export const insertVendorCommissionSchema = createInsertSchema(vendorCommissions).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export const insertShoppingCartSchema = createInsertSchema(shoppingCart).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -589,6 +620,7 @@ export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderIte
 
 export const insertPOTemplateSchema = createInsertSchema(poTemplates).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -966,8 +998,9 @@ export type InsertResellerTransferItem = z.infer<typeof insertResellerTransferIt
 // Customers Table - Track unique customers and their loyalty points
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // Customer name
-  phone: text("phone").notNull().unique(), // Phone number - unique identifier
+  phone: text("phone").notNull(), // Phone number - unique within user scope
   email: text("email"), // Optional email
   loyaltyPoints: integer("loyalty_points").notNull().default(0), // Current points balance
   totalSpent: decimal("total_spent", { precision: 10, scale: 2 }).notNull().default("0"), // Lifetime spending
@@ -991,6 +1024,7 @@ export const loyaltyPointsHistory = pgTable("loyalty_points_history", {
 // Insert Schemas for Loyalty Program
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
+  userId: true,
   loyaltyPoints: true,
   totalSpent: true,
   totalVisits: true,
@@ -1017,6 +1051,7 @@ export type InsertLoyaltyPointsHistory = z.infer<typeof insertLoyaltyPointsHisto
 // Message Templates - Pre-built message templates for common scenarios
 export const messageTemplates = pgTable("message_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // Template name (e.g., "Promosi Raya", "Produk Baru")
   type: messageTemplateTypeEnum("type").notNull(), // promo, new_product, voucher, general
   subject: text("subject"), // For email (optional)
@@ -1030,6 +1065,7 @@ export const messageTemplates = pgTable("message_templates", {
 // Broadcast Campaigns - Track broadcast campaigns
 export const broadcastCampaigns = pgTable("broadcast_campaigns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // Campaign name
   channel: broadcastChannelEnum("channel").notNull(), // email, whatsapp, sms
   subject: text("subject"), // For email
@@ -1064,12 +1100,14 @@ export const broadcastMessages = pgTable("broadcast_messages", {
 // Insert Schemas for Broadcast System
 export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export const insertBroadcastCampaignSchema = createInsertSchema(broadcastCampaigns).omit({
   id: true,
+  userId: true,
   sentCount: true,
   failedCount: true,
   sentAt: true,
@@ -1099,7 +1137,8 @@ export type InsertBroadcastMessage = z.infer<typeof insertBroadcastMessageSchema
 // Customer Vouchers - Discount vouchers for loyal customers
 export const customerVouchers = pgTable("customer_vouchers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(), // Unique voucher code e.g., "RAYA2024", "VIP50"
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  code: text("code").notNull(), // Unique voucher code within user scope e.g., "RAYA2024", "VIP50"
   name: text("name").notNull(), // Display name
   description: text("description"), // Optional description
   voucherType: voucherTypeEnum("voucher_type").notNull(), // percentage or fixed_amount
@@ -1132,6 +1171,7 @@ export const voucherUsage = pgTable("voucher_usage", {
 // Insert Schemas for Vouchers
 export const insertCustomerVoucherSchema = createInsertSchema(customerVouchers).omit({
   id: true,
+  userId: true,
   currentUsage: true,
   createdAt: true,
   updatedAt: true,
@@ -1156,6 +1196,7 @@ export type InsertVoucherUsage = z.infer<typeof insertVoucherUsageSchema>;
 // Bookings - Customer pre-orders for events
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookingNumber: text("booking_number").notNull().unique(), // e.g., "BK-2024-001"
   
   // Customer Details
@@ -1215,6 +1256,7 @@ export const bookingItems = pgTable("booking_items", {
 // Insert Schemas for Bookings
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
+  userId: true,
   reminderSent: true,
   reminderSentAt: true,
   createdAt: true,
