@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { db } from "./db";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
@@ -27,6 +28,24 @@ import {
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
+
+// Security: Auth rate limiter - prevent brute force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per 15 minutes
+  message: 'Too many login attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful logins
+});
+
+// Security: Password complexity schema
+const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
 
 // Auth middleware - adds user object to request if logged in
 async function loadUser(req: Request, res: Response, next: NextFunction) {
@@ -214,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== AUTHENTICATION ROUTES ====================
   
   // Register new user
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", authLimiter, async (req, res) => {
     try {
       const registerSchema = insertUserSchema.omit({
         isAdmin: true,
@@ -222,14 +241,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const body = registerSchema.parse(req.body);
       
+      // Validate password complexity
+      try {
+        passwordSchema.parse(body.password);
+      } catch (error: any) {
+        return res.status(400).json({ 
+          message: "Password does not meet security requirements",
+          errors: error.errors.map((e: any) => e.message)
+        });
+      }
+      
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(body.email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already registered" });
       }
       
-      // Hash password
-      const hashedPassword = await bcrypt.hash(body.password, 10);
+      // Hash password with strong cost factor
+      const hashedPassword = await bcrypt.hash(body.password, 12);
       
       // Calculate trial end date (7 days from now)
       const trialEndsAt = new Date();
@@ -284,7 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Login
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const loginSchema = z.object({
         email: z.string().email(),
@@ -304,12 +333,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
-      // Set session
-      req.session.userId = user.id;
-      
-      // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      // Security: Regenerate session to prevent session fixation attacks
+      const oldSessionData = req.session;
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error('Session regeneration error:', err);
+          return res.status(500).json({ message: "Login failed. Please try again." });
+        }
+        
+        // Restore session data after regeneration
+        Object.assign(req.session, oldSessionData);
+        
+        // Set user ID in new session
+        req.session.userId = user.id;
+        
+        // Save session explicitly
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save error:', saveErr);
+            return res.status(500).json({ message: "Login failed. Please try again." });
+          }
+          
+          // Return user without password
+          const { password: _, ...userWithoutPassword } = user;
+          res.json({ user: userWithoutPassword });
+        });
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message || "Login failed" });
     }
