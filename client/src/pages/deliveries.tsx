@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,13 @@ export default function Deliveries() {
     queryKey: ["/api/business-profile"],
   });
 
+  // Fetch vendor commission when vendor is selected
+  const selectedVendorId = form.watch("vendorId");
+  const { data: vendorCommission } = useQuery({
+    queryKey: ["/api/vendors", selectedVendorId, "commission"],
+    enabled: !!selectedVendorId,
+  });
+
   // Smart defaults: Remember last selected vendor
   const getLastVendor = () => {
     try {
@@ -129,6 +136,24 @@ export default function Deliveries() {
       items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }],
     },
   });
+
+  // Recalculate all item prices when vendor commission changes
+  useEffect(() => {
+    if (vendorCommission) {
+      const currentItems = form.getValues("items");
+      const updatedItems = currentItems.map(item => {
+        if (item.retailPrice && parseFloat(item.retailPrice) > 0) {
+          return {
+            ...item,
+            unitPrice: calculateVendorPrice(item.retailPrice),
+          };
+        }
+        return item;
+      });
+      form.setValue("items", updatedItems);
+      calculateTotal();
+    }
+  }, [vendorCommission]);
 
   const createMutation = useMutation({
     mutationFn: async (data: DeliveryFormValues & { force?: boolean }) => {
@@ -335,18 +360,49 @@ export default function Deliveries() {
     }
   };
 
+  const calculateVendorPrice = (retailPrice: string): string => {
+    const price = parseFloat(retailPrice) || 0;
+    if (!vendorCommission || price === 0) return retailPrice;
+
+    // Calculate commission based on type
+    if (vendorCommission.commissionType === "percentage") {
+      const commissionPercent = parseFloat(vendorCommission.percentage || "0");
+      const vendorPrice = price - (price * commissionPercent / 100);
+      return vendorPrice.toFixed(2);
+    } else if (vendorCommission.commissionType === "fixed_range" && vendorCommission.ranges) {
+      // Parse ranges and find applicable commission
+      try {
+        const ranges = JSON.parse(vendorCommission.ranges);
+        const applicableRange = ranges.find((r: any) => 
+          price >= parseFloat(r.min) && price <= parseFloat(r.max)
+        );
+        if (applicableRange) {
+          const commissionAmount = parseFloat(applicableRange.amount || "0");
+          const vendorPrice = price - commissionAmount;
+          return Math.max(0, vendorPrice).toFixed(2);
+        }
+      } catch (e) {
+        console.error("Failed to parse commission ranges:", e);
+      }
+    }
+    
+    return retailPrice;
+  };
+
   const handleProductChange = (index: number, productId: string) => {
     const product = products?.find((p: any) => p.id === productId);
     if (product) {
       const currentItems = form.getValues("items");
-      // Use sellingPrice (retail) as default, user can edit if needed for wholesale
-      const defaultPrice = product.sellingPrice || product.suggestedPrice || "0";
+      const retailPrice = product.sellingPrice || product.suggestedPrice || "0";
+      // Calculate vendor price = retail price - commission
+      const vendorPrice = calculateVendorPrice(retailPrice);
+      
       currentItems[index] = {
         ...currentItems[index],
         productId,
         productName: product.name,
-        unitPrice: defaultPrice,
-        retailPrice: product.sellingPrice || "0", // Capture retail price for invoice reference
+        unitPrice: vendorPrice, // Price after commission deduction
+        retailPrice: retailPrice, // Keep original retail price for reference
       };
       form.setValue("items", currentItems);
       calculateTotal();
