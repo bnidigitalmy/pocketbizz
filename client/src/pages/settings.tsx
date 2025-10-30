@@ -19,8 +19,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertBusinessProfileSchema, type InsertBusinessProfile } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, QrCode, User, Lock } from "lucide-react";
+import { Building2, QrCode, User, Lock, Palette, Check } from "lucide-react";
 import { z } from "zod";
+import { useTheme } from "@/components/theme-provider";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -193,6 +194,10 @@ export default function Settings() {
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profil Saya
+          </TabsTrigger>
+          <TabsTrigger value="appearance">
+            <Palette className="h-4 w-4 mr-2" />
+            Penampilan
           </TabsTrigger>
         </TabsList>
 
@@ -537,7 +542,153 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <AppearanceTab />
       </Tabs>
     </div>
+  );
+}
+
+// Appearance Tab Component
+function AppearanceTab() {
+  const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
+
+  const colorThemes = [
+    { 
+      value: "default" as const, 
+      label: "Lalai", 
+      description: "Oren hangat (tema asal)",
+      colors: { light: "bg-orange-500", dark: "bg-orange-600" }
+    },
+    { 
+      value: "pink" as const, 
+      label: "Pink", 
+      description: "Lembut dan manis",
+      colors: { light: "bg-pink-500", dark: "bg-pink-600" }
+    },
+    { 
+      value: "blue" as const, 
+      label: "Biru", 
+      description: "Profesional dan tenang",
+      colors: { light: "bg-blue-500", dark: "bg-blue-600" }
+    },
+    { 
+      value: "purple" as const, 
+      label: "Ungu", 
+      description: "Kreatif dan anggun",
+      colors: { light: "bg-purple-500", dark: "bg-purple-600" }
+    },
+    { 
+      value: "green" as const, 
+      label: "Hijau", 
+      description: "Semula jadi dan segar",
+      colors: { light: "bg-green-500", dark: "bg-green-600" }
+    },
+    { 
+      value: "orange" as const, 
+      label: "Oren Terang", 
+      description: "Bertenaga dan hangat",
+      colors: { light: "bg-orange-600", dark: "bg-orange-500" }
+    },
+  ];
+
+  return (
+    <TabsContent value="appearance" className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Tema Warna</CardTitle>
+          <CardDescription>
+            Pilih warna tema yang sesuai dengan citarasa anda
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {colorThemes.map((ct) => (
+              <button
+                key={ct.value}
+                onClick={() => setColorTheme(ct.value)}
+                className={`
+                  relative p-4 rounded-lg border-2 transition-all text-left
+                  hover:border-primary/50 hover:shadow-md
+                  ${colorTheme === ct.value 
+                    ? 'border-primary bg-primary/5 shadow-md' 
+                    : 'border-border bg-card'
+                  }
+                `}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex gap-1.5 mt-1">
+                    <div className={`w-8 h-8 rounded-md ${ct.colors.light} shadow-sm`} />
+                    <div className={`w-8 h-8 rounded-md ${ct.colors.dark} shadow-sm`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-2">
+                      {ct.label}
+                      {colorTheme === ct.value && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {ct.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mod Gelap / Terang</CardTitle>
+          <CardDescription>
+            Pilih penampilan paparan yang selesa untuk mata anda
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setTheme("light")}
+              className={`
+                flex-1 p-4 rounded-lg border-2 transition-all
+                hover:border-primary/50 hover:shadow-md
+                ${theme === "light" 
+                  ? 'border-primary bg-primary/5 shadow-md' 
+                  : 'border-border bg-card'
+                }
+              `}
+            >
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-2 rounded-md bg-white border-2 border-gray-300 shadow-sm" />
+                <div className="font-medium flex items-center justify-center gap-2">
+                  Terang
+                  {theme === "light" && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setTheme("dark")}
+              className={`
+                flex-1 p-4 rounded-lg border-2 transition-all
+                hover:border-primary/50 hover:shadow-md
+                ${theme === "dark" 
+                  ? 'border-primary bg-primary/5 shadow-md' 
+                  : 'border-border bg-card'
+                }
+              `}
+            >
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-2 rounded-md bg-gray-900 border-2 border-gray-700 shadow-sm" />
+                <div className="font-medium flex items-center justify-center gap-2">
+                  Gelap
+                  {theme === "dark" && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              </div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
   );
 }

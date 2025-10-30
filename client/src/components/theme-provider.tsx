@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
+type ColorTheme = "default" | "pink" | "blue" | "purple" | "green" | "orange";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -11,11 +12,15 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  colorTheme: ColorTheme;
+  setColorTheme: (colorTheme: ColorTheme) => void;
 };
 
 const initialState: ThemeProviderState = {
   theme: "light",
   setTheme: () => null,
+  colorTheme: "default",
+  setColorTheme: () => null,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -30,17 +35,34 @@ export function ThemeProvider({
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
 
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(
+    () => (localStorage.getItem(`${storageKey}-color`) as ColorTheme) || "default"
+  );
+
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
     root.classList.add(theme);
   }, [theme]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    // Remove all color theme classes
+    root.classList.remove("theme-default", "theme-pink", "theme-blue", "theme-purple", "theme-green", "theme-orange");
+    // Add current color theme
+    root.classList.add(`theme-${colorTheme}`);
+  }, [colorTheme]);
+
   const value = {
     theme,
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme);
       setTheme(theme);
+    },
+    colorTheme,
+    setColorTheme: (colorTheme: ColorTheme) => {
+      localStorage.setItem(`${storageKey}-color`, colorTheme);
+      setColorTheme(colorTheme);
     },
   };
 

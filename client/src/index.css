@@ -122,6 +122,103 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* COLOR THEMES - Personalization options for different preferences */
+
+/* Pink Theme - Feminine, soft, sweet */
+.theme-pink {
+  --primary: 340 82% 58%;
+  --primary-foreground: 0 0% 100%;
+  --sidebar-primary: 340 78% 60%;
+  --sidebar-ring: 340 82% 58%;
+  --accent: 345 75% 62%;
+  --ring: 340 82% 58%;
+}
+
+.theme-pink.dark {
+  --primary: 340 75% 52%;
+  --sidebar-primary: 340 70% 55%;
+  --sidebar-ring: 340 75% 52%;
+  --accent: 345 68% 56%;
+  --ring: 340 75% 52%;
+}
+
+/* Blue Theme - Professional, trustworthy, calm */
+.theme-blue {
+  --primary: 221 83% 58%;
+  --primary-foreground: 0 0% 100%;
+  --sidebar-primary: 221 78% 60%;
+  --sidebar-ring: 221 83% 58%;
+  --accent: 215 80% 62%;
+  --ring: 221 83% 58%;
+}
+
+.theme-blue.dark {
+  --primary: 221 75% 52%;
+  --sidebar-primary: 221 70% 55%;
+  --sidebar-ring: 221 75% 52%;
+  --accent: 215 72% 56%;
+  --ring: 221 75% 52%;
+}
+
+/* Purple Theme - Creative, elegant, sophisticated */
+.theme-purple {
+  --primary: 262 52% 52%;
+  --primary-foreground: 0 0% 100%;
+  --sidebar-primary: 262 48% 54%;
+  --sidebar-ring: 262 52% 52%;
+  --accent: 268 55% 58%;
+  --ring: 262 52% 52%;
+}
+
+.theme-purple.dark {
+  --primary: 262 48% 48%;
+  --sidebar-primary: 262 45% 50%;
+  --sidebar-ring: 262 48% 48%;
+  --accent: 268 50% 52%;
+  --ring: 262 48% 48%;
+}
+
+/* Green Theme - Natural, growth, success */
+.theme-green {
+  --primary: 142 71% 48%;
+  --primary-foreground: 0 0% 100%;
+  --sidebar-primary: 142 68% 50%;
+  --sidebar-ring: 142 71% 48%;
+  --accent: 148 65% 52%;
+  --ring: 142 71% 48%;
+}
+
+.theme-green.dark {
+  --primary: 142 65% 45%;
+  --sidebar-primary: 142 62% 47%;
+  --sidebar-ring: 142 65% 45%;
+  --accent: 148 60% 48%;
+  --ring: 142 65% 45%;
+}
+
+/* Orange Theme - Energetic, warm, enthusiastic */
+.theme-orange {
+  --primary: 25 95% 58%;
+  --primary-foreground: 0 0% 100%;
+  --sidebar-primary: 25 92% 60%;
+  --sidebar-ring: 25 95% 58%;
+  --accent: 30 88% 62%;
+  --ring: 25 95% 58%;
+}
+
+.theme-orange.dark {
+  --primary: 25 88% 52%;
+  --sidebar-primary: 25 85% 54%;
+  --sidebar-ring: 25 88% 52%;
+  --accent: 30 82% 56%;
+  --ring: 25 88% 52%;
+}
+
+/* Default Theme - Uses the existing warm orange/amber palette */
+.theme-default {
+  /* No changes needed - uses root/dark variables */
+}
+
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
