@@ -192,14 +192,29 @@ export default function Production() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, items) => {
+      const itemCount = items.length;
       toast({
         title: "Berjaya!",
-        description: "Item telah ditambah ke senarai belian",
+        description: `${itemCount} bahan ditambah ke senarai belian`,
+        action: (
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => setLocation("/stock?tab=shopping")}
+              className="px-3 py-1.5 text-sm bg-white text-gray-900 border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Lihat Senarai
+            </button>
+            <button
+              onClick={() => setLocation("/stock?tab=shopping&autoPO=true")}
+              className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700"
+            >
+              Buat PO →
+            </button>
+          </div>
+        ),
       });
-      // Navigate to shopping list
       setDialogOpen(false);
-      setLocation("/stock?tab=shopping");
     },
     onError: (error: any) => {
       toast({
