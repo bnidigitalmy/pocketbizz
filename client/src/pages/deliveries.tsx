@@ -157,10 +157,20 @@ export default function Deliveries() {
 
   const createMutation = useMutation({
     mutationFn: async (data: DeliveryFormValues & { force?: boolean }) => {
+      // Transform data: ensure quantity and rejectedQty are numbers
+      const transformedData = {
+        ...data,
+        items: data.items.map(item => ({
+          ...item,
+          quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity,
+          rejectedQty: typeof item.rejectedQty === 'string' ? parseInt(item.rejectedQty as string, 10) : (item.rejectedQty || 0),
+        })),
+      };
+      
       const response = await fetch("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(transformedData),
       });
       
       if (response.status === 409) {
@@ -175,7 +185,7 @@ export default function Deliveries() {
       
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Save last selected vendor for smart defaults
       try {
         if (variables.vendorId) {
@@ -185,8 +195,11 @@ export default function Deliveries() {
         console.error('Failed to save last vendor:', e);
       }
       
-      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      // Invalidate and refetch queries
+      await queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/deliveries"] });
+      
       toast({
         title: "Berjaya!",
         description: "Penghantaran telah direkod.",
