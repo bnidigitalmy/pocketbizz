@@ -2761,6 +2761,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Profile Management
+  app.get("/api/user/profile", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      // Don't send password hash
+      const { password, ...userProfile } = user;
+      res.json(userProfile);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user profile" });
+    }
+  });
+
+  app.patch("/api/user/profile", requireAuth, async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        fullName: z.string().min(1, "Nama penuh diperlukan").optional(),
+        email: z.string().email("Email tidak sah").optional(),
+      });
+      
+      const data = updateSchema.parse(req.body);
+      
+      // Check if email already exists (if changing email)
+      if (data.email && data.email !== req.user!.email) {
+        const existingUser = await storage.getUserByEmail(data.email);
+        if (existingUser) {
+          return res.status(400).json({ error: "Email sudah digunakan" });
+        }
+      }
+      
+      const updatedUser = await storage.updateUserProfile(req.user!.id, data);
+      const { password, ...userProfile } = updatedUser;
+      res.json(userProfile);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Gagal mengemaskini profil" });
+    }
+  });
+
+  app.post("/api/user/change-password", requireAuth, async (req, res) => {
+    try {
+      const passwordSchema = z.object({
+        currentPassword: z.string().min(1, "Kata laluan semasa diperlukan"),
+        newPassword: z.string().min(8, "Kata laluan baru mestilah sekurang-kurangnya 8 aksara"),
+      });
+      
+      const { currentPassword, newPassword } = passwordSchema.parse(req.body);
+      
+      // Verify current password
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Kata laluan semasa tidak tepat" });
+      }
+      
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(req.user!.id, hashedPassword);
+      
+      res.json({ message: "Kata laluan berjaya dikemaskini" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Gagal menukar kata laluan" });
+    }
+  });
+
   // Google Drive Sync
   app.post("/api/google-drive/upload", requireAuth, requirePaidSubscription, async (req, res) => {
     try {
