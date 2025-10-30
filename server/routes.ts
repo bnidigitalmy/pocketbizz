@@ -4080,7 +4080,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const data = voucherSchema.parse(req.body);
-      const voucher = await storage.createVoucher(req.user!.id, data);
+      
+      // Convert date strings to Date objects for Drizzle
+      const voucherData = {
+        ...data,
+        validFrom: data.validFrom ? new Date(data.validFrom) : new Date(),
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+      };
+      
+      const voucher = await storage.createVoucher(req.user!.id, voucherData);
       res.json(voucher);
     } catch (error: any) {
       console.error("Create voucher error:", error);

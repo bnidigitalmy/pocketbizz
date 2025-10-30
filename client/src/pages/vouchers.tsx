@@ -141,7 +141,8 @@ export default function Vouchers() {
       return;
     }
 
-    createVoucherMutation.mutate({
+    // Prepare data with proper type conversions
+    const voucherData = {
       code: code.toUpperCase(),
       name,
       description: description || null,
@@ -151,10 +152,12 @@ export default function Vouchers() {
       maxDiscount: maxDiscount ? maxDiscount.toString() : null,
       maxUsagePerCustomer: parseInt(maxUsagePerCustomer),
       maxTotalUsage: maxTotalUsage ? parseInt(maxTotalUsage) : null,
-      validFrom: new Date().toISOString(),
-      validUntil: validUntil ? new Date(validUntil).toISOString() : null,
+      validFrom: new Date().toISOString(), // Backend will convert to Date
+      validUntil: validUntil || null, // Send as YYYY-MM-DD string, backend will convert
       isActive: 1,
-    });
+    };
+    
+    createVoucherMutation.mutate(voucherData);
   };
 
   const handleToggleActive = (voucher: any) => {
