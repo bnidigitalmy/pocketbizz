@@ -2133,12 +2133,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(purchaseOrders.userId, userId))
       .orderBy(desc(purchaseOrders.createdAt));
     
-    // Get items for each order
+    // Get items for each order (PO ownership already validated)
     const ordersWithItems = await Promise.all(
       orders.map(async (order) => {
         const items = await db.select()
           .from(purchaseOrderItems)
-          .where(and(eq(purchaseOrderItems.poId, order.id), eq(purchaseOrderItems.userId, userId)));
+          .where(eq(purchaseOrderItems.poId, order.id));
         return { ...order, items };
       })
     );
@@ -2154,7 +2154,7 @@ export class DatabaseStorage implements IStorage {
     
     const items = await db.select()
       .from(purchaseOrderItems)
-      .where(and(eq(purchaseOrderItems.poId, id), eq(purchaseOrderItems.userId, userId)));
+      .where(eq(purchaseOrderItems.poId, id));
     
     return { ...order, items };
   }
@@ -2195,9 +2195,9 @@ export class DatabaseStorage implements IStorage {
       
       // Update items if provided (including empty array to clear items)
       if (data.items !== undefined) {
-        // Delete old items
+        // Delete old items (PO ownership already validated)
         await tx.delete(purchaseOrderItems)
-          .where(and(eq(purchaseOrderItems.poId, id), eq(purchaseOrderItems.userId, userId)));
+          .where(eq(purchaseOrderItems.poId, id));
         
         // Insert new items if any
         if (data.items.length > 0) {
@@ -2233,7 +2233,7 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.userId, userId)));
       const items = await tx.select()
         .from(purchaseOrderItems)
-        .where(and(eq(purchaseOrderItems.poId, id), eq(purchaseOrderItems.userId, userId)));
+        .where(eq(purchaseOrderItems.poId, id));
       
       return { ...updatedPO, items };
     });
@@ -2353,7 +2353,7 @@ export class DatabaseStorage implements IStorage {
         userId,
       }).returning();
       
-      // Create PO items from template
+      // Create PO items from template (no userId - linked via poId)
       if (templateItems.length > 0) {
         await tx.insert(purchaseOrderItems).values(
           templateItems.map((item) => ({
@@ -2364,14 +2364,13 @@ export class DatabaseStorage implements IStorage {
             unit: item.unit,
             estimatedPrice: item.estimatedPrice,
             notes: item.notes,
-            userId,
           }))
         );
       }
       
       const items = await tx.select()
         .from(purchaseOrderItems)
-        .where(and(eq(purchaseOrderItems.poId, order.id), eq(purchaseOrderItems.userId, userId)));
+        .where(eq(purchaseOrderItems.poId, order.id));
       
       return { ...order, items };
     });
@@ -2428,7 +2427,7 @@ export class DatabaseStorage implements IStorage {
         userId,
       }).returning();
       
-      // Create PO items from cart
+      // Create PO items from cart (no userId - linked via poId)
       const poItems = await Promise.all(cartItems.map(async (cartItem) => {
         const stockItem = await tx.select().from(stockItems).where(
           and(eq(stockItems.id, cartItem.stockItemId), eq(stockItems.userId, userId))
@@ -2446,7 +2445,6 @@ export class DatabaseStorage implements IStorage {
           unit: cartItem.unit,
           estimatedPrice: estimatedPrice.toFixed(2),
           notes: cartItem.notes,
-          userId,
         };
       }));
       
@@ -2473,14 +2471,14 @@ export class DatabaseStorage implements IStorage {
         for (const { itemId, price } of actualPrices) {
           await tx.update(purchaseOrderItems)
             .set({ actualPrice: price.toFixed(2) })
-            .where(and(eq(purchaseOrderItems.id, itemId), eq(purchaseOrderItems.userId, userId)));
+            .where(eq(purchaseOrderItems.id, itemId));
         }
       }
       
-      // Get all items
+      // Get all items (PO ownership already validated)
       const items = await tx.select()
         .from(purchaseOrderItems)
-        .where(and(eq(purchaseOrderItems.poId, id), eq(purchaseOrderItems.userId, userId)));
+        .where(eq(purchaseOrderItems.poId, id));
       
       // Update stock for each item
       for (const item of items) {
