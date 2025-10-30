@@ -598,9 +598,27 @@ export default function POSPage() {
                         data-testid={`button-add-product-${product.id}`}
                         onClick={() => addToCart(product)}
                         variant="outline"
-                        className="min-h-32 md:h-28 flex flex-col items-center justify-center gap-2 hover-elevate active-elevate-2 p-3"
+                        className="min-h-32 md:h-28 flex flex-col items-center justify-center gap-2 hover-elevate active-elevate-2 p-2"
                       >
-                        <Package className="w-7 h-7 md:w-6 md:h-6" />
+                        {product.imageUrl ? (
+                          <div className="relative w-14 h-14 md:w-12 md:h-12 rounded overflow-hidden bg-muted">
+                            <img 
+                              src={product.imageUrl} 
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                            <div className="absolute inset-0 hidden items-center justify-center bg-muted" style={{ display: 'none' }}>
+                              <Package className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                          </div>
+                        ) : (
+                          <Package className="w-7 h-7 md:w-6 md:h-6" />
+                        )}
                         <span className="font-medium text-sm md:text-sm text-center leading-tight">{product.name}</span>
                         <span className="text-sm md:text-xs text-muted-foreground font-semibold">
                           RM {parseFloat(product.sellingPrice).toFixed(2)}

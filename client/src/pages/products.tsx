@@ -525,7 +525,51 @@ export default function Products() {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL Gambar Produk (Opsional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://example.com/image.jpg" 
+                              {...field} 
+                              data-testid="input-image-url" 
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Link gambar produk untuk paparan POS
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
+                  
+                  {/* Image Preview */}
+                  {form.watch("imageUrl") && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Preview Gambar:</p>
+                      <div className="relative w-32 h-32 border-2 border-border rounded-lg overflow-hidden bg-muted">
+                        <img 
+                          src={form.watch("imageUrl")} 
+                          alt="Product preview" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (errorDiv) errorDiv.style.display = 'flex';
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden items-center justify-center bg-muted" style={{ display: 'none' }}>
+                          <p className="text-xs text-muted-foreground text-center p-2">
+                            Gambar tidak dapat dimuatkan
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Recipe Items (from Stock) */}
