@@ -160,7 +160,7 @@ function Header() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => navigate("/stock?tab=shopping")}
+        onClick={() => navigate("/shopping-list")}
         className="relative"
         title="Senarai Belian"
       >
