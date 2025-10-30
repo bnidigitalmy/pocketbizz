@@ -167,6 +167,8 @@ export default function Deliveries() {
         })),
       };
       
+      console.log('[Delivery] Creating delivery...', transformedData);
+      
       const response = await fetch("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -195,10 +197,16 @@ export default function Deliveries() {
         console.error('Failed to save last vendor:', e);
       }
       
-      // Invalidate and refetch queries
-      await queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      console.log('[Delivery] Created successfully:', data);
+      
+      // Small delay to ensure DB transaction completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Reset infinite query to fetch from beginning
+      console.log('[Delivery] Resetting queries...');
+      await queryClient.resetQueries({ queryKey: ["/api/deliveries"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/deliveries"] });
+      console.log('[Delivery] Queries reset complete');
       
       toast({
         title: "Berjaya!",
