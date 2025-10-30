@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -17,7 +19,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertBusinessProfileSchema, type InsertBusinessProfile } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, QrCode } from "lucide-react";
+import { Building2, QrCode, User, Lock } from "lucide-react";
+import { z } from "zod";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -78,6 +81,89 @@ export default function Settings() {
     saveMutation.mutate(data);
   };
 
+  // User Profile Management
+  const { data: userProfile } = useQuery({
+    queryKey: ["/api/user/profile"],
+  });
+
+  const userForm = useForm({
+    defaultValues: {
+      fullName: "",
+      email: "",
+    },
+    values: userProfile ? {
+      fullName: userProfile.fullName || "",
+      email: userProfile.email || "",
+    } : undefined,
+  });
+
+  const passwordForm = useForm({
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { fullName: string; email: string }) => {
+      return apiRequest("PATCH", "/api/user/profile", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      toast({
+        title: "Berjaya!",
+        description: "Profil anda telah dikemaskini.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal mengemaskini profil",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      return apiRequest("POST", "/api/user/change-password", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Berjaya!",
+        description: "Kata laluan anda telah dikemaskini.",
+      });
+      passwordForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal menukar kata laluan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onProfileSubmit = (data: { fullName: string; email: string }) => {
+    updateProfileMutation.mutate(data);
+  };
+
+  const onPasswordSubmit = (data: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (data.newPassword !== data.confirmPassword) {
+      toast({
+        title: "Ralat",
+        description: "Kata laluan baru tidak sepadan",
+        variant: "destructive",
+      });
+      return;
+    }
+    changePasswordMutation.mutate({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -94,11 +180,24 @@ export default function Settings() {
       <div>
         <h1 className="text-2xl font-semibold md:text-3xl">Tetapan</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Urus maklumat perniagaan untuk invois & penyata
+          Urus akaun, perniagaan dan tetapan aplikasi
         </p>
       </div>
 
-      <Card>
+      <Tabs defaultValue="business" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="business">
+            <Building2 className="h-4 w-4 mr-2" />
+            Perniagaan
+          </TabsTrigger>
+          <TabsTrigger value="profile">
+            <User className="h-4 w-4 mr-2" />
+            Profil Saya
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="business">
+          <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -331,6 +430,114 @@ export default function Settings() {
           </Form>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-6">
+          {/* User Profile Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <CardTitle>Maklumat Profil</CardTitle>
+              </div>
+              <CardDescription>
+                Kemaskini maklumat peribadi anda
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...userForm}>
+                <form onSubmit={userForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Nama Penuh</label>
+                      <Input
+                        {...userForm.register("fullName")}
+                        placeholder="Masukkan nama penuh"
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Email</label>
+                      <Input
+                        {...userForm.register("email")}
+                        type="email"
+                        placeholder="email@example.com"
+                        className="mt-1.5"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={updateProfileMutation.isPending}
+                    >
+                      {updateProfileMutation.isPending ? "Menyimpan..." : "Simpan Profil"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          {/* Change Password Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-primary" />
+                <CardTitle>Tukar Kata Laluan</CardTitle>
+              </div>
+              <CardDescription>
+                Pastikan kata laluan sekurang-kurangnya 8 aksara
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Kata Laluan Semasa</label>
+                      <Input
+                        {...passwordForm.register("currentPassword")}
+                        type="password"
+                        placeholder="Masukkan kata laluan semasa"
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Kata Laluan Baru</label>
+                      <Input
+                        {...passwordForm.register("newPassword")}
+                        type="password"
+                        placeholder="Minimum 8 aksara"
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Sahkan Kata Laluan Baru</label>
+                      <Input
+                        {...passwordForm.register("confirmPassword")}
+                        type="password"
+                        placeholder="Masukkan semula kata laluan baru"
+                        className="mt-1.5"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={changePasswordMutation.isPending}
+                    >
+                      {changePasswordMutation.isPending ? "Menukar..." : "Tukar Kata Laluan"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
