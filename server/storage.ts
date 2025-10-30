@@ -2401,6 +2401,31 @@ export class DatabaseStorage implements IStorage {
       );
       const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
       
+      // Auto-save supplier if new (manual input without supplierId)
+      let finalSupplierId = supplierId;
+      if (!supplierId && supplierName.trim()) {
+        // Check if supplier with same name already exists
+        const existingSupplier = await tx.select().from(suppliers).where(
+          and(
+            eq(suppliers.userId, userId),
+            sql`LOWER(${suppliers.name}) = LOWER(${supplierName})`
+          )
+        ).limit(1);
+
+        if (existingSupplier.length > 0) {
+          // Use existing supplier
+          finalSupplierId = existingSupplier[0].id;
+        } else {
+          // Create new supplier
+          const [newSupplier] = await tx.insert(suppliers).values({
+            userId,
+            name: supplierName,
+            phone: supplierPhone,
+          }).returning();
+          finalSupplierId = newSupplier.id;
+        }
+      }
+      
       // Calculate total
       let total = 0;
       for (const item of cartItems) {
@@ -2418,7 +2443,7 @@ export class DatabaseStorage implements IStorage {
       // Create PO
       const [order] = await tx.insert(purchaseOrders).values({
         poNumber,
-        supplierId,
+        supplierId: finalSupplierId,
         supplierName,
         supplierPhone,
         totalAmount: total.toFixed(2),

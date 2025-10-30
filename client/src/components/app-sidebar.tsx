@@ -25,6 +25,7 @@ import {
   Send,
   Ticket,
   CalendarCheck,
+  Building2,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -84,6 +85,11 @@ const stockManagementItems = [
     title: "Purchase Order",
     url: "/purchase-orders",
     icon: FileText,
+  },
+  {
+    title: "Suppliers",
+    url: "/suppliers",
+    icon: Building2,
   },
 ];
 
