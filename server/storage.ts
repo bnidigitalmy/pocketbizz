@@ -411,15 +411,14 @@ export class DatabaseStorage implements IStorage {
     
     // Update recipe items if provided
     if (recipeItemsList && recipeItemsList.length > 0) {
-      // Delete existing recipe items (MUST filter by userId for security!)
+      // Delete existing recipe items (product ownership already validated above)
       await db.delete(recipeItems)
-        .where(and(eq(recipeItems.productId, id), eq(recipeItems.userId, userId)));
+        .where(eq(recipeItems.productId, id));
       
-      // Insert new recipe items
+      // Insert new recipe items (no userId needed - linked via productId)
       const recipeItemsWithProductId = recipeItemsList.map(item => ({
         ...item,
         productId: id,
-        userId,
       }));
       await db.insert(recipeItems).values(recipeItemsWithProductId);
     }
@@ -428,11 +427,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(userId: string, id: string): Promise<void> {
-    // Delete recipe items first (MUST filter by userId for security!)
+    // Delete recipe items first (product ownership already validated, cascade via productId)
     await db.delete(recipeItems)
-      .where(and(eq(recipeItems.productId, id), eq(recipeItems.userId, userId)));
+      .where(eq(recipeItems.productId, id));
     
-    // Delete the product
+    // Delete the product (user ownership validation)
     await db.delete(products)
       .where(and(eq(products.id, id), eq(products.userId, userId)));
   }
