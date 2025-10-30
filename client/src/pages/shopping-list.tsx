@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, AlertTriangle, CheckCircle2, Printer, ShoppingCart, Share2, Plus, X, FileText } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,16 @@ export default function ShoppingList() {
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
   });
+
+  // Auto-open PO dialog if autoPO parameter is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("autoPO") === "true" && cartItems.length > 0) {
+      setSupplierDialogOpen(true);
+      // Clean URL after opening dialog
+      window.history.replaceState({}, "", "/stock?tab=shopping");
+    }
+  }, [cartItems.length]);
 
   // Initialize editable quantities when cart loads
   if (cartItems.length > 0 && Object.keys(editableCartItems).length === 0) {

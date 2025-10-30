@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,7 +14,8 @@ import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { RenewalReminder } from "@/components/renewal-reminder";
 import { MotionWrapper } from "@/components/motion-wrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 
 import Landing from "@/pages/landing";
 import AuthLogin from "@/pages/auth-login";
@@ -102,9 +103,28 @@ function AppRouter() {
   );
 }
 
+interface CartItem {
+  id: string;
+  stockItemId: string;
+  stockItemName: string;
+  shortageQty: string;
+  unit: string;
+  productionBatchId: string | null;
+  productName: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 function Header() {
   const [location, navigate] = useLocation();
   const isDashboard = location === "/dashboard";
+
+  // Fetch shopping cart items count
+  const { data: cartItems = [] } = useQuery<CartItem[]>({
+    queryKey: ["/api/shopping-cart"],
+  });
+
+  const cartCount = cartItems.length;
 
   const handleBack = () => {
     // Check if there's history to go back to
@@ -135,6 +155,23 @@ function Header() {
       <div className="flex-1 flex justify-center px-4">
         <GlobalSearch />
       </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate("/stock?tab=shopping")}
+        className="relative"
+        title="Senarai Belian"
+      >
+        <ShoppingCart className="h-5 w-5" />
+        {cartCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+          >
+            {cartCount}
+          </Badge>
+        )}
+      </Button>
       <ThemeToggle />
     </header>
   );
