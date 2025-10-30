@@ -1424,7 +1424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/recipe-items/:productId", requireAuth, async (req, res) => {
     try {
       const { productId } = req.params;
-      const items = await storage.getRecipeItems(req.user!.id, productId);
+      const items = await storage.getRecipeItems(productId);
       res.json(items);
     } catch (error) {
       console.error("Recipe items fetch error:", error);
@@ -1468,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get recipe items for this product
-      const recipeItems = await storage.getRecipeItems(req.user!.id, productId);
+      const recipeItems = await storage.getRecipeItems(productId);
       if (recipeItems.length === 0) {
         return res.status(400).json({ error: "No recipe found for this product" });
       }
