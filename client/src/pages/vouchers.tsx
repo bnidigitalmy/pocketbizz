@@ -52,8 +52,7 @@ export default function Vouchers() {
   // Create voucher mutation
   const createVoucherMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/vouchers", data);
-      return await response.json();
+      return apiRequest("POST", "/api/vouchers", data);
     },
     onSuccess: () => {
       toast({
@@ -65,6 +64,7 @@ export default function Vouchers() {
       setShowCreateDialog(false);
     },
     onError: (error: any) => {
+      console.error("Create voucher error:", error);
       toast({
         title: "Ralat",
         description: error.message || "Gagal membuat voucher",
@@ -76,8 +76,7 @@ export default function Vouchers() {
   // Update voucher mutation
   const updateVoucherMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PUT", `/api/vouchers/${id}`, data);
-      return await response.json();
+      return apiRequest("PUT", `/api/vouchers/${id}`, data);
     },
     onSuccess: () => {
       toast({
@@ -88,6 +87,7 @@ export default function Vouchers() {
       setEditingVoucher(null);
     },
     onError: (error: any) => {
+      console.error("Update voucher error:", error);
       toast({
         title: "Ralat",
         description: error.message || "Gagal mengemaskini voucher",
@@ -99,8 +99,7 @@ export default function Vouchers() {
   // Delete voucher mutation
   const deleteVoucherMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/vouchers/${id}`, {});
-      return await response.json();
+      return apiRequest("DELETE", `/api/vouchers/${id}`, {});
     },
     onSuccess: () => {
       toast({
@@ -110,6 +109,7 @@ export default function Vouchers() {
       queryClient.invalidateQueries({ queryKey: ["/api/vouchers"] });
     },
     onError: (error: any) => {
+      console.error("Delete voucher error:", error);
       toast({
         title: "Ralat",
         description: error.message || "Gagal memadam voucher",
@@ -144,13 +144,14 @@ export default function Vouchers() {
     createVoucherMutation.mutate({
       code: code.toUpperCase(),
       name,
-      description,
+      description: description || null,
       voucherType,
-      discountValue: parseFloat(discountValue),
-      minPurchase: parseFloat(minPurchase),
-      maxDiscount: maxDiscount ? parseFloat(maxDiscount) : null,
+      discountValue: discountValue.toString(),
+      minPurchase: minPurchase.toString(),
+      maxDiscount: maxDiscount ? maxDiscount.toString() : null,
       maxUsagePerCustomer: parseInt(maxUsagePerCustomer),
       maxTotalUsage: maxTotalUsage ? parseInt(maxTotalUsage) : null,
+      validFrom: new Date().toISOString(),
       validUntil: validUntil ? new Date(validUntil).toISOString() : null,
       isActive: 1,
     });

@@ -18,6 +18,7 @@ import {
   insertGoogleDriveSyncLogSchema,
   insertStockItemSchema,
   insertCategorySchema,
+  insertCustomerVoucherSchema,
   convertUnit,
   insertUserSchema,
   insertSubscriptionPlanSchema,
@@ -4073,11 +4074,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const voucher = await storage.createVoucher(req.user!.id, req.body);
+      const voucherSchema = insertCustomerVoucherSchema.extend({
+        validFrom: z.string().optional(),
+        validUntil: z.string().optional().nullable(),
+      });
+      
+      const data = voucherSchema.parse(req.body);
+      const voucher = await storage.createVoucher(req.user!.id, data);
       res.json(voucher);
     } catch (error: any) {
       console.error("Create voucher error:", error);
-      res.status(500).json({ error: "Failed to create voucher" });
+      if (error.issues) {
+        // Zod validation error
+        return res.status(400).json({ 
+          error: "Data voucher tidak sah",
+          details: error.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`)
+        });
+      }
+      res.status(500).json({ error: error.message || "Failed to create voucher" });
     }
   });
 
