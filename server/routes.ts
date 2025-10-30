@@ -2079,7 +2079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deductionResult = await storage.deductFromBatches(req.user!.id, item.productId, item.quantity);
         if (!deductionResult.success) {
           return res.status(400).json({ 
-            error: `Insufficient finished goods stock for ${item.productName}`,
+            error: `Stok siap tidak mencukupi untuk ${item.productName}. Diperlukan: ${item.quantity}, Tersedia: ${deductionResult.available || 0}`,
             details: deductionResult
           });
         }
@@ -2087,9 +2087,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const delivery = await storage.createDelivery(req.user!.id, deliveryData, deliveryItems);
       res.json(delivery);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Delivery creation error:", error);
-      res.status(400).json({ error: "Invalid delivery data" });
+      if (error.message) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "Data penghantaran tidak sah atau stok tidak mencukupi" });
+      }
     }
   });
 

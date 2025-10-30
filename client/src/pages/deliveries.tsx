@@ -339,12 +339,14 @@ export default function Deliveries() {
     const product = products?.find((p: any) => p.id === productId);
     if (product) {
       const currentItems = form.getValues("items");
+      // Use sellingPrice (retail) as default, user can edit if needed for wholesale
+      const defaultPrice = product.sellingPrice || product.suggestedPrice || "0";
       currentItems[index] = {
         ...currentItems[index],
         productId,
         productName: product.name,
-        unitPrice: product.suggestedPrice,
-        retailPrice: product.sellingPrice, // Capture retail price for invoice reference
+        unitPrice: defaultPrice,
+        retailPrice: product.sellingPrice || "0", // Capture retail price for invoice reference
       };
       form.setValue("items", currentItems);
       calculateTotal();
@@ -656,6 +658,29 @@ export default function Deliveries() {
                                     calculateTotal();
                                   }}
                                   data-testid={`input-item-qty-${index}`}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unitPrice`}
+                          render={({ field }) => (
+                            <FormItem className="w-24">
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Harga"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    calculateTotal();
+                                  }}
+                                  data-testid={`input-item-price-${index}`}
                                 />
                               </FormControl>
                               <FormMessage />
