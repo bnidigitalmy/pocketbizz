@@ -109,13 +109,6 @@ export default function Deliveries() {
     queryKey: ["/api/business-profile"],
   });
 
-  // Fetch vendor commission when vendor is selected
-  const selectedVendorId = form.watch("vendorId");
-  const { data: vendorCommission } = useQuery({
-    queryKey: ["/api/vendors", selectedVendorId, "commission"],
-    enabled: !!selectedVendorId,
-  });
-
   // Smart defaults: Remember last selected vendor
   const getLastVendor = () => {
     try {
@@ -135,6 +128,13 @@ export default function Deliveries() {
       totalAmount: "0",
       items: [{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }],
     },
+  });
+
+  // Fetch vendor commission when vendor is selected
+  const selectedVendorId = form.watch("vendorId");
+  const { data: vendorCommission } = useQuery({
+    queryKey: ["/api/vendors", selectedVendorId, "commission"],
+    enabled: !!selectedVendorId,
   });
 
   // Recalculate all item prices when vendor commission changes
@@ -365,14 +365,14 @@ export default function Deliveries() {
     if (!vendorCommission || price === 0) return retailPrice;
 
     // Calculate commission based on type
-    if (vendorCommission.commissionType === "percentage") {
-      const commissionPercent = parseFloat(vendorCommission.percentage || "0");
+    if ((vendorCommission as any).commissionType === "percentage") {
+      const commissionPercent = parseFloat((vendorCommission as any).percentage || "0");
       const vendorPrice = price - (price * commissionPercent / 100);
       return vendorPrice.toFixed(2);
-    } else if (vendorCommission.commissionType === "fixed_range" && vendorCommission.ranges) {
+    } else if ((vendorCommission as any).commissionType === "fixed_range" && (vendorCommission as any).ranges) {
       // Parse ranges and find applicable commission
       try {
-        const ranges = JSON.parse(vendorCommission.ranges);
+        const ranges = JSON.parse((vendorCommission as any).ranges);
         const applicableRange = ranges.find((r: any) => 
           price >= parseFloat(r.min) && price <= parseFloat(r.max)
         );
