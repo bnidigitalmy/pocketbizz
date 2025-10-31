@@ -2775,6 +2775,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const data = updateSchema.parse(req.body);
       
+      // Map fullName to name (database field)
+      const updateData: any = {};
+      if (data.fullName) updateData.name = data.fullName;
+      if (data.email) updateData.email = data.email;
+      
       // Check if email already exists (if changing email)
       if (data.email && data.email !== req.user!.email) {
         const existingUser = await storage.getUserByEmail(data.email);
@@ -2783,7 +2788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const updatedUser = await storage.updateUserProfile(req.user!.id, data);
+      const updatedUser = await storage.updateUserProfile(req.user!.id, updateData);
       const { password, ...userProfile } = updatedUser;
       res.json(userProfile);
     } catch (error: any) {

@@ -93,7 +93,7 @@ export default function Settings() {
       email: "",
     },
     values: userProfile ? {
-      fullName: userProfile.fullName || "",
+      fullName: (userProfile as any).name || "", // Database field is 'name' not 'fullName'
       email: userProfile.email || "",
     } : undefined,
   });
