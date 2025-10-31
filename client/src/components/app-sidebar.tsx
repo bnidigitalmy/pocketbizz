@@ -94,12 +94,17 @@ const stockManagementItems = [
   },
 ];
 
-// Jualan & Operasi
-const salesOperationsItems = [
+// Vendor (Jualan melalui kedai)
+const vendorItems = [
   {
     title: "Vendor",
     url: "/vendors",
     icon: Store,
+  },
+  {
+    title: "Hantar ke Kedai",
+    url: "/deliveries",
+    icon: Truck,
   },
   {
     title: "Tuntutan Produk",
@@ -107,9 +112,18 @@ const salesOperationsItems = [
     icon: AlertTriangle,
   },
   {
-    title: "Hantar",
-    url: "/deliveries",
-    icon: Truck,
+    title: "Tuntutan",
+    url: "/claims",
+    icon: ClipboardCheck,
+  },
+];
+
+// Direct Sales (Jualan terus)
+const directSalesItems = [
+  {
+    title: "Tempahan",
+    url: "/bookings",
+    icon: CalendarCheck,
   },
   {
     title: "POS - Kaunter",
@@ -135,16 +149,6 @@ const salesOperationsItems = [
     title: "Voucher",
     url: "/vouchers",
     icon: Ticket,
-  },
-  {
-    title: "Tempahan",
-    url: "/bookings",
-    icon: CalendarCheck,
-  },
-  {
-    title: "Tuntutan",
-    url: "/claims",
-    icon: ClipboardCheck,
   },
 ];
 
@@ -331,12 +335,35 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Jualan & Operasi */}
+        {/* Vendor (Jualan melalui kedai) */}
         <SidebarGroup>
-          <SidebarGroupLabel>Jualan & Operasi</SidebarGroupLabel>
+          <SidebarGroupLabel>Vendor</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {salesOperationsItems.map((item) => (
+              {vendorItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleMenuClick}
+                      data-testid={`link-${item.url.slice(1)}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Direct Sales (Jualan terus) */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Direct Sales</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {directSalesItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
