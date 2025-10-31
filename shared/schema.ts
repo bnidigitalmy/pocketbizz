@@ -72,6 +72,7 @@ export const voucherStatusEnum = pgEnum("voucher_status", ["active", "used", "ex
 export const bookingStatusEnum = pgEnum("booking_status", ["pending", "confirmed", "in_progress", "ready", "completed", "cancelled"]);
 export const bookingDeliveryTypeEnum = pgEnum("booking_delivery_type", ["pickup", "delivery"]);
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "received", "cancelled"]);
+export const claimStatusEnum = pgEnum("claim_status", ["pending", "approved", "rejected"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -199,6 +200,72 @@ export const deliveryItems = pgTable("delivery_items", {
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   rejectedQty: integer("rejected_qty").default(0), // Number of items rejected by vendor
   rejectionReason: text("rejection_reason"), // Reason for rejection (optional)
+});
+
+// Vendor Sales Table (Manual sales entry by bakery)
+export const vendorSales = pgTable("vendor_sales", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  vendorName: text("vendor_name").notNull(),
+  deliveryId: varchar("delivery_id").references(() => deliveries.id, { onDelete: "set null" }), // Link to original delivery
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  productName: text("product_name").notNull(),
+  quantitySold: integer("quantity_sold").notNull(), // How many vendor sold
+  saleDate: date("sale_date").notNull(), // When vendor reported the sale
+  notes: text("notes"), // Optional notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Vendor Claims Table (Claim submissions from vendors)
+export const vendorClaims = pgTable("vendor_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  vendorName: text("vendor_name").notNull(),
+  deliveryId: varchar("delivery_id").references(() => deliveries.id, { onDelete: "set null" }), // Related delivery (optional)
+  claimNumber: text("claim_number").unique(), // Format: CLM-YYYYMMDD-XXXX
+  claimDate: date("claim_date").notNull(),
+  status: claimStatusEnum("status").notNull().default("pending"),
+  totalClaimAmount: decimal("total_claim_amount", { precision: 10, scale: 2 }).notNull(),
+  approvedAmount: decimal("approved_amount", { precision: 10, scale: 2 }).default("0"),
+  reviewNotes: text("review_notes"), // Notes from bakery during review
+  reviewedAt: timestamp("reviewed_at"), // When claim was reviewed
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }), // Who reviewed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Claim Items Table (Products claimed)
+export const claimItems = pgTable("claim_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").notNull().references(() => vendorClaims.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  productName: text("product_name").notNull(),
+  quantityClaimed: integer("quantity_claimed").notNull(), // How many items claimed
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(), // Price per unit
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(), // quantityClaimed * unitPrice
+  claimReason: text("claim_reason").notNull(), // Why claiming (rosak, expired, etc)
+  approvedQty: integer("approved_qty").default(0), // Approved quantity after review
+});
+
+// Claim Photos Table (Photo evidence for claims)
+export const claimPhotos = pgTable("claim_photos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").notNull().references(() => vendorClaims.id, { onDelete: "cascade" }),
+  photoUrl: text("photo_url").notNull(), // Google Drive URL
+  caption: text("caption"), // Optional description
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+// Vendor Stock Balance Table (Track current stock at vendor location)
+export const vendorStockBalance = pgTable("vendor_stock_balance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  currentStock: integer("current_stock").notNull().default(0), // Current stock at vendor
+  lastDeliveryDate: date("last_delivery_date"), // Last delivery date
+  lastSaleDate: date("last_sale_date"), // Last sale date
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // POS Sales Table (Transactions)
@@ -562,6 +629,38 @@ export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({
   id: true,
 });
 
+export const insertVendorSaleSchema = createInsertSchema(vendorSales).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export const insertVendorClaimSchema = createInsertSchema(vendorClaims).omit({
+  id: true,
+  userId: true,
+  claimNumber: true,
+  approvedAmount: true,
+  reviewNotes: true,
+  reviewedAt: true,
+  reviewedBy: true,
+  createdAt: true,
+});
+
+export const insertClaimItemSchema = createInsertSchema(claimItems).omit({
+  id: true,
+  approvedQty: true,
+});
+
+export const insertClaimPhotoSchema = createInsertSchema(claimPhotos).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertVendorStockBalanceSchema = createInsertSchema(vendorStockBalance).omit({
+  id: true,
+  updatedAt: true,
+});
+
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
   userId: true,
@@ -659,6 +758,21 @@ export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
 
 export type DeliveryItem = typeof deliveryItems.$inferSelect;
 export type InsertDeliveryItem = z.infer<typeof insertDeliveryItemSchema>;
+
+export type VendorSale = typeof vendorSales.$inferSelect;
+export type InsertVendorSale = z.infer<typeof insertVendorSaleSchema>;
+
+export type VendorClaim = typeof vendorClaims.$inferSelect;
+export type InsertVendorClaim = z.infer<typeof insertVendorClaimSchema>;
+
+export type ClaimItem = typeof claimItems.$inferSelect;
+export type InsertClaimItem = z.infer<typeof insertClaimItemSchema>;
+
+export type ClaimPhoto = typeof claimPhotos.$inferSelect;
+export type InsertClaimPhoto = z.infer<typeof insertClaimPhotoSchema>;
+
+export type VendorStockBalance = typeof vendorStockBalance.$inferSelect;
+export type InsertVendorStockBalance = z.infer<typeof insertVendorStockBalanceSchema>;
 
 export type Sale = typeof sales.$inferSelect;
 export type InsertSale = z.infer<typeof insertSaleSchema>;

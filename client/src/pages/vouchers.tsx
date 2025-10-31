@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import type { CustomerVoucher } from "@shared/schema";
 
 export default function Vouchers() {
   const { toast } = useToast();
@@ -39,12 +40,12 @@ export default function Vouchers() {
   const [validUntil, setValidUntil] = useState("");
 
   // Fetch vouchers
-  const { data: vouchers = [], isLoading } = useQuery({
+  const { data: vouchers = [], isLoading } = useQuery<CustomerVoucher[]>({
     queryKey: ["/api/vouchers"],
   });
 
   // Fetch voucher usage history
-  const { data: voucherUsage = [] } = useQuery({
+  const { data: voucherUsage = [] } = useQuery<any[]>({
     queryKey: ["/api/vouchers", viewingUsageVoucher?.id, "usage"],
     enabled: !!viewingUsageVoucher?.id,
   });
@@ -160,15 +161,15 @@ export default function Vouchers() {
     createVoucherMutation.mutate(voucherData);
   };
 
-  const handleToggleActive = (voucher: any) => {
+  const handleToggleActive = (voucher: CustomerVoucher) => {
     updateVoucherMutation.mutate({
       id: voucher.id,
       data: { isActive: voucher.isActive ? 0 : 1 },
     });
   };
 
-  const activeVouchers = vouchers.filter((v: any) => v.isActive);
-  const inactiveVouchers = vouchers.filter((v: any) => !v.isActive);
+  const activeVouchers = vouchers.filter((v: CustomerVoucher) => v.isActive);
+  const inactiveVouchers = vouchers.filter((v: CustomerVoucher) => !v.isActive);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">

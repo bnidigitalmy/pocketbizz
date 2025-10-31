@@ -709,7 +709,7 @@ export class DatabaseStorage implements IStorage {
     const deliveriesWithItems = await Promise.all(
       deliveriesToReturn.map(async (delivery) => {
         const items = await db.select().from(deliveryItems)
-          .where(and(eq(deliveryItems.deliveryId, delivery.id), eq(deliveryItems.userId, userId)));
+          .where(eq(deliveryItems.deliveryId, delivery.id));
         
         // Calculate gross, rejected, net amounts
         let grossAmount = 0;
@@ -752,7 +752,7 @@ export class DatabaseStorage implements IStorage {
     if (!delivery) return undefined;
     
     const items = await db.select().from(deliveryItems)
-      .where(and(eq(deliveryItems.deliveryId, id), eq(deliveryItems.userId, userId)));
+      .where(eq(deliveryItems.deliveryId, id));
     
     // Calculate gross, rejected, net amounts, and commission
     let grossAmount = 0;
@@ -795,7 +795,7 @@ export class DatabaseStorage implements IStorage {
     const items = await db
       .select()
       .from(deliveryItems)
-      .where(and(eq(deliveryItems.deliveryId, lastDelivery.id), eq(deliveryItems.userId, userId)));
+      .where(eq(deliveryItems.deliveryId, lastDelivery.id));
     
     return {
       ...lastDelivery,
@@ -894,12 +894,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDeliveryItemRejection(userId: string, itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void> {
+    // Verify ownership through deliveries table
+    const [item] = await db.select()
+      .from(deliveryItems)
+      .innerJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+      .where(and(eq(deliveryItems.id, itemId), eq(deliveries.userId, userId)));
+    
+    if (!item) {
+      throw new Error("Delivery item not found or access denied");
+    }
+    
     await db.update(deliveryItems)
       .set({ 
         rejectedQty,
         rejectionReason 
       })
-      .where(and(eq(deliveryItems.id, itemId), eq(deliveryItems.userId, userId)));
+      .where(eq(deliveryItems.id, itemId));
   }
 
   // POS Sales
@@ -971,7 +981,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(deliveries)
       .innerJoin(vendors, and(eq(deliveries.vendorId, vendors.id), eq(vendors.userId, userId)))
-      .innerJoin(deliveryItems, and(eq(deliveries.id, deliveryItems.deliveryId), eq(deliveryItems.userId, userId)))
+      .innerJoin(deliveryItems, eq(deliveries.id, deliveryItems.deliveryId))
       .innerJoin(products, and(eq(deliveryItems.productId, products.id), eq(products.userId, userId)))
       .where(eq(deliveries.userId, userId))
       .orderBy(desc(deliveries.deliveryDate));
@@ -1270,7 +1280,8 @@ export class DatabaseStorage implements IStorage {
     const rejectionLossResult = await db.select({
       total: sql<string>`COALESCE(SUM(${deliveryItems.rejectedQty} * ${deliveryItems.unitPrice}), 0)`,
     }).from(deliveryItems)
-      .where(eq(deliveryItems.userId, userId));
+      .innerJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+      .where(eq(deliveries.userId, userId));
 
     const totalSales = parseFloat(totalSalesResult[0]?.total || "0");
     const productionCost = parseFloat(totalCostsResult[0]?.production || "0");
@@ -1457,7 +1468,8 @@ export class DatabaseStorage implements IStorage {
           totalRejected: sql<number>`COALESCE(SUM(${deliveryItems.rejectedQty}), 0)`,
         })
         .from(deliveryItems)
-        .where(and(eq(deliveryItems.productId, product.id), eq(deliveryItems.userId, userId)));
+        .innerJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+        .where(and(eq(deliveryItems.productId, product.id), eq(deliveries.userId, userId)));
 
         const totalQtySold = Number(salesData[0]?.totalQuantity || 0) + Number(deliveryData[0]?.totalQuantity || 0);
         const totalRevenue = parseFloat(salesData[0]?.totalRevenue || "0") + parseFloat(deliveryData[0]?.totalRevenue || "0");
@@ -1823,7 +1835,7 @@ export class DatabaseStorage implements IStorage {
       vendorDeliveries.map(async (delivery) => {
         const items = await db.select()
           .from(deliveryItems)
-          .where(and(eq(deliveryItems.deliveryId, delivery.id), eq(deliveryItems.userId, userId)));
+          .where(eq(deliveryItems.deliveryId, delivery.id));
         
         // Calculate gross, rejected, and net amounts for this delivery
         let grossAmount = 0;

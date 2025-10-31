@@ -1108,17 +1108,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ results: [] });
       }
 
-      const [products, vendors, stockItems, sales, deliveriesResult] = await Promise.all([
-        storage.getProducts(),
-        storage.getVendors(),
-        storage.getStockItems(),
-        storage.getSales(),
-        storage.getDeliveries(1000, 0), // Get all for search (up to 1000)
+      const userId = req.user!.id;
+      const [products, vendors, stockItems, salesResult, deliveriesResult] = await Promise.all([
+        storage.getProducts(userId),
+        storage.getVendors(userId),
+        storage.getStockItems(userId),
+        storage.getSales(userId),
+        storage.getDeliveries(userId, 1000, 0), // Get all for search (up to 1000)
       ]);
       
+      const sales = salesResult.data;
       const deliveries = deliveriesResult.data;
 
-      const results = [];
+      const results: any[] = [];
 
       // Search Products
       products.forEach(product => {
@@ -1138,12 +1140,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Search Vendors
       vendors.forEach(vendor => {
         if (vendor.name.toLowerCase().includes(query) ||
-            (vendor.contactPerson && vendor.contactPerson.toLowerCase().includes(query))) {
+            (vendor.phone && vendor.phone.toLowerCase().includes(query))) {
           results.push({
             id: vendor.id,
             type: 'vendor',
             title: vendor.name,
-            subtitle: vendor.contactPerson || vendor.phoneNumber || '',
+            subtitle: vendor.phone || vendor.address || '',
             url: '/vendors',
             icon: 'Store',
           });
@@ -1560,7 +1562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify stock availability again before deduction
-      const recipeItems = await storage.getRecipeItems(req.user!.id, productId);
+      const recipeItems = await storage.getRecipeItems(productId);
       const { convertUnit } = await import("@shared/schema");
 
       for (const item of recipeItems) {
@@ -2080,7 +2082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deductionResult = await storage.deductFromBatches(req.user!.id, item.productId, item.quantity);
         if (!deductionResult.success) {
           return res.status(400).json({ 
-            error: `Stok siap tidak mencukupi untuk ${item.productName}. Diperlukan: ${item.quantity}, Tersedia: ${deductionResult.available || 0}`,
+            error: `Stok siap tidak mencukupi untuk ${item.productName}. Diperlukan: ${item.quantity}`,
             details: deductionResult
           });
         }
@@ -2910,9 +2912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all pricing tiers for current user
   app.get("/api/pricing-tiers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const allTiers = await storage.getPricingTiers();
-      // Filter by current user
-      const userTiers = allTiers.filter(tier => tier.userId === req.user!.id);
+      const userTiers = await storage.getPricingTiers(req.user!.id);
       res.json(userTiers);
     } catch (error: any) {
       console.error("Get pricing tiers error:", error);
@@ -2931,7 +2931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
       };
       
-      const tier = await storage.createPricingTier(tierData);
+      const tier = await storage.createPricingTier(req.user!.id, tierData);
       res.status(201).json(tier);
     } catch (error: any) {
       console.error("Create pricing tier error:", error);
@@ -2951,14 +2951,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertPricingTierSchema.partial().parse(req.body);
       
       // Verify tier belongs to user
-      const allTiers = await storage.getPricingTiers();
-      const existingTier = allTiers.find(t => t.id === id && t.userId === req.user!.id);
+      const allTiers = await storage.getPricingTiers(req.user!.id);
+      const existingTier = allTiers.find(t => t.id === id);
       
       if (!existingTier) {
         return res.status(404).json({ message: "Pricing tier not found" });
       }
       
-      const updatedTier = await storage.updatePricingTier(id, validatedData);
+      const updatedTier = await storage.updatePricingTier(req.user!.id, id, validatedData);
       res.json(updatedTier);
     } catch (error: any) {
       console.error("Update pricing tier error:", error);
@@ -2976,9 +2976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all resellers for current user
   app.get("/api/resellers", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
-      const allResellers = await storage.getResellers();
-      // Filter by current user
-      const userResellers = allResellers.filter(reseller => reseller.userId === req.user!.id);
+      const userResellers = await storage.getResellers(req.user!.id);
       res.json(userResellers);
     } catch (error: any) {
       console.error("Get resellers error:", error);
@@ -2997,7 +2995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
       };
       
-      const reseller = await storage.createReseller(resellerData);
+      const reseller = await storage.createReseller(req.user!.id, resellerData);
       res.status(201).json(reseller);
     } catch (error: any) {
       console.error("Create reseller error:", error);
@@ -3017,14 +3015,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertResellerSchema.partial().parse(req.body);
       
       // Verify reseller belongs to user
-      const allResellers = await storage.getResellers();
-      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      const allResellers = await storage.getResellers(req.user!.id);
+      const existingReseller = allResellers.find(r => r.id === id);
       
       if (!existingReseller) {
         return res.status(404).json({ message: "Reseller not found" });
       }
       
-      const updatedReseller = await storage.updateReseller(id, validatedData);
+      const updatedReseller = await storage.updateReseller(req.user!.id, id, validatedData);
       res.json(updatedReseller);
     } catch (error: any) {
       console.error("Update reseller error:", error);
@@ -3043,14 +3041,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       // Verify reseller belongs to user
-      const allResellers = await storage.getResellers();
-      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      const allResellers = await storage.getResellers(req.user!.id);
+      const existingReseller = allResellers.find(r => r.id === id);
       
       if (!existingReseller) {
         return res.status(404).json({ message: "Reseller not found" });
       }
       
-      await storage.deleteReseller(id);
+      await storage.deleteReseller(req.user!.id, id);
       res.json({ message: "Reseller deleted successfully" });
     } catch (error: any) {
       console.error("Delete reseller error:", error);
@@ -3064,14 +3062,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       // Verify reseller belongs to user
-      const allResellers = await storage.getResellers();
-      const existingReseller = allResellers.find(r => r.id === id && r.userId === req.user!.id);
+      const allResellers = await storage.getResellers(req.user!.id);
+      const existingReseller = allResellers.find(r => r.id === id);
       
       if (!existingReseller) {
         return res.status(404).json({ message: "Reseller not found" });
       }
       
-      const stats = await storage.getResellerStats(id);
+      const stats = await storage.getResellerStats(req.user!.id, id);
       res.json(stats);
     } catch (error: any) {
       console.error("Get reseller stats error:", error);
@@ -3087,7 +3085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const result = await storage.getResellerTransfers(limit, offset);
+      const result = await storage.getResellerTransfers(req.user!.id, limit, offset);
       
       // Filter by current user
       const userTransfers = result.data.filter(transfer => transfer.userId === req.user!.id);
@@ -3107,15 +3105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/reseller-transfers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const transfer = await storage.getResellerTransferById(id);
+      const transfer = await storage.getResellerTransferById(req.user!.id, id);
       
       if (!transfer) {
         return res.status(404).json({ message: "Transfer not found" });
-      }
-      
-      // Verify transfer belongs to user
-      if (transfer.userId !== req.user!.id) {
-        return res.status(403).json({ message: "Access denied" });
       }
       
       res.json(transfer);
@@ -3144,8 +3137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = transferSchema.parse(req.body);
       
       // Verify reseller belongs to user
-      const allResellers = await storage.getResellers();
-      const reseller = allResellers.find(r => r.id === validatedData.resellerId && r.userId === req.user!.id);
+      const allResellers = await storage.getResellers(req.user!.id);
+      const reseller = allResellers.find(r => r.id === validatedData.resellerId);
       
       if (!reseller) {
         return res.status(404).json({ message: "Reseller not found" });
@@ -3154,7 +3147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get reseller's pricing tier
       let tier = null;
       if (reseller.pricingTierId) {
-        const allTiers = await storage.getPricingTiers();
+        const allTiers = await storage.getPricingTiers(req.user!.id);
         tier = allTiers.find(t => t.id === reseller.pricingTierId);
       }
       
@@ -3163,7 +3156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const item of validatedData.items) {
         // Deduct from batches using FIFO
-        const deductionResult = await storage.deductFromBatches(item.productId, item.quantity);
+        const deductionResult = await storage.deductFromBatches(req.user!.id, item.productId, item.quantity);
         
         if (!deductionResult.success) {
           return res.status(400).json({ 
@@ -3174,7 +3167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Get product to calculate tier price
-        const product = await storage.getProduct(item.productId);
+        const product = await storage.getProduct(req.user!.id, item.productId);
         if (!product) {
           return res.status(404).json({ message: `Product not found: ${item.productName}` });
         }
@@ -3201,7 +3194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalAmount = processedItems.reduce((sum, item) => sum + item.subtotal, 0);
       
       // Generate receipt number
-      const receiptNumber = await storage.generateTransferReceiptNumber();
+      const receiptNumber = await storage.generateTransferReceiptNumber(req.user!.id);
       
       // Create transfer
       const transferData = {
@@ -3214,7 +3207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         receiptNumber,
       };
       
-      const createdTransfer = await storage.createResellerTransfer(transferData, processedItems);
+      const createdTransfer = await storage.createResellerTransfer(req.user!.id, transferData, processedItems);
       
       res.status(201).json(createdTransfer);
     } catch (error: any) {
@@ -3729,8 +3722,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           planId,
           status: 'active',
-          subscriptionStartsAt: startDate.toISOString(),
-          subscriptionEndsAt: endDate.toISOString(),
+          subscriptionStartsAt: startDate,
+          subscriptionEndsAt: endDate,
           amount: (parseFloat(plan.monthlyPrice) * (durationMonths || 1)).toFixed(2),
           currency: 'MYR',
         });
@@ -3745,7 +3738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const activeSub = subscriptions.find(s => s.status === 'active');
         
         if (activeSub) {
-          await storage.updateUserSubscription(activeSub.id, { status: 'cancelled' });
+          await storage.updateUserSubscription(activeSub.id, { status: 'canceled' });
         }
         
         res.json({ success: true });
@@ -3867,7 +3860,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.redeemPoints(req.user!.id, data.customerId, data.points, data.description);
       
       // Return updated customer
-      const customer = await storage.getCustomerByPhone((await db.select().from(customers).where(eq(customers.id, data.customerId)))[0]?.phone || '');
+      const customerRecord = (await db.select().from(customers).where(eq(customers.id, data.customerId)))[0];
+      const customer = await storage.getCustomerByPhone(req.user!.id, customerRecord?.phone || '');
       res.json(customer);
     } catch (error: any) {
       console.error("Redeem points error:", error);
@@ -4060,7 +4054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/broadcast/campaigns/:id/messages", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const messages = await storage.getBroadcastMessages(req.user!.id, id);
+      const messages = await storage.getBroadcastMessages(id);
       res.json(messages);
     } catch (error) {
       console.error("Get broadcast messages error:", error);
