@@ -152,17 +152,29 @@ export default function Claims() {
 
   const updateRejectedMutation = useMutation({
     mutationFn: async ({ itemId, rejectedQty, rejectionReason }: { itemId: string; rejectedQty: number; rejectionReason: string }) => {
-      return apiRequest("PATCH", `/api/delivery-items/${itemId}/rejected`, { rejectedQty, rejectionReason });
+      console.log('🔄 Mutation called:', { itemId, rejectedQty, rejectionReason });
+      const result = await apiRequest("PATCH", `/api/delivery-items/${itemId}/rejected`, { rejectedQty, rejectionReason });
+      console.log('✅ Mutation response:', result);
+      return result;
     },
-    onSuccess: async () => {
+    onSuccess: async (data, variables) => {
+      console.log('✅ Mutation success! Invalidating queries...', { data, variables });
+      
       // Invalidate all related queries to trigger refetch
       await queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      console.log('✅ Invalidated /api/claims');
+      
       await queryClient.invalidateQueries({ queryKey: ["/api/claims", selectedVendorId, "details"] });
+      console.log('✅ Invalidated /api/claims/details');
+      
       await queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      console.log('✅ Invalidated /api/deliveries');
       
       // Force immediate refetch of claim details
       if (refetchClaimDetails) {
+        console.log('🔄 Force refetching claim details...');
         await refetchClaimDetails();
+        console.log('✅ Refetch complete');
       }
       
       toast({
@@ -170,10 +182,11 @@ export default function Claims() {
         description: "Expired/rosak dikemaskini. Invoice auto-adjust.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('❌ Mutation error:', error);
       toast({
         title: "Ralat",
-        description: "Gagal kemaskini item",
+        description: `Gagal kemaskini item: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     },
@@ -932,11 +945,22 @@ export default function Claims() {
                                       type="number"
                                       min="0"
                                       max={item.quantity}
+                                      key={`rejected-${item.id}-${item.rejectedQty}`}
                                       defaultValue={item.rejectedQty || 0}
-                                      onBlur={(e) => {
+                                      onChange={(e) => {
                                         const newRejectedQty = parseInt(e.target.value) || 0;
-                                        // Only update if value changed
-                                        if (newRejectedQty !== (item.rejectedQty || 0)) {
+                                        const currentRejectedQty = item.rejectedQty || 0;
+                                        console.log('Rejected qty changed:', {
+                                          itemId: item.id,
+                                          productName: item.productName,
+                                          oldValue: currentRejectedQty,
+                                          newValue: newRejectedQty,
+                                          changed: newRejectedQty !== currentRejectedQty
+                                        });
+                                        
+                                        // Update immediately on change
+                                        if (newRejectedQty !== currentRejectedQty) {
+                                          console.log('Triggering mutation...');
                                           updateRejectedMutation.mutate({
                                             itemId: item.id,
                                             rejectedQty: newRejectedQty,
@@ -954,6 +978,7 @@ export default function Claims() {
                                   <div className="flex-[2]">
                                     <Input
                                       type="text"
+                                      key={`reason-${item.id}-${item.rejectionReason}`}
                                       defaultValue={item.rejectionReason || ""}
                                       onBlur={(e) => {
                                         const newReason = e.target.value;
