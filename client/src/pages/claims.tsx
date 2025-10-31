@@ -65,6 +65,11 @@ export default function Claims() {
   const [phoneInput, setPhoneInput] = useState("");
   const [pendingWhatsAppAction, setPendingWhatsAppAction] = useState<(() => void) | null>(null);
 
+  // Fetch business profile for invoice header
+  const { data: businessProfile } = useQuery({
+    queryKey: ["/api/business-profile"],
+  });
+
   const {
     data,
     isLoading: claimsLoading,
@@ -113,10 +118,6 @@ export default function Claims() {
   });
   
   const vendors = vendorsData || [];
-
-  const { data: businessProfile } = useQuery({
-    queryKey: ["/api/business-profile"],
-  });
 
   const { data: claimDetails } = useQuery<any>({
     queryKey: ["/api/claims", selectedVendorId, "details"],
@@ -848,26 +849,49 @@ export default function Claims() {
               {/* Individual View - Per invoice breakdown */}
               {viewMode === 'individual' && (
                 <div className="space-y-3">
-                  {claimDetails.deliveries?.map((delivery: any, idx: number) => (
+                  {(claimDetails?.deliveries || []).map((delivery: any, idx: number) => (
                     <Card key={delivery.id} className="hover-elevate">
-                      <CardHeader className="pb-3">
+                      <CardHeader className="pb-3 border-b bg-muted/30">
+                        {/* Business Header */}
+                        {businessProfile ? (
+                          <div className="text-center mb-3 pb-3 border-b">
+                            <div className="font-bold text-lg">{(businessProfile as any).businessName || "PocketBizz"}</div>
+                            {(businessProfile as any).address && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {(businessProfile as any).address}
+                              </div>
+                            )}
+                            {(businessProfile as any).phone && (
+                              <div className="text-xs text-muted-foreground">
+                                Tel: {(businessProfile as any).phone}
+                              </div>
+                            )}
+                            {(businessProfile as any).registrationNumber && (
+                              <div className="text-xs text-muted-foreground">
+                                No. Pendaftaran: {(businessProfile as any).registrationNumber}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        
+                        {/* Invoice Header */}
                         <div className="flex justify-between items-start">
                           <div>
                             <CardTitle className="text-base">
-                              Invois #{idx + 1} - {new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', {
+                              {delivery.invoiceNumber || `Invois #${idx + 1}`}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              📅 {new Date(delivery.deliveryDate).toLocaleDateString('ms-MY', {
                                 day: 'numeric',
-                                month: 'short',
+                                month: 'long',
                                 year: 'numeric'
                               })}
-                            </CardTitle>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {delivery.items?.length || 0} produk
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              📦 {delivery.items?.length || 0} jenis produk
                             </p>
                           </div>
                           <div className="text-right">
-                            <div className="font-semibold font-mono text-lg">
-                              RM {parseFloat(delivery.totalAmount).toFixed(2)}
-                            </div>
                             {getPaymentStatusBadge(delivery.paymentStatus)}
                           </div>
                         </div>
@@ -983,6 +1007,96 @@ export default function Claims() {
                               )}
                             </div>
                           ))}
+                        </div>
+                        
+                        {/* Invoice Total Summary */}
+                        <div className="mt-4 pt-4 border-t-2 border-dashed">
+                          <div className="bg-primary/5 rounded-lg p-4 space-y-2">
+                            <div className="text-sm font-semibold mb-2 text-primary">RINGKASAN INVOIS</div>
+                            
+                            {(() => {
+                              const totals = delivery.items?.reduce((acc: any, item: any) => {
+                                const gross = parseFloat(item.itemGross || item.totalPrice || 0);
+                                const rejected = parseFloat(item.itemRejected || 0);
+                                const commission = parseFloat(item.itemCommission || 0);
+                                const claimable = parseFloat(item.itemClaimable || item.totalPrice || 0);
+                                
+                                return {
+                                  gross: acc.gross + gross,
+                                  rejected: acc.rejected + rejected,
+                                  commission: acc.commission + commission,
+                                  claimable: acc.claimable + claimable,
+                                };
+                              }, { gross: 0, rejected: 0, commission: 0, claimable: 0 });
+
+                              return (
+                                <>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Jumlah Kasar:</span>
+                                    <span className="font-mono">RM {totals.gross.toFixed(2)}</span>
+                                  </div>
+                                  
+                                  {totals.rejected > 0 && (
+                                    <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+                                      <span>Tolak Expired/Rosak:</span>
+                                      <span className="font-mono">- RM {totals.rejected.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-between text-sm border-t pt-2">
+                                    <span className="text-muted-foreground">Jumlah Bersih:</span>
+                                    <span className="font-mono font-medium">RM {(totals.gross - totals.rejected).toFixed(2)}</span>
+                                  </div>
+                                  
+                                  {totals.commission > 0 && (
+                                    <div className="flex justify-between text-sm text-blue-600 dark:text-blue-400">
+                                      <span>Komisyen Vendor:</span>
+                                      <span className="font-mono">- RM {totals.commission.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-between pt-2 border-t-2 border-primary/20">
+                                    <span className="font-bold text-base">VENDOR PERLU BAYAR:</span>
+                                    <span className="font-mono font-bold text-lg text-primary">
+                                      RM {totals.claimable.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                          
+                          {/* Individual Invoice Action Buttons */}
+                          <div className="flex gap-2 mt-4 pt-4 border-t">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => {
+                                toast({
+                                  title: "Print Invoice",
+                                  description: `Mencetak invois ${delivery.invoiceNumber}...`,
+                                });
+                              }}
+                            >
+                              <Printer className="h-4 w-4 mr-2" />
+                              Print
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => {
+                                toast({
+                                  title: "WhatsApp",
+                                  description: `Menghantar invois ${delivery.invoiceNumber}...`,
+                                });
+                              }}
+                            >
+                              <Share2 className="h-4 w-4 mr-2" />
+                              WhatsApp
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
