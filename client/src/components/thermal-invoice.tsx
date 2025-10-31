@@ -114,48 +114,39 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
           const totalCommission = items.reduce((sum, item) => sum + parseFloat(item.itemCommission || '0'), 0);
           const hasRejected = totalRejected > 0;
           const hasCommission = totalCommission > 0;
+          const grossTotal = items.reduce((sum, item) => sum + parseFloat(item.itemGross || item.totalPrice), 0);
           
-          if (hasRejected || hasCommission) {
-            const grossTotal = items.reduce((sum, item) => sum + parseFloat(item.itemGross || item.totalPrice), 0);
-            
-            return (
-              <div style={{ fontSize: '11px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                  <div>Jumlah Kasar:</div>
-                  <div>RM {grossTotal.toFixed(2)}</div>
-                </div>
-                {hasRejected && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#d97706' }}>
-                    <div>Tolak Expired/Rosak:</div>
-                    <div>- RM {totalRejected.toFixed(2)}</div>
-                  </div>
-                )}
-                {hasCommission && (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', borderTop: '1px dashed black', paddingTop: '3px' }}>
-                      <div>Jumlah Bersih:</div>
-                      <div>RM {(grossTotal - totalRejected).toFixed(2)}</div>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#2563eb' }}>
-                      <div>Komisyen Vendor:</div>
-                      <div>- RM {totalCommission.toFixed(2)}</div>
-                    </div>
-                  </>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
-                  <div>JUMLAH PERLU DIBAYAR:</div>
-                  <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
-                </div>
+          return (
+            <div style={{ fontSize: '11px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                <div>Jumlah Kasar:</div>
+                <div>RM {grossTotal.toFixed(2)}</div>
               </div>
-            );
-          } else {
-            return (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
-                <div>JUMLAH:</div>
+              
+              {/* Always show Tolak Expired/Rosak line */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: hasRejected ? '#d97706' : '#666' }}>
+                <div>Tolak Expired/Rosak:</div>
+                <div>{hasRejected ? `- RM ${totalRejected.toFixed(2)}` : 'Tiada'}</div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', borderTop: '1px dashed black', paddingTop: '3px' }}>
+                <div>Jumlah Bersih:</div>
+                <div>RM {(grossTotal - totalRejected).toFixed(2)}</div>
+              </div>
+              
+              {hasCommission && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#2563eb' }}>
+                  <div>Komisyen Vendor:</div>
+                  <div>- RM {totalCommission.toFixed(2)}</div>
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
+                <div>JUMLAH PERLU DIBAYAR:</div>
                 <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
               </div>
-            );
-          }
+            </div>
+          );
         })()}
       </div>
 
