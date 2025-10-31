@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ThermalInvoice } from "./thermal-invoice";
 import { shareInvoiceViaWhatsApp, printThermalInvoice } from "@/lib/thermal-print";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, Share2, Loader2 } from "lucide-react";
+import { Printer, Share2, Loader2, FileText } from "lucide-react";
 
 interface DeliveryInvoiceDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export function DeliveryInvoiceDialog({
   delivery,
 }: DeliveryInvoiceDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -168,19 +170,33 @@ export function DeliveryInvoiceDialog({
             )}
           </Button>
 
-          <Button
-            onClick={() => onOpenChange(false)}
-            variant="ghost"
-            className="w-full"
-          >
-            Tutup
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                onOpenChange(false);
+                navigate("/claims");
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Bayaran & Invoice
+            </Button>
+            <Button
+              onClick={() => onOpenChange(false)}
+              variant="ghost"
+              className="flex-1"
+            >
+              Tutup
+            </Button>
+          </div>
         </div>
 
         {/* Helper Text */}
         <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
           <p>💡 <strong>WhatsApp:</strong> Hantar invois sebagai gambar terus ke vendor</p>
           <p>🖨️ <strong>Print:</strong> Cetak guna printer thermal atau printer biasa</p>
+          <p>📋 Nak semak invois lagi? Pergi ke <strong>Bayaran & Invoice</strong></p>
         </div>
       </DialogContent>
     </Dialog>

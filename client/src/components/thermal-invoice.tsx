@@ -24,6 +24,10 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
   const businessName = (businessProfile as any)?.businessName || "PocketBizz";
   const businessAddress = (businessProfile as any)?.address || "";
   const businessPhone = (businessProfile as any)?.phone || "";
+  const bankName = (businessProfile as any)?.bankName || "";
+  const accountNumber = (businessProfile as any)?.accountNumber || "";
+  const accountName = (businessProfile as any)?.accountName || "";
+  const paymentQrCode = (businessProfile as any)?.paymentQrCode || "";
 
   return (
     <div 
@@ -102,6 +106,34 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
           Produk yang expired, rosak, atau tidak terjual akan ditolak dari jumlah bayaran.
         </div>
       </div>
+
+      {/* Payment Info */}
+      {(bankName || paymentQrCode) && (
+        <div style={{ borderTop: '1px dashed black', paddingTop: '8px', marginBottom: '10px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '5px', textAlign: 'center' }}>
+            MAKLUMAT PEMBAYARAN
+          </div>
+          
+          {paymentQrCode && (
+            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <img 
+                src={paymentQrCode} 
+                alt="QR Payment" 
+                style={{ width: '120px', height: '120px', margin: '0 auto' }}
+              />
+              <div style={{ fontSize: '9px', marginTop: '3px' }}>Scan untuk bayar</div>
+            </div>
+          )}
+          
+          {bankName && (
+            <div style={{ fontSize: '10px', textAlign: 'center' }}>
+              <div><strong>{bankName}</strong></div>
+              {accountNumber && <div>{accountNumber}</div>}
+              {accountName && <div style={{ fontSize: '9px' }}>{accountName}</div>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Signature */}
       <div style={{ borderTop: '1px dashed black', paddingTop: '10px', marginBottom: '10px' }}>
