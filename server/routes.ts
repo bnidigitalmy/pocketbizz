@@ -1747,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor Commissions
-  app.get("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
+  app.get("/api/vendors/:vendorId/commission", requireAuth, async (req, res) => {
     try {
       const { vendorId } = req.params;
       const commission = await storage.getVendorCommission(req.user!.id, vendorId);
@@ -1757,7 +1757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
+  app.post("/api/vendors/:vendorId/commission", requireAuth, async (req, res) => {
     try {
       const { vendorId } = req.params;
       
@@ -1817,7 +1817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/vendors/:vendorId/commission", requireProPlan, async (req, res) => {
+  app.delete("/api/vendors/:vendorId/commission", requireAuth, async (req, res) => {
     try {
       const { vendorId } = req.params;
       await storage.deleteVendorCommission(req.user!.id, vendorId);
