@@ -118,6 +118,21 @@ import {
   type InsertBooking,
   type BookingItem,
   type InsertBookingItem,
+  vendorSales,
+  vendorStockBalance,
+  vendorClaims,
+  claimItems,
+  claimPhotos,
+  type VendorSale,
+  type InsertVendorSale,
+  type VendorStockBalance,
+  type InsertVendorStockBalance,
+  type VendorClaim,
+  type InsertVendorClaim,
+  type ClaimItem,
+  type InsertClaimItem,
+  type ClaimPhoto,
+  type InsertClaimPhoto,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -363,6 +378,28 @@ export interface IStorage {
   createPOTemplate(userId: string, data: any): Promise<any>;
   deletePOTemplate(userId: string, id: string): Promise<void>;
   createPOFromTemplate(userId: string, templateId: string): Promise<any>;
+  
+  // Vendor Sales Tracking
+  createVendorSale(userId: string, sale: any): Promise<any>;
+  getVendorSales(userId: string, vendorId?: string, filters?: any): Promise<any[]>;
+  getVendorSaleById(userId: string, id: string): Promise<any | undefined>;
+  updateVendorSale(userId: string, id: string, sale: any): Promise<any>;
+  deleteVendorSale(userId: string, id: string): Promise<void>;
+  
+  // Vendor Stock Balance
+  getVendorStockBalance(vendorId: string, userId: string): Promise<any[]>;
+  getStockBalanceByProduct(vendorId: string, productId: string): Promise<any | undefined>;
+  updateStockBalance(vendorId: string, productId: string, change: { delivered?: number; sold?: number; returned?: number }): Promise<void>;
+  
+  // Vendor Claims
+  createVendorClaim(userId: string, claimData: any, items: any[], photos: string[]): Promise<any>;
+  getVendorClaims(userId: string, filters?: any): Promise<any[]>;
+  getVendorClaimById(userId: string, id: string): Promise<any | undefined>;
+  approveVendorClaim(userId: string, claimId: string, reviewNotes?: string): Promise<any>;
+  rejectVendorClaim(userId: string, claimId: string, reviewNotes: string): Promise<any>;
+  getClaimItems(claimId: string): Promise<any[]>;
+  getClaimPhotos(claimId: string): Promise<any[]>;
+  generateClaimNumber(): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3638,6 +3675,360 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(and(eq(bookings.id, bookingId), eq(bookings.userId, userId)));
+  }
+
+  // ========================================
+  // VENDOR SALES TRACKING
+  // ========================================
+  
+  async createVendorSale(userId: string, sale: any): Promise<any> {
+    const [result] = await db.insert(vendorSales).values({
+      userId,
+      vendorId: sale.vendorId,
+      vendorName: sale.vendorName,
+      deliveryId: sale.deliveryId || null,
+      productId: sale.productId,
+      productName: sale.productName,
+      quantitySold: sale.quantitySold,
+      saleDate: sale.saleDate,
+      notes: sale.notes || null,
+    }).returning();
+    
+    // Update stock balance
+    await this.updateStockBalance(sale.vendorId, sale.productId, { sold: sale.quantitySold });
+    
+    return result;
+  }
+  
+  async getVendorSales(userId: string, vendorId?: string, filters?: any): Promise<any[]> {
+    const conditions = [eq(vendorSales.userId, userId)];
+    
+    if (vendorId) {
+      conditions.push(eq(vendorSales.vendorId, vendorId));
+    }
+    
+    if (filters?.startDate) {
+      conditions.push(gte(vendorSales.saleDate, filters.startDate));
+    }
+    
+    if (filters?.endDate) {
+      conditions.push(lte(vendorSales.saleDate, filters.endDate));
+    }
+    
+    if (filters?.productId) {
+      conditions.push(eq(vendorSales.productId, filters.productId));
+    }
+    
+    return await db.select()
+      .from(vendorSales)
+      .where(and(...conditions))
+      .orderBy(desc(vendorSales.saleDate), desc(vendorSales.createdAt));
+  }
+  
+  async getVendorSaleById(userId: string, id: string): Promise<any | undefined> {
+    const [result] = await db.select()
+      .from(vendorSales)
+      .where(and(eq(vendorSales.id, id), eq(vendorSales.userId, userId)));
+    
+    return result;
+  }
+  
+  async updateVendorSale(userId: string, id: string, sale: any): Promise<any> {
+    // Get original sale to calculate stock difference
+    const original = await this.getVendorSaleById(userId, id);
+    if (!original) {
+      throw new Error("Vendor sale not found");
+    }
+    
+    const [updated] = await db.update(vendorSales)
+      .set({
+        quantitySold: sale.quantitySold,
+        saleDate: sale.saleDate,
+        notes: sale.notes,
+      })
+      .where(and(eq(vendorSales.id, id), eq(vendorSales.userId, userId)))
+      .returning();
+    
+    // Update stock balance if quantity changed
+    if (sale.quantitySold && sale.quantitySold !== original.quantitySold) {
+      const difference = sale.quantitySold - original.quantitySold;
+      await this.updateStockBalance(original.vendorId, original.productId, { sold: difference });
+    }
+    
+    return updated;
+  }
+  
+  async deleteVendorSale(userId: string, id: string): Promise<void> {
+    const sale = await this.getVendorSaleById(userId, id);
+    if (!sale) {
+      throw new Error("Vendor sale not found");
+    }
+    
+    // Reverse stock balance
+    await this.updateStockBalance(sale.vendorId, sale.productId, { sold: -sale.quantitySold });
+    
+    await db.delete(vendorSales)
+      .where(and(eq(vendorSales.id, id), eq(vendorSales.userId, userId)));
+  }
+
+  // ========================================
+  // VENDOR STOCK BALANCE
+  // ========================================
+  
+  async getVendorStockBalance(vendorId: string, userId: string): Promise<any[]> {
+    return await db.select()
+      .from(vendorStockBalance)
+      .where(eq(vendorStockBalance.vendorId, vendorId))
+      .orderBy(desc(vendorStockBalance.updatedAt));
+  }
+  
+  async getStockBalanceByProduct(vendorId: string, productId: string): Promise<any | undefined> {
+    const [result] = await db.select()
+      .from(vendorStockBalance)
+      .where(
+        and(
+          eq(vendorStockBalance.vendorId, vendorId),
+          eq(vendorStockBalance.productId, productId)
+        )
+      );
+    
+    return result;
+  }
+  
+  async updateStockBalance(
+    vendorId: string, 
+    productId: string, 
+    change: { delivered?: number; sold?: number; returned?: number }
+  ): Promise<void> {
+    const existing = await this.getStockBalanceByProduct(vendorId, productId);
+    
+    if (existing) {
+      // Update existing record
+      const newStock = existing.currentStock + 
+        (change.delivered || 0) - 
+        (change.sold || 0) - 
+        (change.returned || 0);
+      
+      await db.update(vendorStockBalance)
+        .set({
+          currentStock: newStock,
+          lastDeliveryDate: change.delivered ? new Date().toISOString().split('T')[0] : existing.lastDeliveryDate,
+          lastSaleDate: change.sold ? new Date().toISOString().split('T')[0] : existing.lastSaleDate,
+          updatedAt: new Date(),
+        })
+        .where(eq(vendorStockBalance.id, existing.id));
+    } else {
+      // Create new record
+      const newStock = (change.delivered || 0) - (change.sold || 0) - (change.returned || 0);
+      
+      await db.insert(vendorStockBalance).values({
+        vendorId,
+        productId,
+        currentStock: newStock,
+        lastDeliveryDate: change.delivered ? new Date().toISOString().split('T')[0] : null,
+        lastSaleDate: change.sold ? new Date().toISOString().split('T')[0] : null,
+      });
+    }
+  }
+
+  // ========================================
+  // VENDOR CLAIMS
+  // ========================================
+  
+  async generateClaimNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    
+    const count = await db.select()
+      .from(vendorClaims)
+      .where(sql`DATE(${vendorClaims.createdAt}) = CURRENT_DATE`);
+    
+    return `CLM-${dateStr}-${String(count.length + 1).padStart(4, '0')}`;
+  }
+  
+  async createVendorClaim(userId: string, claimData: any, items: any[], photos: string[]): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Generate claim number
+      const claimNumber = await this.generateClaimNumber();
+      
+      // Calculate total amount
+      const totalAmount = items.reduce((sum, item) => 
+        sum + (parseFloat(item.unitPrice) * parseInt(item.quantityClaimed)), 0
+      );
+      
+      // Create claim
+      const [claim] = await tx.insert(vendorClaims).values({
+        userId,
+        vendorId: claimData.vendorId,
+        vendorName: claimData.vendorName,
+        deliveryId: claimData.deliveryId || null,
+        claimNumber,
+        claimDate: claimData.claimDate || new Date().toISOString().split('T')[0],
+        status: 'pending',
+        totalClaimAmount: totalAmount.toFixed(2),
+        approvedAmount: '0',
+      }).returning();
+      
+      // Create claim items
+      if (items.length > 0) {
+        await tx.insert(claimItems).values(
+          items.map((item: any) => ({
+            claimId: claim.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantityClaimed: item.quantityClaimed,
+            unitPrice: item.unitPrice,
+            totalAmount: (parseFloat(item.unitPrice) * parseInt(item.quantityClaimed)).toFixed(2),
+            claimReason: item.claimReason,
+            approvedQty: 0,
+          }))
+        );
+      }
+      
+      // Create claim photos
+      if (photos.length > 0) {
+        await tx.insert(claimPhotos).values(
+          photos.map((photoUrl: string) => ({
+            claimId: claim.id,
+            photoUrl,
+          }))
+        );
+      }
+      
+      return claim;
+    });
+  }
+  
+  async getVendorClaims(userId: string, filters?: any): Promise<any[]> {
+    const conditions = [eq(vendorClaims.userId, userId)];
+    
+    if (filters?.vendorId) {
+      conditions.push(eq(vendorClaims.vendorId, filters.vendorId));
+    }
+    
+    if (filters?.status) {
+      conditions.push(eq(vendorClaims.status, filters.status));
+    }
+    
+    if (filters?.startDate) {
+      conditions.push(gte(vendorClaims.claimDate, filters.startDate));
+    }
+    
+    if (filters?.endDate) {
+      conditions.push(lte(vendorClaims.claimDate, filters.endDate));
+    }
+    
+    return await db.select()
+      .from(vendorClaims)
+      .where(and(...conditions))
+      .orderBy(desc(vendorClaims.createdAt));
+  }
+  
+  async getVendorClaimById(userId: string, id: string): Promise<any | undefined> {
+    const [claim] = await db.select()
+      .from(vendorClaims)
+      .where(and(eq(vendorClaims.id, id), eq(vendorClaims.userId, userId)));
+    
+    if (!claim) return undefined;
+    
+    // Get claim items
+    const items = await this.getClaimItems(id);
+    
+    // Get claim photos
+    const photos = await this.getClaimPhotos(id);
+    
+    return { ...claim, items, photos };
+  }
+  
+  async getClaimItems(claimId: string): Promise<any[]> {
+    return await db.select()
+      .from(claimItems)
+      .where(eq(claimItems.claimId, claimId));
+  }
+  
+  async getClaimPhotos(claimId: string): Promise<any[]> {
+    return await db.select()
+      .from(claimPhotos)
+      .where(eq(claimPhotos.claimId, claimId))
+      .orderBy(claimPhotos.uploadedAt);
+  }
+  
+  async approveVendorClaim(userId: string, claimId: string, reviewNotes?: string): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Get claim details
+      const [claim] = await tx.select()
+        .from(vendorClaims)
+        .where(and(eq(vendorClaims.id, claimId), eq(vendorClaims.userId, userId)));
+      
+      if (!claim) {
+        throw new Error("Claim not found");
+      }
+      
+      if (claim.status !== 'pending') {
+        throw new Error("Claim already processed");
+      }
+      
+      // Get claim items
+      const items = await tx.select()
+        .from(claimItems)
+        .where(eq(claimItems.claimId, claimId));
+      
+      // Update claim status
+      const [updated] = await tx.update(vendorClaims)
+        .set({
+          status: 'approved',
+          approvedAmount: claim.totalClaimAmount,
+          reviewNotes: reviewNotes || null,
+          reviewedAt: new Date(),
+          reviewedBy: userId,
+        })
+        .where(eq(vendorClaims.id, claimId))
+        .returning();
+      
+      // Update claim items approved quantity
+      for (const item of items) {
+        await tx.update(claimItems)
+          .set({ approvedQty: item.quantityClaimed })
+          .where(eq(claimItems.id, item.id));
+        
+        // Update stock balance - reduce by returned quantity
+        await this.updateStockBalance(claim.vendorId, item.productId, { 
+          returned: item.quantityClaimed 
+        });
+      }
+      
+      // TODO: Auto-adjust invoice if deliveryId exists
+      // This will be implemented in the auto-invoice adjustment phase
+      
+      return updated;
+    });
+  }
+  
+  async rejectVendorClaim(userId: string, claimId: string, reviewNotes: string): Promise<any> {
+    const [claim] = await db.select()
+      .from(vendorClaims)
+      .where(and(eq(vendorClaims.id, claimId), eq(vendorClaims.userId, userId)));
+    
+    if (!claim) {
+      throw new Error("Claim not found");
+    }
+    
+    if (claim.status !== 'pending') {
+      throw new Error("Claim already processed");
+    }
+    
+    const [updated] = await db.update(vendorClaims)
+      .set({
+        status: 'rejected',
+        approvedAmount: '0',
+        reviewNotes,
+        reviewedAt: new Date(),
+        reviewedBy: userId,
+      })
+      .where(eq(vendorClaims.id, claimId))
+      .returning();
+    
+    return updated;
   }
 }
 

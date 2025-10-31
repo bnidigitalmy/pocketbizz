@@ -4238,6 +4238,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================
+  // VENDOR SALES TRACKING ROUTES
+  // ========================================
+  
+  // Create vendor sale
+  app.post("/api/vendor-sales", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const sale = await storage.createVendorSale(req.user!.id, req.body);
+      res.json(sale);
+    } catch (error) {
+      console.error("Create vendor sale error:", error);
+      res.status(500).json({ error: "Failed to create vendor sale" });
+    }
+  });
+  
+  // Get vendor sales (with filters)
+  app.get("/api/vendor-sales", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { vendorId, startDate, endDate, productId } = req.query;
+      const filters: any = {};
+      
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      if (productId) filters.productId = productId as string;
+      
+      const sales = await storage.getVendorSales(
+        req.user!.id, 
+        vendorId as string | undefined,
+        filters
+      );
+      res.json(sales);
+    } catch (error) {
+      console.error("Get vendor sales error:", error);
+      res.status(500).json({ error: "Failed to get vendor sales" });
+    }
+  });
+  
+  // Get specific vendor sale
+  app.get("/api/vendor-sales/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const sale = await storage.getVendorSaleById(req.user!.id, req.params.id);
+      if (!sale) return res.status(404).json({ error: "Vendor sale not found" });
+      res.json(sale);
+    } catch (error) {
+      console.error("Get vendor sale error:", error);
+      res.status(500).json({ error: "Failed to get vendor sale" });
+    }
+  });
+  
+  // Update vendor sale
+  app.put("/api/vendor-sales/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const sale = await storage.updateVendorSale(req.user!.id, req.params.id, req.body);
+      res.json(sale);
+    } catch (error) {
+      console.error("Update vendor sale error:", error);
+      res.status(500).json({ error: "Failed to update vendor sale" });
+    }
+  });
+  
+  // Delete vendor sale
+  app.delete("/api/vendor-sales/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      await storage.deleteVendorSale(req.user!.id, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete vendor sale error:", error);
+      res.status(500).json({ error: "Failed to delete vendor sale" });
+    }
+  });
+  
+  // Get sales for specific vendor
+  app.get("/api/vendors/:vendorId/sales", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const filters: any = {};
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const sales = await storage.getVendorSales(req.user!.id, req.params.vendorId, filters);
+      res.json(sales);
+    } catch (error) {
+      console.error("Get vendor sales error:", error);
+      res.status(500).json({ error: "Failed to get vendor sales" });
+    }
+  });
+  
+  // ========================================
+  // VENDOR STOCK BALANCE ROUTES
+  // ========================================
+  
+  // Get stock balance for vendor
+  app.get("/api/vendors/:vendorId/stock-balance", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const balance = await storage.getVendorStockBalance(req.params.vendorId, req.user!.id);
+      res.json(balance);
+    } catch (error) {
+      console.error("Get stock balance error:", error);
+      res.status(500).json({ error: "Failed to get stock balance" });
+    }
+  });
+  
+  // Get stock balance for specific product at vendor
+  app.get("/api/vendors/:vendorId/stock/:productId", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const balance = await storage.getStockBalanceByProduct(
+        req.params.vendorId, 
+        req.params.productId
+      );
+      if (!balance) return res.status(404).json({ error: "Stock balance not found" });
+      res.json(balance);
+    } catch (error) {
+      console.error("Get stock balance error:", error);
+      res.status(500).json({ error: "Failed to get stock balance" });
+    }
+  });
+
+  // ========================================
+  // VENDOR CLAIMS ROUTES
+  // ========================================
+  
+  // Create vendor claim
+  app.post("/api/vendor-claims", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { claimData, items, photos } = req.body;
+      
+      if (!items || items.length === 0) {
+        return res.status(400).json({ error: "Claim must have at least one item" });
+      }
+      
+      if (!photos || photos.length === 0) {
+        return res.status(400).json({ error: "Claim must have at least one photo" });
+      }
+      
+      const claim = await storage.createVendorClaim(req.user!.id, claimData, items, photos);
+      res.json(claim);
+    } catch (error) {
+      console.error("Create vendor claim error:", error);
+      res.status(500).json({ error: "Failed to create vendor claim" });
+    }
+  });
+  
+  // Get vendor claims (with filters)
+  app.get("/api/vendor-claims", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { vendorId, status, startDate, endDate } = req.query;
+      const filters: any = {};
+      
+      if (vendorId) filters.vendorId = vendorId as string;
+      if (status) filters.status = status as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const claims = await storage.getVendorClaims(req.user!.id, filters);
+      res.json(claims);
+    } catch (error) {
+      console.error("Get vendor claims error:", error);
+      res.status(500).json({ error: "Failed to get vendor claims" });
+    }
+  });
+  
+  // Get specific vendor claim (with items and photos)
+  app.get("/api/vendor-claims/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const claim = await storage.getVendorClaimById(req.user!.id, req.params.id);
+      if (!claim) return res.status(404).json({ error: "Claim not found" });
+      res.json(claim);
+    } catch (error) {
+      console.error("Get vendor claim error:", error);
+      res.status(500).json({ error: "Failed to get vendor claim" });
+    }
+  });
+  
+  // Approve vendor claim
+  app.patch("/api/vendor-claims/:id/approve", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { reviewNotes } = req.body;
+      const claim = await storage.approveVendorClaim(req.user!.id, req.params.id, reviewNotes);
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Approve claim error:", error);
+      res.status(500).json({ error: error.message || "Failed to approve claim" });
+    }
+  });
+  
+  // Reject vendor claim
+  app.patch("/api/vendor-claims/:id/reject", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { reviewNotes } = req.body;
+      
+      if (!reviewNotes) {
+        return res.status(400).json({ error: "Review notes required for rejection" });
+      }
+      
+      const claim = await storage.rejectVendorClaim(req.user!.id, req.params.id, reviewNotes);
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Reject claim error:", error);
+      res.status(500).json({ error: error.message || "Failed to reject claim" });
+    }
+  });
+  
+  // Get claims for specific vendor
+  app.get("/api/vendors/:vendorId/claims", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { status, startDate, endDate } = req.query;
+      const filters: any = { vendorId: req.params.vendorId };
+      
+      if (status) filters.status = status as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const claims = await storage.getVendorClaims(req.user!.id, filters);
+      res.json(claims);
+    } catch (error) {
+      console.error("Get vendor claims error:", error);
+      res.status(500).json({ error: "Failed to get vendor claims" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
