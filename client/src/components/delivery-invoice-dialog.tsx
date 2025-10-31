@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +40,7 @@ export function DeliveryInvoiceDialog({
   delivery,
 }: DeliveryInvoiceDialogProps) {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -174,7 +174,7 @@ export function DeliveryInvoiceDialog({
             <Button
               onClick={() => {
                 onOpenChange(false);
-                navigate("/claims");
+                setLocation("/claims");
               }}
               variant="outline"
               className="flex-1"
