@@ -363,7 +363,7 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
       claimData: {
         vendorId,
         vendorName,
-        deliveryId: deliveryId || null,
+        deliveryId: deliveryId && deliveryId !== "none" ? deliveryId : null,
         claimDate,
       },
       items: items.map(item => ({
@@ -428,7 +428,7 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
                   <SelectValue placeholder="Pilih penghantaran (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tiada - tuntutan umum</SelectItem>
+                  <SelectItem value="none">Tiada - tuntutan umum</SelectItem>
                   {recentDeliveries
                     .filter((d: any) => d && d.id && d.invoiceNumber)
                     .map((delivery: any) => (
