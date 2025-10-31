@@ -122,12 +122,16 @@ export default function Claims() {
   
   const vendors = vendorsData || [];
 
-  const { data: claimDetails, refetch: refetchClaimDetails } = useQuery<any>({
+  const { data: claimDetails, refetch: refetchClaimDetails, dataUpdatedAt } = useQuery<any>({
     queryKey: ["/api/claims", selectedVendorId, "details"],
     enabled: !!selectedVendorId,
     staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache
     refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
+  
+  console.log('ClaimDetails updated at:', dataUpdatedAt, claimDetails);
 
   const updatePaymentMutation = useMutation({
     mutationFn: async ({ id, paymentStatus }: { id: string; paymentStatus: string }) => {
@@ -876,8 +880,9 @@ export default function Claims() {
               {viewMode === 'individual' && (
                 <div className="space-y-3">
                   {(claimDetails?.deliveries || []).map((delivery: any, idx: number) => {
-                    // Create a unique key that includes calculation data to force re-render on changes
-                    const deliveryKey = `${delivery.id}-${delivery.claimableAmount}-${delivery.rejectedAmount}-${JSON.stringify(delivery.items?.map((i: any) => `${i.id}-${i.rejectedQty}`).join(','))}`;
+                    // Create a unique key that includes timestamp to FORCE re-render
+                    const deliveryKey = `${delivery.id}-${dataUpdatedAt}-${delivery.claimableAmount}`;
+                    console.log('Rendering delivery card with key:', deliveryKey, delivery);
                     return (
                     <Card key={deliveryKey} className="hover-elevate">
                       <CardHeader className="pb-3 border-b bg-muted/30">
