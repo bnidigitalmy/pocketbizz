@@ -67,8 +67,6 @@ export default function Deliveries() {
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState<any>(null);
-  const [pendingDeliveryData, setPendingDeliveryData] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentDeliveryId, setPaymentDeliveryId] = useState<string | null>(null);
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("pending");
@@ -179,11 +177,6 @@ export default function Deliveries() {
         body: JSON.stringify(transformedData),
       });
       
-      if (response.status === 409) {
-        const dupData = await response.json();
-        throw { duplicate: true, data: dupData };
-      }
-      
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Gagal merekod penghantaran");
@@ -219,8 +212,6 @@ export default function Deliveries() {
       
       // Close delivery form
       setDialogOpen(false);
-      setDuplicateWarning(null);
-      setPendingDeliveryData(null);
       
       // Open invoice dialog with created delivery data
       setCreatedDelivery(data);
@@ -238,16 +229,11 @@ export default function Deliveries() {
       setItems([{ productId: "", productName: "", quantity: 1, unitPrice: "0", retailPrice: "0", rejectedQty: 0, rejectionReason: "" }]);
     },
     onError: (error: any) => {
-      if (error.duplicate) {
-        setDuplicateWarning(error.data);
-        setPendingDeliveryData(form.getValues());
-      } else {
-        toast({
-          title: "Ralat!",
-          description: error.message || "Stok tidak mencukupi atau ralat berlaku.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Ralat!",
+        description: error.message || "Stok tidak mencukupi atau ralat berlaku.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -1273,56 +1259,6 @@ export default function Deliveries() {
               data-testid="button-save-rejection"
             >
               {updateRejectionMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Duplicate Warning Dialog */}
-      <Dialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-yellow-500" />
-              Penghantaran Sudah Wujud
-            </DialogTitle>
-            <DialogDescription>
-              {duplicateWarning?.message}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {duplicateWarning?.existingDelivery && (
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <p className="text-sm font-medium">Penghantaran Sedia Ada:</p>
-              <div className="text-sm text-muted-foreground">
-                <p>Invois: {duplicateWarning.existingDelivery.invoiceNumber}</p>
-                <p className="font-mono font-semibold text-foreground">
-                  Jumlah: RM {duplicateWarning.existingDelivery.totalAmount}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDuplicateWarning(null);
-                setPendingDeliveryData(null);
-              }}
-              data-testid="button-cancel-duplicate"
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={() => {
-                if (pendingDeliveryData) {
-                  createMutation.mutate({ ...pendingDeliveryData, force: true });
-                }
-              }}
-              data-testid="button-confirm-duplicate"
-            >
-              Ya, Sambung Juga
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2038,33 +2038,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rejectedQty: z.number().optional(),
           rejectionReason: z.string().optional(),
         })),
-        force: z.boolean().optional(), // Allow bypassing duplicate check
       });
       
       const data = deliverySchema.parse(req.body);
-      const { items, force, ...deliveryData } = data;
-      
-      // Check for duplicate delivery (same vendor + same date)
-      if (!force) {
-        const existingDelivery = await storage.checkDuplicateDelivery(
-          req.user!.id,
-          deliveryData.vendorId,
-          deliveryData.deliveryDate
-        );
-        
-        if (existingDelivery) {
-          return res.status(409).json({
-            duplicate: true,
-            existingDelivery: {
-              id: existingDelivery.id,
-              vendorName: existingDelivery.vendorName,
-              totalAmount: existingDelivery.totalAmount,
-              invoiceNumber: existingDelivery.invoiceNumber,
-            },
-            message: `Dah ada penghantaran untuk ${existingDelivery.vendorName} pada ${new Date(existingDelivery.deliveryDate).toLocaleDateString('ms-MY')} (RM ${existingDelivery.totalAmount}). Nak sambung?`
-          });
-        }
-      }
+      const { items, ...deliveryData } = data;
       
       const deliveryItems = items.map(item => ({
         productId: item.productId,
