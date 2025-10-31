@@ -24,6 +24,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign, Clock, CheckCircle2, AlertCircle, Share2, FileText, Printer, Eye, Package, Filter, X, Download, MessageCircle } from "lucide-react";
 import { generateClaimStatementPDF, generateThermalClaimStatementPDF } from "@/lib/pdf-utils";
+import { DeliveryInvoiceDialog } from "@/components/delivery-invoice-dialog";
 import { 
   sendWhatsApp, 
   generateInvoiceMessage, 
@@ -64,6 +65,8 @@ export default function Claims() {
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [pendingWhatsAppAction, setPendingWhatsAppAction] = useState<(() => void) | null>(null);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<any>(null);
 
   // Fetch business profile for invoice header
   const { data: businessProfile } = useQuery({
@@ -150,7 +153,9 @@ export default function Claims() {
       return apiRequest("PATCH", `/api/delivery-items/${itemId}/rejected`, { rejectedQty, rejectionReason });
     },
     onSuccess: () => {
+      // Invalidate all related queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims", selectedVendorId, "details"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
       toast({
         title: "Dikemaskini",
@@ -1073,10 +1078,8 @@ export default function Claims() {
                               size="sm"
                               className="flex-1"
                               onClick={() => {
-                                toast({
-                                  title: "Print Invoice",
-                                  description: `Mencetak invois ${delivery.invoiceNumber}...`,
-                                });
+                                setSelectedDelivery(delivery);
+                                setShowInvoiceDialog(true);
                               }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -1087,10 +1090,8 @@ export default function Claims() {
                               size="sm"
                               className="flex-1 text-green-600 hover:text-green-700 hover:bg-green-50"
                               onClick={() => {
-                                toast({
-                                  title: "WhatsApp",
-                                  description: `Menghantar invois ${delivery.invoiceNumber}...`,
-                                });
+                                setSelectedDelivery(delivery);
+                                setShowInvoiceDialog(true);
                               }}
                             >
                               <Share2 className="h-4 w-4 mr-2" />
@@ -1163,6 +1164,15 @@ export default function Claims() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Individual Invoice Dialog */}
+      {selectedDelivery && (
+        <DeliveryInvoiceDialog
+          open={showInvoiceDialog}
+          onOpenChange={setShowInvoiceDialog}
+          delivery={selectedDelivery}
+        />
+      )}
     </div>
   );
 }
