@@ -2088,20 +2088,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const delivery = await storage.createDelivery(req.user!.id, deliveryData, deliveryItems);
+      const newDelivery = await storage.createDelivery(req.user!.id, deliveryData, deliveryItems);
       
-      // Fetch vendor details to include phone number for invoice sharing
-      const vendor = await storage.getVendor(req.user!.id, delivery.vendorId);
-      
-      // Fetch delivery items for invoice
-      const items = await storage.getDeliveryItems(req.user!.id, delivery.id);
+      // Fetch full delivery with items and vendor details for invoice dialog
+      const deliveryWithItems = await storage.getDelivery(req.user!.id, newDelivery.id);
+      const vendor = await storage.getVendor(req.user!.id, newDelivery.vendorId);
       
       // Return delivery with vendor phone and items for invoice dialog
       res.json({
-        ...delivery,
+        ...deliveryWithItems,
         vendorPhone: vendor?.phone,
         vendorAddress: vendor?.address,
-        items,
       });
     } catch (error: any) {
       console.error("Delivery creation error:", error);
