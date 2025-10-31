@@ -102,7 +102,7 @@ const salesOperationsItems = [
     icon: Store,
   },
   {
-    title: "Tuntutan Vendor",
+    title: "Tuntutan Produk",
     url: "/vendor-claims",
     icon: AlertTriangle,
   },

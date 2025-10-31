@@ -61,8 +61,8 @@ export default function VendorClaimsPage({}: VendorClaimsPageProps) {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      pending: { variant: "secondary", label: "Pending" },
-      approved: { variant: "default", label: "Diluluskan" },
+      pending: { variant: "secondary", label: "Tunggu Bayaran" },
+      approved: { variant: "default", label: "Dibayar" },
       rejected: { variant: "destructive", label: "Ditolak" },
     };
     const config = variants[status] || variants.pending;
@@ -78,9 +78,9 @@ export default function VendorClaimsPage({}: VendorClaimsPageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold md:text-3xl">Vendor Claims</h1>
+          <h1 className="text-2xl font-semibold md:text-3xl">Tuntutan Produk</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Urus tuntutan pulangan produk dari vendor
+            Claim produk expired/rosak dan adjustment invoice
           </p>
         </div>
         <VendorClaimSubmitForm 
@@ -101,8 +101,8 @@ export default function VendorClaimsPage({}: VendorClaimsPageProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Diluluskan</SelectItem>
+                  <SelectItem value="pending">Tunggu Bayaran</SelectItem>
+                  <SelectItem value="approved">Dibayar</SelectItem>
                   <SelectItem value="rejected">Ditolak</SelectItem>
                 </SelectContent>
               </Select>
@@ -381,13 +381,13 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <Button onClick={() => onOpenChange(true)}>
         <Plus className="h-4 w-4 mr-2" />
-        Hantar Tuntutan
+        Buat Claim
       </Button>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Hantar Tuntutan Pulangan</DialogTitle>
+          <DialogTitle>Buat Claim Produk (Expired/Rosak)</DialogTitle>
           <DialogDescription>
-            Isi maklumat produk yang nak pulang/tuntut dari vendor
+            Record produk yang expired/rosak berdasarkan update harian dari kedai vendor
           </DialogDescription>
         </DialogHeader>
 
@@ -489,9 +489,9 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs">Sebab Tuntutan *</Label>
+                    <Label className="text-xs">Sebab Claim *</Label>
                     <Input
-                      placeholder="Contoh: Expired, rosak, packaging pecah"
+                      placeholder="Contoh: Expired 3 hari, rosak packaging, berjamur"
                       value={item.claimReason}
                       onChange={(e) => updateItem(index, "claimReason", e.target.value)}
                     />
@@ -749,9 +749,9 @@ function VendorClaimReviewDialog({ claim, open, onOpenChange }: VendorClaimRevie
           {isPending && (
             <div className="space-y-3">
               <div>
-                <Label>Nota Semakan (Optional)</Label>
+                <Label>Nota (Optional)</Label>
                 <Textarea
-                  placeholder="Tambah nota atau sebab keputusan..."
+                  placeholder="Tambah nota... (cth: 'Dah terima payment RM 50 via online banking')"
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
                 />
@@ -763,14 +763,14 @@ function VendorClaimReviewDialog({ claim, open, onOpenChange }: VendorClaimRevie
                   disabled={rejectMutation.isPending || approveMutation.isPending}
                 >
                   <XCircle className="h-4 w-4 mr-1" />
-                  Tolak
+                  Kedai Tolak
                 </Button>
                 <Button
                   onClick={() => approveMutation.mutate()}
                   disabled={rejectMutation.isPending || approveMutation.isPending}
                 >
                   <CheckCircle className="h-4 w-4 mr-1" />
-                  Luluskan
+                  Terima Bayaran
                 </Button>
               </div>
             </div>
