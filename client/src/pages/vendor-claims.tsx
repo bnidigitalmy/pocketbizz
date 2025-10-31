@@ -237,10 +237,16 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
     queryKey: ["/api/deliveries", vendorId],
     queryFn: async () => {
       if (!vendorId) return [];
-      const res = await fetch(`/api/deliveries?vendorId=${vendorId}&limit=10`);
-      if (!res.ok) return [];
-      const result = await res.json();
-      return result.data || [];
+      try {
+        const res = await fetch(`/api/deliveries?vendorId=${vendorId}&limit=10`);
+        if (!res.ok) return [];
+        const result = await res.json();
+        // Handle both array and paginated response
+        return Array.isArray(result) ? result : (result.data || []);
+      } catch (error) {
+        console.error("Error fetching deliveries:", error);
+        return [];
+      }
     },
     enabled: !!vendorId,
   });
@@ -423,11 +429,13 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Tiada - tuntutan umum</SelectItem>
-                  {recentDeliveries.map((delivery: any) => (
-                    <SelectItem key={delivery.id} value={delivery.id}>
-                      {delivery.invoiceNumber} - {format(new Date(delivery.deliveryDate), 'dd MMM yyyy')} (RM {parseFloat(delivery.totalAmount).toFixed(2)})
-                    </SelectItem>
-                  ))}
+                  {recentDeliveries
+                    .filter((d: any) => d && d.id && d.invoiceNumber)
+                    .map((delivery: any) => (
+                      <SelectItem key={delivery.id} value={delivery.id}>
+                        {delivery.invoiceNumber} - {delivery.deliveryDate ? format(new Date(delivery.deliveryDate), 'dd MMM yyyy') : 'N/A'} (RM {delivery.totalAmount ? parseFloat(delivery.totalAmount).toFixed(2) : '0.00'})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">

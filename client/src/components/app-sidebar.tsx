@@ -26,6 +26,7 @@ import {
   Ticket,
   CalendarCheck,
   Building2,
+  AlertTriangle,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -99,6 +100,11 @@ const salesOperationsItems = [
     title: "Vendor",
     url: "/vendors",
     icon: Store,
+  },
+  {
+    title: "Tuntutan Vendor",
+    url: "/vendor-claims",
+    icon: AlertTriangle,
   },
   {
     title: "Hantar",
