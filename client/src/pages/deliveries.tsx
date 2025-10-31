@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { BatchPreviewInfo } from "@/components/batch-preview-info";
 import { VendorSalesForm } from "@/components/vendor-sales-form";
+import { DeliveryInvoiceDialog } from "@/components/delivery-invoice-dialog";
 
 const deliveryFormSchema = insertDeliverySchema.extend({
   vendorId: z.string().min(1, "Sila pilih vendor"),
@@ -71,6 +72,8 @@ export default function Deliveries() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentDeliveryId, setPaymentDeliveryId] = useState<string | null>(null);
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("pending");
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [createdDelivery, setCreatedDelivery] = useState<any>(null);
   const { toast } = useToast();
 
   const { 
@@ -211,11 +214,19 @@ export default function Deliveries() {
       
       toast({
         title: "Berjaya!",
-        description: "Penghantaran telah direkod.",
+        description: "Penghantaran telah direkod. Pilih cara hantar invois.",
       });
+      
+      // Close delivery form
       setDialogOpen(false);
       setDuplicateWarning(null);
       setPendingDeliveryData(null);
+      
+      // Open invoice dialog with created delivery data
+      setCreatedDelivery(data);
+      setInvoiceDialogOpen(true);
+      
+      // Reset form
       form.reset({
         vendorId: variables.vendorId, // Keep last vendor
         vendorName: "",
@@ -1392,6 +1403,15 @@ export default function Deliveries() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Dialog - Show after delivery created */}
+      {createdDelivery && (
+        <DeliveryInvoiceDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          delivery={createdDelivery}
+        />
+      )}
     </div>
   );
 }
