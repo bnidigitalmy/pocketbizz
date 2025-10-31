@@ -10,6 +10,13 @@ interface ThermalInvoiceProps {
     quantity: number;
     unitPrice: string;
     totalPrice: string;
+    rejectedQty?: number;
+    rejectionReason?: string;
+    itemGross?: string;
+    itemRejected?: string;
+    itemNet?: string;
+    itemCommission?: string;
+    itemClaimable?: string;
   }>;
   invoiceNumber: string;
   deliveryDate: string;
@@ -71,17 +78,30 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
         {items.map((item, index) => {
           const unitPrice = parseFloat(item.unitPrice);
           const total = parseFloat(item.totalPrice);
+          const hasRejected = item.rejectedQty && item.rejectedQty > 0;
+          const grossAmount = parseFloat(item.itemGross || item.totalPrice);
+          const rejectedAmount = parseFloat(item.itemRejected || '0');
+          const netAmount = parseFloat(item.itemNet || item.totalPrice);
           
           return (
-            <div key={index} style={{ marginBottom: '8px', fontSize: '11px' }}>
+            <div key={index} style={{ marginBottom: '10px', fontSize: '11px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '60% 15% 25%' }}>
                 <div style={{ fontWeight: 'bold' }}>{item.productName}</div>
                 <div style={{ textAlign: 'right' }}>{item.quantity}</div>
-                <div style={{ textAlign: 'right' }}>{total.toFixed(2)}</div>
+                <div style={{ textAlign: 'right' }}>{grossAmount.toFixed(2)}</div>
               </div>
               <div style={{ fontSize: '9px', color: '#666', paddingLeft: '5px' }}>
                 @ RM {unitPrice.toFixed(2)}/unit
               </div>
+              
+              {hasRejected && (
+                <div style={{ fontSize: '9px', color: '#d97706', paddingLeft: '5px', marginTop: '2px' }}>
+                  <div>❌ Expired/Rosak: {item.rejectedQty} unit</div>
+                  {item.rejectionReason && <div>Sebab: {item.rejectionReason}</div>}
+                  <div>Tolakan: -RM {rejectedAmount.toFixed(2)}</div>
+                  <div style={{ fontWeight: 'bold' }}>Bersih: RM {netAmount.toFixed(2)}</div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -89,10 +109,54 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
 
       {/* Total */}
       <div style={{ borderTop: '2px solid black', paddingTop: '5px', marginTop: '5px', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
-          <div>JUMLAH:</div>
-          <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
-        </div>
+        {(() => {
+          const totalRejected = items.reduce((sum, item) => sum + parseFloat(item.itemRejected || '0'), 0);
+          const totalCommission = items.reduce((sum, item) => sum + parseFloat(item.itemCommission || '0'), 0);
+          const hasRejected = totalRejected > 0;
+          const hasCommission = totalCommission > 0;
+          
+          if (hasRejected || hasCommission) {
+            const grossTotal = items.reduce((sum, item) => sum + parseFloat(item.itemGross || item.totalPrice), 0);
+            
+            return (
+              <div style={{ fontSize: '11px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                  <div>Jumlah Kasar:</div>
+                  <div>RM {grossTotal.toFixed(2)}</div>
+                </div>
+                {hasRejected && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#d97706' }}>
+                    <div>Tolak Expired/Rosak:</div>
+                    <div>- RM {totalRejected.toFixed(2)}</div>
+                  </div>
+                )}
+                {hasCommission && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', borderTop: '1px dashed black', paddingTop: '3px' }}>
+                      <div>Jumlah Bersih:</div>
+                      <div>RM {(grossTotal - totalRejected).toFixed(2)}</div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#2563eb' }}>
+                      <div>Komisyen Vendor:</div>
+                      <div>- RM {totalCommission.toFixed(2)}</div>
+                    </div>
+                  </>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
+                  <div>VENDOR PERLU BAYAR:</div>
+                  <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
+                </div>
+              </div>
+            );
+          } else {
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+                <div>JUMLAH:</div>
+                <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
+              </div>
+            );
+          }
+        })()}
       </div>
 
       {/* Notes */}

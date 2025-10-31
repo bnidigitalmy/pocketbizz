@@ -1078,7 +1078,14 @@ export default function Claims() {
                               size="sm"
                               className="flex-1"
                               onClick={() => {
-                                setSelectedDelivery(delivery);
+                                // Prepare delivery with vendor info
+                                const deliveryWithVendor = {
+                                  ...delivery,
+                                  vendorName: claimDetails?.vendorName || delivery.vendorName,
+                                  vendorPhone: vendors.find((v: any) => v.id === delivery.vendorId)?.phone,
+                                  vendorAddress: vendors.find((v: any) => v.id === delivery.vendorId)?.address,
+                                };
+                                setSelectedDelivery(deliveryWithVendor);
                                 setShowInvoiceDialog(true);
                               }}
                             >
@@ -1090,7 +1097,14 @@ export default function Claims() {
                               size="sm"
                               className="flex-1 text-green-600 hover:text-green-700 hover:bg-green-50"
                               onClick={() => {
-                                setSelectedDelivery(delivery);
+                                // Prepare delivery with vendor info
+                                const deliveryWithVendor = {
+                                  ...delivery,
+                                  vendorName: claimDetails?.vendorName || delivery.vendorName,
+                                  vendorPhone: vendors.find((v: any) => v.id === delivery.vendorId)?.phone,
+                                  vendorAddress: vendors.find((v: any) => v.id === delivery.vendorId)?.address,
+                                };
+                                setSelectedDelivery(deliveryWithVendor);
                                 setShowInvoiceDialog(true);
                               }}
                             >
