@@ -143,7 +143,7 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
                   </>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
-                  <div>VENDOR PERLU BAYAR:</div>
+                  <div>JUMLAH PERLU DIBAYAR:</div>
                   <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
                 </div>
               </div>

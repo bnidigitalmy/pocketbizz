@@ -122,9 +122,11 @@ export default function Claims() {
   
   const vendors = vendorsData || [];
 
-  const { data: claimDetails } = useQuery<any>({
+  const { data: claimDetails, refetch: refetchClaimDetails } = useQuery<any>({
     queryKey: ["/api/claims", selectedVendorId, "details"],
     enabled: !!selectedVendorId,
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
   });
 
   const updatePaymentMutation = useMutation({
@@ -152,11 +154,17 @@ export default function Claims() {
     mutationFn: async ({ itemId, rejectedQty, rejectionReason }: { itemId: string; rejectedQty: number; rejectionReason: string }) => {
       return apiRequest("PATCH", `/api/delivery-items/${itemId}/rejected`, { rejectedQty, rejectionReason });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidate all related queries to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/claims", selectedVendorId, "details"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/claims", selectedVendorId, "details"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      
+      // Force immediate refetch of claim details
+      if (refetchClaimDetails) {
+        await refetchClaimDetails();
+      }
+      
       toast({
         title: "Dikemaskini",
         description: "Expired/rosak dikemaskini. Invoice auto-adjust.",
@@ -1061,7 +1069,7 @@ export default function Claims() {
                                   )}
                                   
                                   <div className="flex justify-between pt-2 border-t-2 border-primary/20">
-                                    <span className="font-bold text-base">VENDOR PERLU BAYAR:</span>
+                                    <span className="font-bold text-base">JUMLAH PERLU DIBAYAR:</span>
                                     <span className="font-mono font-bold text-lg text-primary">
                                       RM {totals.claimable.toFixed(2)}
                                     </span>
