@@ -875,8 +875,11 @@ export default function Claims() {
               {/* Individual View - Per invoice breakdown */}
               {viewMode === 'individual' && (
                 <div className="space-y-3">
-                  {(claimDetails?.deliveries || []).map((delivery: any, idx: number) => (
-                    <Card key={delivery.id} className="hover-elevate">
+                  {(claimDetails?.deliveries || []).map((delivery: any, idx: number) => {
+                    // Create a unique key that includes calculation data to force re-render on changes
+                    const deliveryKey = `${delivery.id}-${delivery.claimableAmount}-${delivery.rejectedAmount}-${JSON.stringify(delivery.items?.map((i: any) => `${i.id}-${i.rejectedQty}`).join(','))}`;
+                    return (
+                    <Card key={deliveryKey} className="hover-elevate">
                       <CardHeader className="pb-3 border-b bg-muted/30">
                         {/* Business Header */}
                         {businessProfile ? (
@@ -1148,7 +1151,8 @@ export default function Claims() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

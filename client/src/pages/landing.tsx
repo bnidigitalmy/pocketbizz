@@ -237,7 +237,7 @@ export default function Landing() {
                 <span className="text-primary">Paling Mudah</span>
               </h1>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground leading-relaxed">
-                Uruskan stok, pengeluaran, jualan, penghantaran & laporan dalam satu platform. 
+                Uruskan stok, pengeluaran, jualan, penghantaran vendor, ejen reseller & laporan dalam satu platform. 
                 Direka khas untuk peniaga kecil Malaysia. 100% Bahasa Melayu.
               </p>
             </div>
