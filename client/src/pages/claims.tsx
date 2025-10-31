@@ -895,14 +895,17 @@ export default function Claims() {
                                       type="number"
                                       min="0"
                                       max={item.quantity}
-                                      value={item.rejectedQty || 0}
-                                      onChange={(e) => {
+                                      defaultValue={item.rejectedQty || 0}
+                                      onBlur={(e) => {
                                         const newRejectedQty = parseInt(e.target.value) || 0;
-                                        updateRejectedMutation.mutate({
-                                          itemId: item.id,
-                                          rejectedQty: newRejectedQty,
-                                          rejectionReason: item.rejectionReason || "",
-                                        });
+                                        // Only update if value changed
+                                        if (newRejectedQty !== (item.rejectedQty || 0)) {
+                                          updateRejectedMutation.mutate({
+                                            itemId: item.id,
+                                            rejectedQty: newRejectedQty,
+                                            rejectionReason: item.rejectionReason || "",
+                                          });
+                                        }
                                       }}
                                       className="h-8 text-sm"
                                       placeholder="0"
@@ -914,13 +917,17 @@ export default function Claims() {
                                   <div className="flex-[2]">
                                     <Input
                                       type="text"
-                                      value={item.rejectionReason || ""}
-                                      onChange={(e) => {
-                                        updateRejectedMutation.mutate({
-                                          itemId: item.id,
-                                          rejectedQty: item.rejectedQty || 0,
-                                          rejectionReason: e.target.value,
-                                        });
+                                      defaultValue={item.rejectionReason || ""}
+                                      onBlur={(e) => {
+                                        const newReason = e.target.value;
+                                        // Only update if value changed
+                                        if (newReason !== (item.rejectionReason || "")) {
+                                          updateRejectedMutation.mutate({
+                                            itemId: item.id,
+                                            rejectedQty: item.rejectedQty || 0,
+                                            rejectionReason: newReason,
+                                          });
+                                        }
                                       }}
                                       className="h-8 text-sm"
                                       placeholder="Sebab (optional): Expired, rosak, etc"
