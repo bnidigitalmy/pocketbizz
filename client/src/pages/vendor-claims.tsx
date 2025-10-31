@@ -215,6 +215,7 @@ interface VendorClaimSubmitFormProps {
 function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProps) {
   const [vendorId, setVendorId] = useState("");
   const [vendorName, setVendorName] = useState("");
+  const [deliveryId, setDeliveryId] = useState<string>("");
   const [claimDate, setClaimDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState([{ productId: "", productName: "", quantityClaimed: 1, unitPrice: "0", claimReason: "" }]);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -229,6 +230,19 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
   // Fetch products
   const { data: products = [] } = useQuery<any[]>({
     queryKey: ["/api/products"],
+  });
+
+  // Fetch recent deliveries for selected vendor (for auto-invoice adjustment)
+  const { data: recentDeliveries = [] } = useQuery<any[]>({
+    queryKey: ["/api/deliveries", vendorId],
+    queryFn: async () => {
+      if (!vendorId) return [];
+      const res = await fetch(`/api/deliveries?vendorId=${vendorId}&limit=10`);
+      if (!res.ok) return [];
+      const result = await res.json();
+      return result.data || [];
+    },
+    enabled: !!vendorId,
   });
 
   // Submit claim mutation
@@ -266,6 +280,7 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
   const resetForm = () => {
     setVendorId("");
     setVendorName("");
+    setDeliveryId("");
     setClaimDate(new Date().toISOString().split('T')[0]);
     setItems([{ productId: "", productName: "", quantityClaimed: 1, unitPrice: "0", claimReason: "" }]);
     setPhotos([]);
@@ -342,6 +357,7 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
       claimData: {
         vendorId,
         vendorName,
+        deliveryId: deliveryId || null,
         claimDate,
       },
       items: items.map(item => ({
@@ -396,6 +412,31 @@ function VendorClaimSubmitForm({ open, onOpenChange }: VendorClaimSubmitFormProp
               onChange={(e) => setClaimDate(e.target.value)}
             />
           </div>
+
+          {/* Optional Delivery Link (for auto-invoice adjustment) */}
+          {vendorId && recentDeliveries.length > 0 && (
+            <div>
+              <Label>Link ke Penghantaran (Optional - untuk auto-adjust invoice)</Label>
+              <Select value={deliveryId} onValueChange={setDeliveryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih penghantaran (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tiada - tuntutan umum</SelectItem>
+                  {recentDeliveries.map((delivery: any) => (
+                    <SelectItem key={delivery.id} value={delivery.id}>
+                      {delivery.invoiceNumber} - {format(new Date(delivery.deliveryDate), 'dd MMM yyyy')} (RM {parseFloat(delivery.totalAmount).toFixed(2)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {deliveryId 
+                  ? "✅ Invoice akan auto-adjust bila claim diluluskan" 
+                  : "Jika pilih penghantaran, invoice akan dikurangkan automatik"}
+              </p>
+            </div>
+          )}
 
           {/* Items */}
           <div className="space-y-3">
@@ -605,6 +646,23 @@ function VendorClaimReviewDialog({ claim, open, onOpenChange }: VendorClaimRevie
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Auto-Invoice Adjustment Notice */}
+          {claim.deliveryId && claim.status === "pending" && (
+            <Card className="border-blue-500 bg-blue-50">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-900">Invoice Auto-Adjustment Enabled</p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Bila claim ni diluluskan, invoice akan dikurangkan automatik dengan jumlah tuntutan.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Status Banner */}
           <Card className={claim.status === "approved" ? "border-green-500" : claim.status === "rejected" ? "border-red-500" : ""}>
             <CardContent className="pt-4">

@@ -3997,8 +3997,33 @@ export class DatabaseStorage implements IStorage {
         });
       }
       
-      // TODO: Auto-adjust invoice if deliveryId exists
-      // This will be implemented in the auto-invoice adjustment phase
+      // ========================================
+      // AUTO-ADJUST INVOICE IF DELIVERY LINKED
+      // ========================================
+      if (claim.deliveryId) {
+        // Get delivery details
+        const [delivery] = await tx.select()
+          .from(deliveries)
+          .where(eq(deliveries.id, claim.deliveryId));
+        
+        if (delivery) {
+          // Calculate adjustment amount from approved claim
+          const adjustmentAmount = parseFloat(claim.totalClaimAmount);
+          
+          // Calculate new total (subtract returned items)
+          const currentTotal = parseFloat(delivery.totalAmount);
+          const newTotal = Math.max(0, currentTotal - adjustmentAmount); // Don't go negative
+          
+          // Update delivery total amount
+          await tx.update(deliveries)
+            .set({
+              totalAmount: newTotal.toFixed(2),
+            })
+            .where(eq(deliveries.id, claim.deliveryId));
+          
+          console.log(`✅ Auto-adjusted invoice ${delivery.invoiceNumber}: RM ${currentTotal.toFixed(2)} → RM ${newTotal.toFixed(2)} (Claim: -RM ${adjustmentAmount.toFixed(2)})`);
+        }
+      }
       
       return updated;
     });
