@@ -39,6 +39,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { BatchPreviewInfo } from "@/components/batch-preview-info";
+import { VendorSalesForm } from "@/components/vendor-sales-form";
 
 const deliveryFormSchema = insertDeliverySchema.extend({
   vendorId: z.string().min(1, "Sila pilih vendor"),
@@ -579,6 +580,7 @@ export default function Deliveries() {
           <p className="text-sm text-muted-foreground mt-1">Urus penghantaran ke vendor</p>
         </div>
         <div className="flex gap-2">
+          <VendorSalesForm />
           <Button 
             variant="outline" 
             size="sm"

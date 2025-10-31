@@ -50,6 +50,7 @@ import Customers from "@/pages/customers";
 import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
 import Bookings from "@/pages/bookings";
+import VendorClaims from "@/pages/vendor-claims";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -90,6 +91,7 @@ function AppRouter() {
         <Route path="/bookings" component={Bookings} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/claims" component={Claims} />
+        <Route path="/vendor-claims" component={VendorClaims} />
         <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
         <Route path="/drive-sync" component={DriveSync} />
