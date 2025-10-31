@@ -144,6 +144,27 @@ export default function Claims() {
     },
   });
 
+  const updateRejectedMutation = useMutation({
+    mutationFn: async ({ itemId, rejectedQty, rejectionReason }: { itemId: string; rejectedQty: number; rejectionReason: string }) => {
+      return apiRequest("PATCH", `/api/delivery-items/${itemId}/rejected`, { rejectedQty, rejectionReason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      toast({
+        title: "Dikemaskini",
+        description: "Expired/rosak dikemaskini. Invoice auto-adjust.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Ralat",
+        description: "Gagal kemaskini item",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter claims based on selected filters
   const filteredClaims = useMemo(() => {
     if (!claims) return [];
@@ -413,9 +434,9 @@ export default function Claims() {
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold md:text-3xl">Tuntutan Vendor</h1>
+          <h1 className="text-2xl font-semibold md:text-3xl">Bayaran Vendor</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Urus tuntutan & status bayaran vendor
+            Track payment invoice vendor & update expired/rosak
           </p>
         </div>
         <Button 
@@ -861,6 +882,49 @@ export default function Claims() {
                                   <div className="font-medium">{item.productName}</div>
                                   <div className="text-xs text-muted-foreground mt-0.5">
                                     {item.quantity}x @ RM {parseFloat(item.unitPrice).toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Rejected Quantity Input */}
+                              <div className="mb-3 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
+                                <Label className="text-xs font-medium mb-1">Expired/Rosak/Return</Label>
+                                <div className="flex gap-2 items-end">
+                                  <div className="flex-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max={item.quantity}
+                                      value={item.rejectedQty || 0}
+                                      onChange={(e) => {
+                                        const newRejectedQty = parseInt(e.target.value) || 0;
+                                        updateRejectedMutation.mutate({
+                                          itemId: item.id,
+                                          rejectedQty: newRejectedQty,
+                                          rejectionReason: item.rejectionReason || "",
+                                        });
+                                      }}
+                                      className="h-8 text-sm"
+                                      placeholder="0"
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      Max: {item.quantity} unit
+                                    </p>
+                                  </div>
+                                  <div className="flex-[2]">
+                                    <Input
+                                      type="text"
+                                      value={item.rejectionReason || ""}
+                                      onChange={(e) => {
+                                        updateRejectedMutation.mutate({
+                                          itemId: item.id,
+                                          rejectedQty: item.rejectedQty || 0,
+                                          rejectionReason: e.target.value,
+                                        });
+                                      }}
+                                      className="h-8 text-sm"
+                                      placeholder="Sebab (optional): Expired, rosak, etc"
+                                    />
                                   </div>
                                 </div>
                               </div>

@@ -107,12 +107,7 @@ const vendorItems = [
     icon: Truck,
   },
   {
-    title: "Tuntutan Produk",
-    url: "/vendor-claims",
-    icon: AlertTriangle,
-  },
-  {
-    title: "Tuntutan",
+    title: "Bayaran & Invoice",
     url: "/claims",
     icon: ClipboardCheck,
   },
