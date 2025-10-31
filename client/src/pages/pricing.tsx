@@ -284,15 +284,18 @@ export default function Pricing() {
                 </div>
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="pt-6">
                 <Button
-                  className="w-full"
+                  className="w-full text-base font-semibold"
                   variant={isPro ? "default" : "outline"}
                   size="lg"
                   data-testid={`button-choose-${plan.name}`}
-                  onClick={() => handleSelectPlan(plan)}
+                  onClick={() => {
+                    console.log('Selecting plan:', plan.displayName, selectedDuration, 'months');
+                    handleSelectPlan(plan);
+                  }}
                 >
-                  Pilih {plan.displayName}
+                  🛒 Pilih Pakej {plan.displayName}
                 </Button>
               </CardFooter>
             </Card>
