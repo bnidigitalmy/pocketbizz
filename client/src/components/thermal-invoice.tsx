@@ -24,10 +24,6 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
   const businessName = (businessProfile as any)?.businessName || "PocketBizz";
   const businessAddress = (businessProfile as any)?.address || "";
   const businessPhone = (businessProfile as any)?.phone || "";
-  const businessEmail = (businessProfile as any)?.email || "";
-  const paymentQrCode = (businessProfile as any)?.paymentQrCode || "";
-  const bankName = (businessProfile as any)?.bankName || "";
-  const accountNumber = (businessProfile as any)?.accountNumber || "";
 
   return (
     <div 
@@ -46,7 +42,6 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
         <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{businessName}</div>
         {businessAddress && <div style={{ fontSize: '10px', marginTop: '3px' }}>{businessAddress}</div>}
         {businessPhone && <div style={{ fontSize: '10px', marginTop: '2px' }}>Tel: {businessPhone}</div>}
-        {businessEmail && <div style={{ fontSize: '10px', marginTop: '2px' }}>{businessEmail}</div>}
       </div>
 
       {/* Invoice Info */}
@@ -107,39 +102,6 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
           Produk yang expired, rosak, atau tidak terjual akan ditolak dari jumlah bayaran.
         </div>
       </div>
-
-      {/* Payment Info & QR Code */}
-      {(paymentQrCode || bankName) && (
-        <div style={{ borderTop: '1px dashed black', paddingTop: '10px', marginBottom: '10px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
-            MAKLUMAT BAYARAN
-          </div>
-          
-          {paymentQrCode && (
-            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-              <img 
-                src={paymentQrCode} 
-                alt="Payment QR Code" 
-                style={{ 
-                  width: '120px', 
-                  height: '120px', 
-                  border: '1px solid black',
-                  padding: '5px',
-                  backgroundColor: 'white'
-                }} 
-              />
-              <div style={{ fontSize: '9px', marginTop: '3px' }}>Scan untuk bayar</div>
-            </div>
-          )}
-          
-          {bankName && (
-            <div style={{ fontSize: '10px', textAlign: 'center' }}>
-              <div><strong>{bankName}</strong></div>
-              {accountNumber && <div>No: {accountNumber}</div>}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Signature */}
       <div style={{ borderTop: '1px dashed black', paddingTop: '10px', marginBottom: '10px' }}>
