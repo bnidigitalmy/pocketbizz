@@ -49,61 +49,71 @@ export default function Landing() {
       icon: <Package className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Pengurusan Stok Pintar",
       description: "Jejak stok real-time, alert stok rendah, pengiraan kos auto, resit bahan lengkap dengan keuntungan. Sistem FIFO untuk finished goods.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_STOCK_MANAGEMENT", // Screenshot: Stock dashboard with low stock alerts
+      highlight: false,
     },
     {
       icon: <Factory className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Perancangan Pengeluaran",
       description: "Planning pengeluaran pintar dengan material calculation auto, validasi stok real-time, shortage alerts, dan batch tracking lengkap.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_PRODUCTION_PLANNING", // Screenshot: Production planning interface
+      highlight: false,
     },
     {
       icon: <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Sistem POS (Point of Sale)",
       description: "Jualan mudah dengan receipt auto, tracking payment methods, profit tracking, FIFO stock deduction, dan PDF receipt generation.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_POS_SYSTEM", // Screenshot: POS interface with cart
+      highlight: false,
+    },
+    {
+      icon: <Receipt className="h-6 w-6 sm:h-8 sm:w-8" />,
+      title: "Invois Thermal 80mm + WhatsApp",
+      description: "🔥 Print thermal invoice 80mm professional, auto-share via WhatsApp, QR payment code, bank details, breakdown lengkap expired/rosak.",
+      image: "PLACEHOLDER_THERMAL_INVOICE", // Screenshot: Thermal invoice with QR code
+      highlight: true,
     },
     {
       icon: <Truck className="h-6 w-6 sm:h-8 sm:w-8" />,
-      title: "Penghantaran & Konsainan",
-      description: "Rekod penghantaran, tracking status (hantar → tuntut → bayar), pengurusan tolakan/reject, pengiraan komisyen auto.",
-      image: dashboardImage,
+      title: "Penghantaran & Konsainan Pintar",
+      description: "Rekod penghantaran, tracking expired/rosak real-time, pengiraan komisyen auto, tuntutan vendor dengan breakdown terperinci (kasar → tolak → bersih → komisyen).",
+      image: "PLACEHOLDER_DELIVERY_CLAIMS", // Screenshot: Claims page with calculation breakdown
+      highlight: true,
     },
     {
       icon: <Users className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Modul Ejen Jualan",
       description: "Sistem distribution nationwide dengan multi-tier pricing, stock transfer auto-price, payment tracking, dan performance analytics.",
-      image: dashboardImage,
-    },
-    {
-      icon: <Receipt className="h-6 w-6 sm:h-8 sm:w-8" />,
-      title: "Tuntutan & Invois Profesional",
-      description: "Jana invois PDF auto, tuntutan multi-vendor, breakdown terperinci (bruto → tolakan → bersih → komisyen), WhatsApp share.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_AGENT_MODULE", // Screenshot: Agent management interface
+      highlight: false,
     },
     {
       icon: <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8" />,
-      title: "Dashboard Automation",
-      description: "Low stock alerts auto, weekly profit summary, daily task checklist, motivational insights, dan progress tracking pintar.",
-      image: dashboardImage,
+      title: "Dashboard Automation Pintar",
+      description: "🔥 Low stock alerts auto, weekly profit summary, daily task checklist, motivational insights, auto-calculation instant updates tanpa reload.",
+      image: "PLACEHOLDER_DASHBOARD_AUTOMATION", // Screenshot: Dashboard with alerts and insights
+      highlight: true,
     },
     {
       icon: <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Laporan P&L Lengkap",
       description: "Dashboard real-time, carta interaktif, profit/loss analysis, track prestasi produk, laporan bulanan auto.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_PNL_REPORTS", // Screenshot: P&L dashboard with charts
+      highlight: false,
     },
     {
       icon: <Smartphone className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Mobile-First Design",
       description: "Fully responsive, optimized untuk mobile, touch gestures (swipe-to-pay), quick actions FAB, installable PWA.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_MOBILE_DESIGN", // Screenshot: Mobile interface
+      highlight: false,
     },
     {
       icon: <Cloud className="h-6 w-6 sm:h-8 sm:w-8" />,
       title: "Google Drive Auto-Sync",
       description: "Backup auto ke Google Drive, sync invoices & reports, access dari mana-mana, disaster recovery ready.",
-      image: dashboardImage,
+      image: "PLACEHOLDER_GOOGLE_DRIVE", // Screenshot: Google Drive sync interface
+      highlight: false,
     },
   ];
 
@@ -296,20 +306,183 @@ export default function Landing() {
 
         <div className="grid gap-4 sm:gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
-            <Card key={index} className="hover-elevate" data-testid={`card-feature-${index}`}>
+            <Card 
+              key={index} 
+              className={`hover-elevate ${feature.highlight ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''}`}
+              data-testid={`card-feature-${index}`}
+            >
               <CardHeader className="space-y-3 sm:space-y-4">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center ${
+                  feature.highlight ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'
+                }`}>
                   {feature.icon}
                 </div>
-                <CardTitle className="text-base sm:text-lg">{feature.title}</CardTitle>
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  {feature.title}
+                  {feature.highlight && (
+                    <Badge variant="secondary" className="text-xs">NEW</Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <CardDescription className="text-sm sm:text-base leading-relaxed">
                   {feature.description}
                 </CardDescription>
+                {/* Image Placeholder for screenshots */}
+                {typeof feature.image === 'string' && feature.image.startsWith('PLACEHOLDER_') && (
+                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+                    <div className="text-center p-4">
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {feature.image.replace('PLACEHOLDER_', '').replace(/_/g, ' ')}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        📸 Screenshot Coming Soon
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      {/* Highlighted Features Section - NEW FEATURES */}
+      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+        <div className="text-center mb-8 sm:mb-12 space-y-3 md:space-y-4 max-w-3xl mx-auto px-4">
+          <Badge className="text-xs sm:text-sm gap-1.5">
+            <Sparkles className="h-3 w-3" />
+            Features Terbaru 2025
+          </Badge>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+            Features Yang Mengubah Cara Anda Bekerja
+          </h2>
+          <p className="text-base sm:text-lg text-muted-foreground">
+            Inovasi terkini yang direka untuk memudahkan operasi harian perniagaan anda
+          </p>
+        </div>
+
+        {/* Feature 1: Thermal Invoice + WhatsApp */}
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-2 items-center mb-16">
+          <div className="space-y-4 sm:space-y-6">
+            <Badge variant="secondary" className="text-xs sm:text-sm">🔥 Paling Popular</Badge>
+            <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Print Invois Thermal 80mm + WhatsApp Share
+            </h3>
+            <div className="space-y-3 text-muted-foreground">
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Print invois thermal 80mm professional - compatible dengan kebanyakan thermal printer</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Share terus ke WhatsApp vendor - satu klik jer, auto-attach gambar invoice</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>QR code payment DuitNow + bank details - vendor scan jer terus bayar</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Breakdown lengkap: Kasar → Tolak Expired/Rosak → Bersih → Komisyen → Jumlah Perlu Dibayar</span>
+              </p>
+            </div>
+          </div>
+          <div className="order-first lg:order-last">
+            <div className="aspect-[4/5] bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-dashed border-primary/20 flex items-center justify-center">
+              <div className="text-center p-8">
+                <Receipt className="h-16 w-16 text-primary mx-auto mb-4" />
+                <p className="text-lg font-semibold mb-2">Thermal Invoice Screenshot</p>
+                <p className="text-sm text-muted-foreground font-mono">THERMAL_INVOICE_80MM</p>
+                <p className="text-xs text-muted-foreground mt-4">
+                  📸 Screenshot invois thermal dengan<br/>
+                  QR code, breakdown, dan bank details
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature 2: Claims & Commission System */}
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-2 items-center mb-16">
+          <div className="order-2 lg:order-1">
+            <div className="aspect-video bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border-2 border-dashed border-blue-500/20 flex items-center justify-center">
+              <div className="text-center p-8">
+                <BarChart3 className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+                <p className="text-lg font-semibold mb-2">Claims Dashboard Screenshot</p>
+                <p className="text-sm text-muted-foreground font-mono">CLAIMS_BREAKDOWN_INTERFACE</p>
+                <p className="text-xs text-muted-foreground mt-4">
+                  📸 Screenshot page tuntutan vendor dengan<br/>
+                  calculation breakdown & rejected items tracking
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="order-1 lg:order-2 space-y-4 sm:space-y-6">
+            <Badge variant="secondary" className="text-xs sm:text-sm">🎯 Jimat Masa</Badge>
+            <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Sistem Tuntutan & Komisyen Automatik
+            </h3>
+            <div className="space-y-3 text-muted-foreground">
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Tracking expired/rosak real-time - update jer qty, sistem auto-calculate semua</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Komisyen vendor auto - setup sekali, lepas tu auto-potong untuk semua invoice</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Breakdown transparent - vendor nampak jelas calculation dari kasar sampai final amount</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Per-invoice actions - print atau WhatsApp individual invoice dengan satu klik</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature 3: Real-time Updates */}
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-2 items-center">
+          <div className="space-y-4 sm:space-y-6">
+            <Badge variant="secondary" className="text-xs sm:text-sm">⚡ Lightning Fast</Badge>
+            <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Auto-Calculation Tanpa Reload
+            </h3>
+            <div className="space-y-3 text-muted-foreground">
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Instant updates - ubah expired qty, calculation auto-adjust realtime</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>No page refresh - semua update smooth tanpa reload page, jimat data</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Smart caching - data load cepat, calculation accurate, battery-friendly</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Business header auto-sync - company info update sekali, semua invoice auto-update</span>
+              </p>
+            </div>
+          </div>
+          <div className="order-first lg:order-last">
+            <div className="aspect-video bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-xl border-2 border-dashed border-green-500/20 flex items-center justify-center">
+              <div className="text-center p-8">
+                <Zap className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                <p className="text-lg font-semibold mb-2">Real-time Update Demo</p>
+                <p className="text-sm text-muted-foreground font-mono">REALTIME_CALCULATION_DEMO</p>
+                <p className="text-xs text-muted-foreground mt-4">
+                  📸 Screenshot atau screen recording<br/>
+                  showing real-time calculation updates
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
