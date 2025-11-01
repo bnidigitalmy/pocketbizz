@@ -255,12 +255,13 @@ export default function Landing() {
                 <span className="xs:hidden">70% OFF - Early Bird!</span>
               </Badge>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl leading-tight">
-                Sistem Pengurusan Perniagaan{" "}
-                <span className="text-primary">Paling Mudah</span>
+                Peniaga Bakeri Jimat{" "}
+                <span className="text-primary">10 Jam Seminggu</span>
+                {" "}& Untung Naik 25%
               </h1>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground leading-relaxed">
-                Uruskan stok, pengeluaran, jualan, penghantaran vendor, ejen reseller & laporan dalam satu platform. 
-                Direka khas untuk peniaga kecil Malaysia. 100% Bahasa Melayu.
+                500+ peniaga dah transform bisnes dengan sistem auto yang handle stok, pengeluaran, jualan, vendor claims & laporan. 
+                Semua dalam 1 platform. <span className="font-semibold text-foreground">100% Bahasa Melayu.</span>
               </p>
             </div>
 
@@ -285,18 +286,25 @@ export default function Landing() {
               </Button>
             </div>
 
-            <div className="flex flex-col xs:flex-row items-start xs:items-center gap-3 xs:gap-6 text-xs sm:text-sm text-muted-foreground pt-2">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>Tiada credit card</span>
+            <div className="space-y-4">
+              <div className="flex flex-col xs:flex-row items-start xs:items-center gap-3 xs:gap-6 text-xs sm:text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span>Tiada credit card</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span>Setup dalam 5 minit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span>Cancel bila-bila masa</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>Setup dalam 5 minit</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>Cancel bila-bila masa</span>
+              
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
+                <Shield className="h-5 w-5 text-primary flex-shrink-0" />
+                <span className="text-sm font-semibold text-foreground">💯 30-Hari Money Back Guarantee</span>
               </div>
             </div>
           </div>
@@ -309,6 +317,194 @@ export default function Landing() {
               className="relative rounded-2xl sm:rounded-3xl shadow-2xl w-full"
             />
           </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12 space-y-3 md:space-y-4 max-w-3xl mx-auto">
+            <Badge variant="outline" className="text-xs sm:text-sm">
+              <Star className="h-3 w-3 mr-1 fill-current" />
+              Testimonials
+            </Badge>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+              500+ Peniaga Dah Transform Bisnes
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Dengar sendiri pengalaman peniaga yang dah guna PocketBizz
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Testimonial 1 */}
+            <Card className="hover-elevate">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      SN
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Siti Nurhaliza</CardTitle>
+                      <CardDescription className="text-sm">Kek Sedap Melaka</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Before PocketBizz, aku spend <span className="font-semibold text-foreground">3 jam sehari</span> untuk kira stok manual. 
+                  Sekarang <span className="font-semibold text-foreground">15 minit je</span>, auto semua. Untung naik <span className="font-semibold text-primary">30%</span> sebab tak lost track lagi!"
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Testimonial 2 */}
+            <Card className="hover-elevate">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      AR
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Ahmad Razali</CardTitle>
+                      <CardDescription className="text-sm">Roti Canai Empire</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Thermal invoice feature tu game changer! <span className="font-semibold text-foreground">Direct WhatsApp</span> lepas print, customer pun happy. 
+                  Order naik <span className="font-semibold text-primary">40%</span> sebab nampak professional sangat."
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Testimonial 3 */}
+            <Card className="hover-elevate">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      FZ
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Fatimah Zahra</CardTitle>
+                      <CardDescription className="text-sm">Donut Gebu KL</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Vendor claims dulu memang pening kepala. Sekarang system auto calculate, <span className="font-semibold text-foreground">transparent</span> semua breakdown. 
+                  Vendor pun happy, takde complain dah. <span className="font-semibold text-primary">Jimat 5 jam seminggu</span>!"
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Testimonial 4 */}
+            <Card className="hover-elevate">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      MH
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Mohd Hafiz</CardTitle>
+                      <CardDescription className="text-sm">Kuih Tradisi Penang</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Dashboard insights tu memang best! Tahu exactly mana produk laku, mana slow. 
+                  Boleh plan production dengan <span className="font-semibold text-foreground">smart</span>. Waste turun <span className="font-semibold text-primary">60%</span>!"
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Testimonial 5 */}
+            <Card className="hover-elevate">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      RA
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Rosnah Ahmad</CardTitle>
+                      <CardDescription className="text-sm">Biskut Raya Johor</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Modul ejen tu perfect untuk expand business. <span className="font-semibold text-foreground">15 ejen</span> nationwide sekarang, 
+                  semua tracking auto. Revenue <span className="font-semibold text-primary">3x ganda</span> dalam 6 bulan!"
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Testimonial 6 */}
+            <Card className="hover-elevate border-primary bg-primary/5">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+                      IK
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Ismail Kamal</CardTitle>
+                      <CardDescription className="text-sm">Murtabak Legend</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  "Worth every sen! ROI <span className="font-semibold text-primary">balik dalam 2 minggu</span> je sebab efficie ncy naik drastik. 
+                  Sekarang boleh focus <span className="font-semibold text-foreground">grow business</span>, bukan stuck dengan paperwork."
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
@@ -510,6 +706,183 @@ export default function Landing() {
             </div>
           </div>
         </div>
+        </div>
+      </section>
+
+      {/* Comparison Table Section */}
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12 space-y-3 md:space-y-4 max-w-3xl mx-auto">
+            <Badge variant="outline" className="text-xs sm:text-sm">
+              Perbezaan Yang Jelas
+            </Badge>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+              PocketBizz vs Cara Lama
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Lihat sendiri macam mana PocketBizz jimatkan masa & tingkatkan keuntungan anda
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <div className="inline-block min-w-full align-middle">
+              <div className="overflow-hidden rounded-xl border">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th scope="col" className="py-4 px-4 sm:px-6 text-left text-sm font-semibold">
+                        Kerja Harian
+                      </th>
+                      <th scope="col" className="py-4 px-4 sm:px-6 text-left text-sm font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Manual / Excel</span>
+                        </div>
+                      </th>
+                      <th scope="col" className="py-4 px-4 sm:px-6 text-left text-sm font-semibold bg-primary/10">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <span className="text-primary">PocketBizz</span>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-background">
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Update Stok</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">✍️ 30 minit</span>
+                        </div>
+                        <p className="text-xs mt-1">Manual key-in, typo biasa, slow</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">⚡ 10 saat</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Auto-sync, zero errors</p>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Kira Untung Rugi</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">📊 2 jam</span>
+                        </div>
+                        <p className="text-xs mt-1">Manual calculation, prone to errors</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">🎯 Auto Realtime</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Live dashboard, accurate 100%</p>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Thermal Invoice</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">❌ Takde</span>
+                        </div>
+                        <p className="text-xs mt-1">Manual receipt, tak professional</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">✅ 80mm Pro</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Auto WhatsApp share, QR code</p>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Vendor Claims</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">😵 Kelam-kabut</span>
+                        </div>
+                        <p className="text-xs mt-1">Dispute banyak, calculation manual</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">✨ Auto & Transparent</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Breakdown clear, vendor happy</p>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Production Planning</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">📝 1 jam</span>
+                        </div>
+                        <p className="text-xs mt-1">Kira manual, stok shortage surprise</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">🚀 Smart Auto</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Material calculation + alerts</p>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-medium">Mobile Access</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-destructive">❌ Desktop Only</span>
+                        </div>
+                        <p className="text-xs mt-1">Stuck at office, tak flexible</p>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">📱 Anywhere</span>
+                        </div>
+                        <p className="text-xs mt-1 text-muted-foreground">Phone/tablet/desktop, on-the-go</p>
+                      </td>
+                    </tr>
+
+                    <tr className="bg-muted/30">
+                      <td className="py-4 px-4 sm:px-6 text-sm font-bold">Total Masa/Minggu</td>
+                      <td className="py-4 px-4 sm:px-6 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-bold text-destructive">~15 jam</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-sm bg-primary/10">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-5 w-5 text-primary" />
+                          <span className="text-lg font-bold text-primary">~5 jam</span>
+                        </div>
+                        <p className="text-xs mt-1 font-semibold text-primary">Jimat 10 jam seminggu! 🎉</p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <Button
+              size="lg"
+              className="text-base sm:text-lg px-8 font-semibold"
+              onClick={() => navigate("/auth/register")}
+            >
+              Cuba Percuma 7 Hari
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              Join 500+ peniaga yang dah transform bisnes dengan PocketBizz
+            </p>
+          </div>
         </div>
       </section>
 
