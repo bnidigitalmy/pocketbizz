@@ -362,27 +362,27 @@ export default function Pricing() {
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Pengurusan Komisyen</td>
+                    <td className="p-4">Vendor & Komisyen Tracking</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Google Drive Auto-sync</td>
+                    <td className="p-4">Thermal Invoice + QR Payment</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Integrasi WhatsApp</td>
+                    <td className="p-4">WhatsApp Share Invoice</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
-                    <td className="text-center p-4 text-muted-foreground">-</td>
+                    <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Akses API</td>
+                    <td className="p-4">Tracking Expired/Rosak Items</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
-                    <td className="text-center p-4 text-muted-foreground">-</td>
+                    <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
