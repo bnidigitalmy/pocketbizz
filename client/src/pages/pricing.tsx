@@ -51,8 +51,11 @@ export default function Pricing() {
   const earlyBirdDiscount = 70; // 70% off early bird discount
   
   const handleSelectPlan = (plan: SubscriptionPlan) => {
+    console.log('handleSelectPlan called - userData:', userData, 'isAuthError:', isAuthError);
+    
     // Check if user is logged in - redirect to login if not authenticated
     const isLoggedIn = userData?.user && !isAuthError;
+    console.log('isLoggedIn:', isLoggedIn);
     
     if (!isLoggedIn) {
       console.log('User not logged in, redirecting to login page');
