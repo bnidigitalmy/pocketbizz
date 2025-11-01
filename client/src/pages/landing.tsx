@@ -27,6 +27,7 @@ import {
 import type { User } from "@shared/schema";
 import heroImage from "@assets/stock_images/small_business_owner_9704c9ed.jpg";
 import dashboardImage from "@assets/stock_images/business_dashboard_a_ffb04572.jpg";
+import ColorThemeSwitcher from "@/components/ColorThemeSwitcher";
 
 export default function Landing() {
   const [, navigate] = useLocation();
@@ -1113,6 +1114,9 @@ export default function Landing() {
         </div>
         </div>
       </footer>
+
+      {/* Color Theme Switcher - floating button bottom right */}
+      <ColorThemeSwitcher />
     </div>
   );
 }
