@@ -4,17 +4,17 @@
 - ❌ Pricing page TAKDE HARGA (database subscription_plans table kosong)
 - ❌ Screenshot kau tunjuk "Pilih Pakej Yang Sesuai" tapi harga semua blank
 
-## Solution: Run SQL Seed File on Railway
+## Solution: Run SQL Seed File on Neon Console
 
-### Step 1: Login ke Railway Dashboard
-1. Go to https://railway.app
-2. Login dengan GitHub account
-3. Pilih project PocketBizz
+### Step 1: Login ke Neon Console
+1. Go to https://console.neon.tech
+2. Login dengan account kau (email/password atau GitHub)
+3. Pilih project **PocketBizz** (atau nama project database kita)
 
-### Step 2: Open PostgreSQL Database Console
-1. Dalam Railway project, click pada **PostgreSQL** service
-2. Click tab **"Data"**
-3. Click button **"Query"** (atas kanan)
+### Step 2: Open SQL Editor
+1. Dalam project dashboard, click **"SQL Editor"** di sidebar kiri
+2. Atau click button **"Query"** kat atas page
+3. SQL editor akan terbuka
 
 ### Step 3: Copy & Paste SQL Seed File
 1. Open file: `migrations/seed-subscription-plans.sql`
@@ -23,7 +23,9 @@
 4. Click **"Run Query"** button
 
 ### Step 4: Verify Data Inserted
-Run ni untuk check:
+
+Run query ni untuk check:
+
 ```sql
 SELECT 
   name,
@@ -37,14 +39,24 @@ ORDER BY sort_order;
 ```
 
 Patutnya nampak 3 plans:
+
 - Basic: RM49.00, 1 user, 50 products
 - Pro: RM99.00, 3 users, 200 products
 - Premium: RM199.00, unlimited
 
 ### Step 5: Refresh Pricing Page
-- Go to https://pocketbizz-production.up.railway.app/pricing
+
+- Go to your production URL: `https://pocketbizz-production.up.railway.app/pricing`
 - Hard refresh (Ctrl + F5)
 - Harga semua patutnya keluar sekarang! ✅
+
+**Neon Database Details:**
+
+```
+Host: ep-morning-thunder-a1qym7wn-pooler.ap-southeast-1.aws.neon.tech
+Database: neondb
+Region: Singapore (ap-southeast-1)
+```
 
 ---
 
