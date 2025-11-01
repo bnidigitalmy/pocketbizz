@@ -517,6 +517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create ToyyibPay bill for subscription payment
   app.post("/api/subscription/create-bill", requireAuth, async (req, res) => {
     try {
+      console.log("[CREATE-BILL] Request body:", JSON.stringify(req.body));
+      
       const schema = z.object({
         planId: z.string(),
         durationMonths: z.number().refine(val => [3, 6, 12].includes(val), {
@@ -526,12 +528,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { planId, durationMonths, promoCode } = schema.parse(req.body);
+      console.log("[CREATE-BILL] Parsed data - planId:", planId, "duration:", durationMonths);
       
       // Get subscription plan
+      console.log("[CREATE-BILL] Fetching plan with ID:", planId);
       const plan = await storage.getSubscriptionPlanById(planId);
       if (!plan) {
+        console.log("[CREATE-BILL] Plan not found for ID:", planId);
         return res.status(404).json({ message: "Subscription plan not found" });
       }
+      console.log("[CREATE-BILL] Plan found:", plan.displayName);
       
       // Calculate base price for duration
       const monthlyPrice = parseFloat(plan.monthlyPrice);
@@ -657,7 +663,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } : null,
       });
     } catch (error: any) {
-      console.error("Create bill error:", error);
+      console.error("[CREATE-BILL] Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        issues: error.issues // Zod validation errors
+      });
       res.status(400).json({ message: error.message || "Failed to create payment bill" });
     }
   });
