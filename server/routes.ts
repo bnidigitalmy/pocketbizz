@@ -607,10 +607,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
       
       // Create bill
-      // Get base URL from environment (Railway or Replit)
-      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      // Get base URL - use PUBLIC_URL env var or fallback to production domain
+      const baseUrl = process.env.PUBLIC_URL || 'https://pocketbizz-production-f02a.up.railway.app';
+      console.log('[CREATE-BILL] Using callback base URL:', baseUrl);
       
       const billParams = {
         billName: `${plan.displayName} - ${durationMonths} months`,
@@ -788,10 +787,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
       
       // Create bill
-      // Get base URL from environment (Railway or Replit)
-      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      // Get base URL - use PUBLIC_URL env var or fallback to production domain
+      const baseUrl = process.env.PUBLIC_URL || 'https://pocketbizz-production-f02a.up.railway.app';
+      console.log('[RENEW-BILL] Using callback base URL:', baseUrl);
       
       const billParams = {
         billName: `${plan.displayName} Renewal - ${durationMonths} months`,
