@@ -70,9 +70,9 @@ export default function Pricing() {
         checkoutParams.set('renew', 'true');
       }
       
-      // Redirect to login with return URL
+      // Redirect to login with return URL - use window.location for hard redirect
       const returnUrl = `/checkout?${checkoutParams.toString()}`;
-      setLocation(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      window.location.href = `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
       return;
     }
     
