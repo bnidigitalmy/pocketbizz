@@ -195,16 +195,37 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       {/* Header / Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-lg sm:text-xl font-bold">PocketBizz</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+            <button 
+              onClick={() => navigate("/pricing")}
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
+              Harga
+            </button>
+            <button 
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
+              Features
+            </button>
+            <button 
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
+              Demo
+            </button>
+          </nav>
+          
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-9"
+              className="h-9 hidden sm:flex"
               onClick={() => navigate("/auth/login")}
               data-testid="link-login"
             >
@@ -223,8 +244,9 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-24">
-        <div className="grid gap-8 md:gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 lg:py-28">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid gap-8 md:gap-12 lg:grid-cols-2 lg:gap-16 items-center">
           <div className="space-y-4 sm:space-y-6">
             <div className="space-y-3 sm:space-y-4">
               <Badge className="text-xs sm:text-sm gap-1.5 inline-flex" data-testid="badge-early-bird">
@@ -245,17 +267,17 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 size="lg"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto min-h-[56px] sm:min-h-[48px] text-base sm:text-lg px-8 font-semibold"
                 onClick={() => navigate("/auth/register")}
                 data-testid="button-start-trial"
               >
                 Mula Percuma 7 Hari
-                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto min-h-[56px] sm:min-h-[48px] text-base sm:text-lg px-8"
                 onClick={() => navigate("/pricing")}
                 data-testid="button-view-pricing"
               >
@@ -287,12 +309,14 @@ export default function Landing() {
               className="relative rounded-2xl sm:rounded-3xl shadow-2xl w-full"
             />
           </div>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
-        <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4 max-w-3xl mx-auto px-4">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4 max-w-3xl mx-auto">
           <Badge variant="outline" className="text-xs sm:text-sm">
             Features Lengkap
           </Badge>
@@ -345,10 +369,12 @@ export default function Landing() {
             </Card>
           ))}
         </div>
+        </div>
       </section>
 
       {/* Highlighted Features Section - NEW FEATURES */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 sm:mb-12 space-y-3 md:space-y-4 max-w-3xl mx-auto px-4">
           <Badge className="text-xs sm:text-sm gap-1.5">
             <Sparkles className="h-3 w-3" />
@@ -484,10 +510,12 @@ export default function Landing() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto">
         <div className="grid gap-8 lg:gap-12 lg:grid-cols-2 items-center">
           <div className="order-2 lg:order-1">
             <img
@@ -538,10 +566,12 @@ export default function Landing() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Pricing Preview Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 bg-muted/50">
+        <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4 max-w-3xl mx-auto px-4">
           <Badge variant="outline" className="text-xs sm:text-sm">
             Harga Berpatutan
@@ -620,10 +650,12 @@ export default function Landing() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
+        </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 sm:mb-12 md:mb-16 space-y-3 md:space-y-4 max-w-3xl mx-auto px-4">
           <Badge variant="outline" className="text-xs sm:text-sm">
             FAQ
@@ -645,10 +677,12 @@ export default function Landing() {
             </Card>
           ))}
         </div>
+        </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="container px-4 sm:px-6 lg:px-8 mb-12 sm:mb-16">
+      <section className="w-full px-4 sm:px-6 lg:px-8 mb-12 sm:mb-16">
+        <div className="max-w-7xl mx-auto">
         <div className="py-12 sm:py-16 md:py-20 bg-primary text-primary-foreground rounded-2xl sm:rounded-3xl">
           <div className="text-center space-y-6 sm:space-y-8 max-w-3xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl leading-tight">
@@ -680,10 +714,12 @@ export default function Landing() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Footer */}
-      <footer className="container px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t">
+      <footer className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t">
+        <div className="max-w-7xl mx-auto">
         <div className="flex flex-col gap-6 sm:gap-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
@@ -701,6 +737,7 @@ export default function Landing() {
             <p>© 2025 PocketBizz. Hak Cipta Terpelihara.</p>
             <p className="font-medium">BNI Digital Enterprise (TR0323644-V)</p>
           </div>
+        </div>
         </div>
       </footer>
     </div>
