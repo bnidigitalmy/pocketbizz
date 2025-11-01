@@ -33,6 +33,12 @@ export default function Pricing() {
   const urlParams = new URLSearchParams(window.location.search);
   const isRenewal = urlParams.get('renew') === 'true';
   
+  // Check if user is logged in
+  const { data: userData } = useQuery<{ user: any }>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+  
   const { data: plans, isLoading } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/subscription-plans"],
   });
@@ -45,7 +51,26 @@ export default function Pricing() {
   const earlyBirdDiscount = 70; // 70% off early bird discount
   
   const handleSelectPlan = (plan: SubscriptionPlan) => {
-    // Navigate to checkout with plan details and renewal flag
+    // Check if user is logged in
+    if (!userData?.user) {
+      // Save intended checkout URL to redirect after login
+      const checkoutParams = new URLSearchParams({
+        planId: plan.id,
+        planName: plan.name,
+        duration: selectedDuration.toString(),
+      });
+      
+      if (isRenewal) {
+        checkoutParams.set('renew', 'true');
+      }
+      
+      // Redirect to login with return URL
+      const returnUrl = `/checkout?${checkoutParams.toString()}`;
+      setLocation(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+    
+    // User is logged in, proceed to checkout
     const params = new URLSearchParams({
       planId: plan.id,
       planName: plan.name,

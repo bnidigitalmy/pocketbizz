@@ -14,6 +14,10 @@ export default function AuthLogin() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Check for return URL in query params
+  const params = new URLSearchParams(window.location.search);
+  const returnUrl = params.get('returnUrl') || '/dashboard';
 
   const loginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
@@ -23,9 +27,10 @@ export default function AuthLogin() {
     onSuccess: () => {
       toast({
         title: "Login berjaya!",
-        description: "Anda akan dibawa ke dashboard.",
+        description: returnUrl !== '/dashboard' ? "Anda akan dibawa ke halaman checkout." : "Anda akan dibawa ke dashboard.",
       });
-      navigate("/dashboard");
+      // Redirect to return URL or dashboard
+      navigate(returnUrl);
     },
     onError: (error: any) => {
       toast({
