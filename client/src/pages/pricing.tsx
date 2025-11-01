@@ -34,7 +34,7 @@ export default function Pricing() {
   const isRenewal = urlParams.get('renew') === 'true';
   
   // Check if user is logged in
-  const { data: userData } = useQuery<{ user: any }>({
+  const { data: userData, isError: isAuthError } = useQuery<{ user: any }>({
     queryKey: ["/api/auth/me"],
     retry: false,
   });
@@ -51,8 +51,11 @@ export default function Pricing() {
   const earlyBirdDiscount = 70; // 70% off early bird discount
   
   const handleSelectPlan = (plan: SubscriptionPlan) => {
-    // Check if user is logged in
-    if (!userData?.user) {
+    // Check if user is logged in - redirect to login if not authenticated
+    const isLoggedIn = userData?.user && !isAuthError;
+    
+    if (!isLoggedIn) {
+      console.log('User not logged in, redirecting to login page');
       // Save intended checkout URL to redirect after login
       const checkoutParams = new URLSearchParams({
         planId: plan.id,
