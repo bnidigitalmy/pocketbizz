@@ -607,6 +607,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
       
       // Create bill
+      // Get base URL from environment (Railway or Replit)
+      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      
       const billParams = {
         billName: `${plan.displayName} - ${durationMonths} months`,
         billDescription: `PocketBizz ${plan.displayName} subscription for ${durationMonths} months`,
@@ -615,8 +620,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billEmail: user.email,
         billPhone: user.phone || '0000000000',
         billExternalReferenceNo: orderRef,
-        billReturnUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/payment/callback`,
-        billCallbackUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/subscription/webhook`,
+        billReturnUrl: `${baseUrl}/payment/callback`,
+        billCallbackUrl: `${baseUrl}/api/subscription/webhook`,
         billExpiryDays: 7, // Bill expires in 7 days
       };
       
@@ -783,6 +788,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { createBill, getBillUrl, rmToCents } = await import('./toyyibpay');
       
       // Create bill
+      // Get base URL from environment (Railway or Replit)
+      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      
       const billParams = {
         billName: `${plan.displayName} Renewal - ${durationMonths} months`,
         billDescription: `PocketBizz ${plan.displayName} subscription renewal for ${durationMonths} months`,
@@ -791,8 +801,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billEmail: user.email,
         billPhone: user.phone || '0000000000',
         billExternalReferenceNo: orderRef,
-        billReturnUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/payment/callback`,
-        billCallbackUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/subscription/webhook`,
+        billReturnUrl: `${baseUrl}/payment/callback`,
+        billCallbackUrl: `${baseUrl}/api/subscription/webhook`,
         billExpiryDays: 7,
       };
       
