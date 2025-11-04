@@ -44,6 +44,12 @@ Thumbs.db
 *.sqlite
 *.db
 
+# Backups (contain sensitive data)
+backups/
+*.sql
+*.sql.gz
+*.dump
+
 # Testing
 coverage
 .nyc_output
