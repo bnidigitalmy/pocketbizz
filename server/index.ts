@@ -15,9 +15,6 @@ if (process.env.SENTRY_DSN) {
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || "development",
     integrations: [
-      // Tracing
-      new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.Express({ app: express() }),
       // Profiling
       nodeProfilingIntegration(),
     ],
