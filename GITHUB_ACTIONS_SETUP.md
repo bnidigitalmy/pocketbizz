@@ -168,6 +168,13 @@ head -n 20 database-backup-XXX.sql
 ### Error: "permission denied"
 **Solution:** DATABASE_URL user doesn't have backup permissions. Use owner/admin role.
 
+### Error: "server version mismatch"
+**Example:** `server version: 17.5; pg_dump version: 16.10`
+**Solution:** Workflow has been updated to install PostgreSQL 17 client to match Neon database version. If you see this error, pull the latest workflow file from main branch.
+
+### Error: "fatal: No url found for submodule"
+**Solution:** This is a harmless warning during cleanup. Ignore it or remove any .gitmodules file if present.
+
 ### Workflow doesn't run automatically
 **Solution:** 
 1. Check if Actions are enabled: Settings → Actions → General
