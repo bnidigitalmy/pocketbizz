@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-import ConnectPgSimple from "connect-pg-simple";
-import { Pool } from "pg";
+import { RedisStore } from "connect-redis";
+import { redis } from "./redis";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -12,19 +12,17 @@ app.use(express.urlencoded({ extended: false }));
 // Trust proxy for Replit deployment (required for secure cookies behind proxy)
 app.set('trust proxy', 1);
 
-// PostgreSQL session store
-const PgSession = ConnectPgSimple(session);
-const pgPool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+// Redis session store
+const redisStore = new RedisStore({
+  client: redis,
+  prefix: "pocketbizz:sess:",
+  ttl: 30 * 24 * 60 * 60, // 30 days in seconds
 });
 
-// Session middleware
+// Session middleware with Redis
 app.use(
   session({
-    store: new PgSession({
-      pool: pgPool,
-      createTableIfMissing: true,
-    }),
+    store: redisStore,
     secret: process.env.SESSION_SECRET || "pocketbizz-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,

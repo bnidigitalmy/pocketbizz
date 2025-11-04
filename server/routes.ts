@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from "express-rate-limit";
+import { RedisStore as RateLimitRedisStore } from "rate-limit-redis";
+import { redis } from "./redis";
 import { storage } from "./storage";
 import { db } from "./db";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
@@ -38,6 +40,11 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful logins
+  store: new RateLimitRedisStore({
+    // @ts-expect-error - Known issue with rate-limit-redis types
+    client: redis,
+    prefix: "pocketbizz:rl:auth:",
+  }),
 });
 
 // Security: Password complexity schema
