@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Initialize Sentry (must be first!)
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -40,4 +41,8 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary level="app">
+    <App />
+  </ErrorBoundary>
+);

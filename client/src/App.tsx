@@ -13,6 +13,7 @@ import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { RenewalReminder } from "@/components/renewal-reminder";
 import { MotionWrapper } from "@/components/motion-wrapper";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
@@ -70,39 +71,43 @@ function PublicRouter() {
 }
 
 function AppRouter() {
+  const [, navigate] = useLocation();
+  
   return (
     <MotionWrapper>
-      <Switch>
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/products" component={Products} />
-        <Route path="/production" component={Production} />
-        <Route path="/finished-products" component={FinishedProducts} />
-        <Route path="/stock" component={Stock} />
-        <Route path="/shopping-list" component={ShoppingList} />
-        <Route path="/purchase-orders" component={PurchaseOrders} />
-        <Route path="/suppliers" component={Suppliers} />
-        <Route path="/vendors" component={Vendors} />
-        <Route path="/deliveries" component={Deliveries} />
-        <Route path="/sales" component={Sales} />
-        <Route path="/pos" component={POSPage} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/broadcast" component={Broadcast} />
-        <Route path="/vouchers" component={Vouchers} />
-        <Route path="/bookings" component={Bookings} />
-        <Route path="/expenses" component={Expenses} />
-        <Route path="/claims" component={Claims} />
-        <Route path="/vendor-claims" component={VendorClaims} />
-        <Route path="/reports" component={Reports} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/drive-sync" component={DriveSync} />
-        <Route path="/pricing-tiers" component={PricingTiers} />
-        <Route path="/resellers" component={Resellers} />
-        <Route path="/reseller-transfer" component={ResellerTransfer} />
-        <Route path="/reseller-performance" component={ResellerPerformance} />
-        <Route path="/admin" component={AdminDashboard} />
-        <Route path="/admin/users" component={AdminUsers} />
-        <Route component={NotFound} />
-      </Switch>
+      <ErrorBoundary level="page" onReset={() => navigate('/dashboard')}>
+        <Switch>
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/products" component={Products} />
+          <Route path="/production" component={Production} />
+          <Route path="/finished-products" component={FinishedProducts} />
+          <Route path="/stock" component={Stock} />
+          <Route path="/shopping-list" component={ShoppingList} />
+          <Route path="/purchase-orders" component={PurchaseOrders} />
+          <Route path="/suppliers" component={Suppliers} />
+          <Route path="/vendors" component={Vendors} />
+          <Route path="/deliveries" component={Deliveries} />
+          <Route path="/sales" component={Sales} />
+          <Route path="/pos" component={POSPage} />
+          <Route path="/customers" component={Customers} />
+          <Route path="/broadcast" component={Broadcast} />
+          <Route path="/vouchers" component={Vouchers} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/expenses" component={Expenses} />
+          <Route path="/claims" component={Claims} />
+          <Route path="/vendor-claims" component={VendorClaims} />
+          <Route path="/reports" component={Reports} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/drive-sync" component={DriveSync} />
+          <Route path="/pricing-tiers" component={PricingTiers} />
+          <Route path="/resellers" component={Resellers} />
+          <Route path="/reseller-transfer" component={ResellerTransfer} />
+          <Route path="/reseller-performance" component={ResellerPerformance} />
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/users" component={AdminUsers} />
+          <Route component={NotFound} />
+        </Switch>
+      </ErrorBoundary>
     </MotionWrapper>
   );
 }
