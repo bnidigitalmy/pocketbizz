@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { RedisStore } from "connect-redis";
+import ConnectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
 import { redis } from "./redis";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -12,17 +14,34 @@ app.use(express.urlencoded({ extended: false }));
 // Trust proxy for Replit deployment (required for secure cookies behind proxy)
 app.set('trust proxy', 1);
 
-// Redis session store
-const redisStore = new RedisStore({
-  client: redis,
-  prefix: "pocketbizz:sess:",
-  ttl: 30 * 24 * 60 * 60, // 30 days in seconds
-});
+// Session store configuration (Redis if available, PostgreSQL as fallback)
+let sessionStore;
 
-// Session middleware with Redis
+if (redis) {
+  // Use Redis for sessions (preferred - faster and persistent)
+  sessionStore = new RedisStore({
+    client: redis,
+    prefix: "pocketbizz:sess:",
+    ttl: 30 * 24 * 60 * 60, // 30 days in seconds
+  });
+  log('✓ Using Redis for session storage');
+} else {
+  // Fallback to PostgreSQL for sessions (slower but reliable)
+  const PgSession = ConnectPgSimple(session);
+  const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+  sessionStore = new PgSession({
+    pool: pgPool,
+    createTableIfMissing: true,
+  });
+  log('⚠️  Using PostgreSQL for session storage (Redis not configured)');
+}
+
+// Session middleware
 app.use(
   session({
-    store: redisStore,
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "pocketbizz-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,

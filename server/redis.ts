@@ -1,8 +1,17 @@
 import { createClient } from 'redis';
 
+// Check if Redis URL is configured
+const REDIS_URL = process.env.REDIS_URL;
+
+if (!REDIS_URL) {
+  console.warn('⚠️  REDIS_URL not configured - Redis features disabled');
+  console.warn('   Sessions will use PostgreSQL (slower but functional)');
+  console.warn('   Add Redis database in Railway to enable Redis features');
+}
+
 // Create Redis client with error handling and reconnection logic
-export const redis = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
+export const redis = REDIS_URL ? createClient({
+  url: REDIS_URL,
   socket: {
     reconnectStrategy: (retries) => {
       // Retry connection with exponential backoff
@@ -15,42 +24,46 @@ export const redis = createClient({
       return delay;
     },
   },
-});
+}) : null;
 
-// Handle Redis connection events
-redis.on('error', (err) => {
-  console.error('Redis Client Error:', err);
-});
+// Only setup event handlers if Redis is configured
+if (redis) {
+  // Handle Redis connection events
+  redis.on('error', (err) => {
+    console.error('Redis Client Error:', err);
+  });
 
-redis.on('connect', () => {
-  console.log('✓ Redis connected successfully');
-});
+  redis.on('connect', () => {
+    console.log('✓ Redis connected successfully');
+  });
 
-redis.on('reconnecting', () => {
-  console.log('Redis: Reconnecting...');
-});
+  redis.on('reconnecting', () => {
+    console.log('Redis: Reconnecting...');
+  });
 
-redis.on('ready', () => {
-  console.log('✓ Redis client ready');
-});
+  redis.on('ready', () => {
+    console.log('✓ Redis client ready');
+  });
 
-// Connect to Redis on module load
-(async () => {
-  try {
-    await redis.connect();
-  } catch (error) {
-    console.error('Failed to connect to Redis:', error);
-    // Don't crash the app if Redis is not available in development
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
+  // Connect to Redis on module load
+  (async () => {
+    try {
+      await redis.connect();
+    } catch (error) {
+      console.error('Failed to connect to Redis:', error);
+      console.error('Application will continue without Redis (using PostgreSQL for sessions)');
     }
-  }
-})();
+  })();
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await redis.quit();
-  process.exit(0);
-});
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    try {
+      await redis.quit();
+    } catch (err) {
+      // Ignore quit errors
+    }
+    process.exit(0);
+  });
+}
 
 export default redis;
