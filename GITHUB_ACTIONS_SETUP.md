@@ -170,7 +170,7 @@ head -n 20 database-backup-XXX.sql
 
 ### Error: "server version mismatch"
 **Example:** `server version: 17.5; pg_dump version: 16.10`
-**Solution:** Workflow has been updated to install PostgreSQL 17 client to match Neon database version. If you see this error, pull the latest workflow file from main branch.
+**Solution:** Workflow has been updated to install PostgreSQL 17 and use the binaries explicitly via full path (`/usr/lib/postgresql/17/bin/pg_dump`). If you see this error, pull the latest workflow file from main branch (commit `35b2658` or later).
 
 ### Error: "fatal: No url found for submodule"
 **Solution:** This is a harmless warning during cleanup. Ignore it or remove any .gitmodules file if present.
