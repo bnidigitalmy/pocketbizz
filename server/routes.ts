@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { db } from "./db";
+import { cache } from "./cache";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
@@ -1236,7 +1237,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products
   app.get("/api/products", requireAuth, async (req, res) => {
     try {
+      const cacheKey = cache.KEYS.PRODUCTS_LIST + `:${req.user!.id}`;
+      
+      // Try to get from cache first
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
+      // Cache miss - fetch from database
       const products = await storage.getProducts(req.user!.id);
+      
+      // Store in cache for 5 minutes
+      await cache.set(cacheKey, products, cache.TTL.MEDIUM);
+      
       res.json(products);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
@@ -1337,6 +1351,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         recipeItemsWithCost
       );
+      
+      // Invalidate products cache
+      await cache.del(`${cache.KEYS.PRODUCTS_LIST}:${req.user!.id}`);
+      await cache.del(`${cache.KEYS.DASHBOARD_STATS}:${req.user!.id}`);
       
       res.json(product);
     } catch (error) {
@@ -1459,6 +1477,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteProduct(req.user!.id, id);
+      
+      // Invalidate products cache
+      await cache.del(`${cache.KEYS.PRODUCTS_LIST}:${req.user!.id}`);
+      await cache.del(`${cache.KEYS.DASHBOARD_STATS}:${req.user!.id}`);
+      
       res.json({ success: true });
     } catch (error) {
       console.error("Product deletion error:", error);
@@ -2370,7 +2393,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
+      const cacheKey = cache.KEYS.DASHBOARD_STATS + `:${req.user!.id}`;
+      
+      // Try to get from cache first
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
+      // Cache miss - fetch from database
       const stats = await storage.getDashboardStats(req.user!.id);
+      
+      // Store in cache for 2 minutes (dashboard data changes frequently)
+      await cache.set(cacheKey, stats, cache.TTL.SHORT * 2); // 2 minutes
+      
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
