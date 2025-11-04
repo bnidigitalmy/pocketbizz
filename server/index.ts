@@ -17,7 +17,7 @@ if (process.env.SENTRY_DSN) {
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || "development",
     integrations: [
-      // Express integration
+      // Express integration for automatic error tracking
       Sentry.expressIntegration({ app }),
       // Profiling
       nodeProfilingIntegration(),
@@ -27,9 +27,6 @@ if (process.env.SENTRY_DSN) {
     // Profiling
     profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   });
-  
-  // Sentry request handler (must be first middleware!)
-  app.use(Sentry.setupExpressErrorHandler(app));
   
   log('✓ Sentry error monitoring initialized');
 } else {
