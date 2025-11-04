@@ -1362,7 +1362,7 @@ export class DatabaseStorage implements IStorage {
     // Current week sales (from POS + deliveries claimed)
     const currentWeekSales = await db.select({
       pos: sql<string>`COALESCE(SUM(CASE WHEN ${sales.saleDate} >= ${currentWeekStart.toISOString()} AND ${sales.saleDate} <= ${currentWeekEnd.toISOString()} THEN ${sales.totalAmount} ELSE 0 END), 0)`,
-      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${currentWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${currentWeekEnd.toISOString()} AND ${deliveries.status} = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${currentWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${currentWeekEnd.toISOString()} AND ${deliveries.status}::text = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
     }).from(sales)
       .fullJoin(deliveries, sql`1=1`)
       .where(and(eq(sales.userId, userId), eq(deliveries.userId, userId)));
@@ -1370,7 +1370,7 @@ export class DatabaseStorage implements IStorage {
     // Last week sales
     const lastWeekSales = await db.select({
       pos: sql<string>`COALESCE(SUM(CASE WHEN ${sales.saleDate} >= ${lastWeekStart.toISOString()} AND ${sales.saleDate} <= ${lastWeekEnd.toISOString()} THEN ${sales.totalAmount} ELSE 0 END), 0)`,
-      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${lastWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${lastWeekEnd.toISOString()} AND ${deliveries.status} = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
+      deliveries: sql<string>`COALESCE(SUM(CASE WHEN ${deliveries.deliveryDate} >= ${lastWeekStart.toISOString()} AND ${deliveries.deliveryDate} <= ${lastWeekEnd.toISOString()} AND ${deliveries.status}::text = 'claimed' THEN ${deliveries.totalAmount} ELSE 0 END), 0)`,
     }).from(sales)
       .fullJoin(deliveries, sql`1=1`)
       .where(and(eq(sales.userId, userId), eq(deliveries.userId, userId)));
@@ -1566,8 +1566,8 @@ export class DatabaseStorage implements IStorage {
         const deliveriesData = await db.select({
           totalDeliveries: sql<number>`COUNT(*)`,
           totalAmount: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
-          settledCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus} = 'settled' THEN 1 END)`,
-          pendingCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus} = 'pending' THEN 1 END)`,
+          settledCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus}::text = 'settled' THEN 1 END)`,
+          pendingCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus}::text = 'pending' THEN 1 END)`,
         })
         .from(deliveries)
         .where(and(eq(deliveries.vendorId, vendor.id), eq(deliveries.userId, userId)));
@@ -1580,7 +1580,7 @@ export class DatabaseStorage implements IStorage {
         // Calculate average days to payment for settled deliveries
         const settledDeliveries = await db.select({
           deliveryDate: deliveries.deliveryDate,
-          updatedAt: deliveries.updatedAt,
+          createdAt: deliveries.createdAt,
         })
         .from(deliveries)
         .where(
@@ -1595,7 +1595,7 @@ export class DatabaseStorage implements IStorage {
         if (settledDeliveries.length > 0) {
           const totalDays = settledDeliveries.reduce((sum, d) => {
             const deliveryDate = new Date(d.deliveryDate);
-            const paidDate = new Date(d.updatedAt);
+            const paidDate = new Date(d.createdAt);
             const days = Math.ceil((paidDate.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
             return sum + days;
           }, 0);
@@ -1634,7 +1634,7 @@ export class DatabaseStorage implements IStorage {
         const transfersData = await db.select({
           totalTransfers: sql<number>`COUNT(*)`,
           totalAmount: sql<string>`COALESCE(SUM(${resellerTransfers.totalAmount}), 0)`,
-          paidCount: sql<number>`COUNT(CASE WHEN ${resellerTransfers.paymentStatus} = 'paid' THEN 1 END)`,
+          paidCount: sql<number>`COUNT(CASE WHEN ${resellerTransfers.paymentStatus}::text = 'paid' THEN 1 END)`,
         })
         .from(resellerTransfers)
         .where(and(eq(resellerTransfers.resellerId, reseller.id), eq(resellerTransfers.userId, userId)));
