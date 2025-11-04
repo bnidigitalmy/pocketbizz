@@ -35,7 +35,8 @@ jobs:
           BACKUP_FILE="pocketbizz_weekly_${TIMESTAMP}.sql"
           
           echo "Creating backup: ${BACKUP_FILE}"
-          pg_dump "$DATABASE_URL" > "${BACKUP_FILE}"
+          # Use pg_dump from PostgreSQL 17 explicitly
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" > "${BACKUP_FILE}"
           
           echo "Compressing backup..."
           gzip "${BACKUP_FILE}"
@@ -55,8 +56,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "Verifying database connection..."
-          psql "$DATABASE_URL" -c "SELECT COUNT(*) as user_count FROM users;"
-          psql "$DATABASE_URL" -c "SELECT COUNT(*) as product_count FROM products;"
+          # Use psql from PostgreSQL 17 explicitly
+          /usr/lib/postgresql/17/bin/psql "$DATABASE_URL" -c "SELECT COUNT(*) as user_count FROM users;"
+          /usr/lib/postgresql/17/bin/psql "$DATABASE_URL" -c "SELECT COUNT(*) as product_count FROM products;"
           echo "✅ Database verification completed"
 
       - name: Notify on failure
