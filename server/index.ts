@@ -11,6 +11,41 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Validate environment and connectivity checks before starting the server
+async function validateEnvironment(): Promise<void> {
+  const missing: string[] = [];
+  if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');
+  if (!process.env.SESSION_SECRET) missing.push('SESSION_SECRET');
+
+  if (missing.length) {
+    throw new Error(`Missing required env vars: ${missing.join(', ')}`);
+  }
+
+  // quick DB connectivity check
+  try {
+    const { Pool } = await import('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    await pool.query('SELECT 1');
+    await pool.end();
+    log('✓ Database reachable');
+  } catch (err: any) {
+    throw new Error(`Database connectivity check failed: ${err.message}`);
+  }
+
+  // test Redis if configured
+  if (process.env.REDIS_URL) {
+    try {
+      const { redis } = await import('./redis');
+      if (redis) {
+        await redis.ping();
+        log('✓ Redis reachable');
+      }
+    } catch (err: any) {
+      log(`⚠️  Redis connectivity check failed: ${err.message}`);
+    }
+  }
+}
+
 // Initialize Sentry (must be first!)
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -31,6 +66,11 @@ if (process.env.SENTRY_DSN) {
   log('✓ Sentry error monitoring initialized');
 } else {
   log('⚠️  Sentry DSN not configured - error monitoring disabled');
+}
+
+// Export helper for tests so they can import the app without starting the server
+export function setupTestApp() {
+  return app;
 }
 
 app.use(express.json());
@@ -110,8 +150,11 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+if (process.env.NODE_ENV !== 'test') {
+  (async () => {
+    // Validate env and connectivity before registering routes
+    await validateEnvironment();
+    const server = await registerRoutes(app);
 
   // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -143,4 +186,5 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
-})();
+  })();
+}
