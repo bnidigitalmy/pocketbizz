@@ -9,12 +9,16 @@ import { redis } from "./redis";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+const app = express();
+
 // Initialize Sentry (must be first!)
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || "development",
     integrations: [
+      // Express integration
+      Sentry.expressIntegration({ app }),
       // Profiling
       nodeProfilingIntegration(),
     ],
@@ -23,17 +27,13 @@ if (process.env.SENTRY_DSN) {
     // Profiling
     profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   });
+  
+  // Sentry request handler (must be first middleware!)
+  app.use(Sentry.setupExpressErrorHandler(app));
+  
   log('✓ Sentry error monitoring initialized');
 } else {
   log('⚠️  Sentry DSN not configured - error monitoring disabled');
-}
-
-const app = express();
-
-// Sentry request handler (must be first middleware!)
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
 }
 
 app.use(express.json());
@@ -116,11 +116,7 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // Sentry error handler (must be before other error handlers!)
-  if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.errorHandler());
-  }
-
+  // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
