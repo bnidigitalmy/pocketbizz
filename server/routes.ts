@@ -1,8 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from "express-rate-limit";
-import { RedisStore as RateLimitRedisStore } from "rate-limit-redis";
-import { redis } from "./redis";
 import { storage } from "./storage";
 import { db } from "./db";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
@@ -33,6 +31,8 @@ import bcrypt from "bcryptjs";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
 
 // Security: Auth rate limiter - prevent brute force attacks
+// Note: Using in-memory store for now. For distributed rate limiting across multiple instances,
+// consider using external store like Redis with compatible adapter (e.g., rate-limiter-flexible)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 login attempts per 15 minutes
@@ -40,11 +40,6 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful logins
-  store: new RateLimitRedisStore({
-    // @ts-expect-error - Known issue with rate-limit-redis types
-    client: redis,
-    prefix: "pocketbizz:rl:auth:",
-  }),
 });
 
 // Security: Password complexity schema
