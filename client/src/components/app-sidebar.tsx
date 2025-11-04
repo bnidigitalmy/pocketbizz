@@ -272,7 +272,12 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-2">
+        <a 
+          href="https://www.pocketbizz.my" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <Cake className="h-6 w-6 text-primary-foreground" />
           </div>
@@ -280,7 +285,7 @@ export function AppSidebar() {
             <h2 className="text-lg font-semibold">PocketBizz</h2>
             <p className="text-xs text-muted-foreground">Business Manager</p>
           </div>
-        </div>
+        </a>
       </SidebarHeader>
 
       <SidebarContent>

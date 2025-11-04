@@ -608,7 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create bill
       // Get base URL - use PUBLIC_URL env var or fallback to production domain
-      const baseUrl = process.env.PUBLIC_URL || 'https://pocketbizz-production-f02a.up.railway.app';
+      const baseUrl = process.env.PUBLIC_URL || 'https://app.pocketbizz.my';
       console.log('[CREATE-BILL] Using callback base URL:', baseUrl);
       
       const billParams = {
@@ -788,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create bill
       // Get base URL - use PUBLIC_URL env var or fallback to production domain
-      const baseUrl = process.env.PUBLIC_URL || 'https://pocketbizz-production-f02a.up.railway.app';
+      const baseUrl = process.env.PUBLIC_URL || 'https://app.pocketbizz.my';
       console.log('[RENEW-BILL] Using callback base URL:', baseUrl);
       
       const billParams = {
