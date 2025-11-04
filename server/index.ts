@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { RedisStore } from "connect-redis";
@@ -7,7 +9,36 @@ import { redis } from "./redis";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+// Initialize Sentry (must be first!)
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    integrations: [
+      // Tracing
+      new Sentry.Integrations.Http({ tracing: true }),
+      new Sentry.Integrations.Express({ app: express() }),
+      // Profiling
+      nodeProfilingIntegration(),
+    ],
+    // Performance Monitoring
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0, // 10% in prod, 100% in dev
+    // Profiling
+    profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+  log('✓ Sentry error monitoring initialized');
+} else {
+  log('⚠️  Sentry DSN not configured - error monitoring disabled');
+}
+
 const app = express();
+
+// Sentry request handler (must be first middleware!)
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -87,6 +118,11 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Sentry error handler (must be before other error handlers!)
+  if (process.env.SENTRY_DSN) {
+    app.use(Sentry.Handlers.errorHandler());
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

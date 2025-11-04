@@ -233,6 +233,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Load user for all requests
   app.use(loadUser);
   
+  // ==================== TEST ROUTES ====================
+  
+  // Test Sentry error tracking (only in development)
+  if (process.env.NODE_ENV !== "production") {
+    app.get("/api/test/sentry-error", (_req, _res) => {
+      throw new Error("Sentry test error - this is intentional!");
+    });
+  }
+  
   // ==================== AUTHENTICATION ROUTES ====================
   
   // Register new user
