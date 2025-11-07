@@ -2023,6 +2023,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stock Import/Export
+  app.get("/api/stock/export/excel", requireAuth, async (req, res) => {
+    try {
+      const items = await storage.getStockItems(req.user!.id);
+      
+      // Prepare data for Excel export
+      const exportData = items.map(item => ({
+        'Item Name': item.name,
+        'Unit': item.unit,
+        'Package Size': item.packageSize,
+        'Purchase Price (RM)': item.purchasePrice,
+        'Current Quantity': item.currentQuantity,
+        'Low Stock Threshold': item.lowStockThreshold,
+        'Notes': item.notes || '',
+      }));
+
+      res.json({
+        data: exportData,
+        filename: `stock-items-${new Date().toISOString().split('T')[0]}.xlsx`
+      });
+    } catch (error: any) {
+      console.error("Export error:", error);
+      res.status(500).json({ error: "Failed to export stock items", message: error.message });
+    }
+  });
+
+  app.post("/api/stock/import", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const importSchema = z.object({
+        items: z.array(z.object({
+          name: z.string().min(1, "Item name is required"),
+          unit: z.string().min(1, "Unit is required"),
+          packageSize: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+            message: "Package size must be a positive number",
+          }),
+          purchasePrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+            message: "Purchase price must be a positive number",
+          }),
+          currentQuantity: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, {
+            message: "Current quantity must be a non-negative number",
+          }),
+          lowStockThreshold: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, {
+            message: "Low stock threshold must be a non-negative number",
+          }),
+          notes: z.string().optional(),
+        })),
+        mode: z.enum(['replace', 'append']).default('append'),
+      });
+
+      const { items: importItems, mode } = importSchema.parse(req.body);
+
+      // If mode is 'replace', delete existing items first
+      if (mode === 'replace') {
+        const existingItems = await storage.getStockItems(req.user!.id);
+        for (const item of existingItems) {
+          await storage.deleteStockItem(req.user!.id, item.id);
+        }
+      }
+
+      // Import new items
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as any[],
+      };
+
+      for (let i = 0; i < importItems.length; i++) {
+        try {
+          const item = importItems[i];
+          
+          // Check for duplicates when appending
+          if (mode === 'append') {
+            const existingItems = await storage.getStockItems(req.user!.id);
+            const duplicate = existingItems.find(
+              existing => existing.name.toLowerCase() === item.name.toLowerCase()
+            );
+            
+            if (duplicate) {
+              results.errors.push({
+                row: i + 2, // +2 because row 1 is header and array is 0-indexed
+                name: item.name,
+                error: 'Item already exists (duplicate name)',
+              });
+              results.failed++;
+              continue;
+            }
+          }
+
+          await storage.createStockItem(req.user!.id, {
+            name: item.name,
+            unit: item.unit,
+            packageSize: item.packageSize,
+            purchasePrice: item.purchasePrice,
+            currentQuantity: item.currentQuantity,
+            lowStockThreshold: item.lowStockThreshold,
+            notes: item.notes || null,
+          });
+          
+          results.success++;
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push({
+            row: i + 2,
+            name: importItems[i].name,
+            error: error.message,
+          });
+        }
+      }
+
+      res.json({
+        message: `Import completed: ${results.success} success, ${results.failed} failed`,
+        results,
+      });
+    } catch (error: any) {
+      console.error("Import error:", error);
+      
+      // Check if it's a validation error
+      if (error.errors && Array.isArray(error.errors)) {
+        return res.status(400).json({ 
+          error: "Invalid import data format", 
+          details: error.errors 
+        });
+      }
+      
+      res.status(400).json({ 
+        error: "Failed to import stock items", 
+        message: error.message 
+      });
+    }
+  });
+
   // Categories
   app.get("/api/categories", requireAuth, async (req, res) => {
     try {
@@ -2642,11 +2773,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/monthly", requireProPlan, async (req, res) => {
+  app.get("/api/reports/monthly", requireAuth, async (req, res) => {
     try {
+      // Return empty data for trial users instead of 403
+      if (req.user!.isOnTrial) {
+        return res.json([]);
+      }
+      
       const monthlyData = await storage.getMonthlyData(req.user!.id);
       res.json(monthlyData);
     } catch (error) {
+      console.error("Monthly data error:", error);
       res.status(500).json({ error: "Failed to fetch monthly data" });
     }
   });
@@ -2655,10 +2792,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/analytics/product-performance", requireAuth, async (req, res) => {
     try {
       const analytics = await storage.getProductPerformanceAnalytics(req.user!.id);
-      res.json(analytics);
+      // Return empty structure if no data
+      res.json(analytics || { mostProfitable: [], fastestSelling: [], mostRejected: [], allProducts: [] });
     } catch (error) {
       console.error("Product performance error:", error);
-      res.status(500).json({ error: "Failed to fetch product performance analytics" });
+      // Return empty structure instead of 500 error
+      res.json({ mostProfitable: [], fastestSelling: [], mostRejected: [], allProducts: [] });
     }
   });
 
@@ -3288,6 +3427,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(item);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid shopping cart data", message: error.message });
+    }
+  });
+
+  // Bulk add to shopping cart (for stock page selection)
+  app.post("/api/shopping-cart/bulk", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        items: z.array(z.object({
+          stockItemId: z.string().uuid(),
+          shortageQty: z.string(),
+          notes: z.string().optional(),
+        })),
+      });
+
+      const { items } = schema.parse(req.body);
+      const userId = req.user!.id;
+
+      // Get stock items details
+      const stockItemIds = items.map(item => item.stockItemId);
+      const stockItemsData = await storage.getStockItemsByIds(stockItemIds, userId);
+
+      // Check for duplicates in cart
+      const existingCartItems = await storage.getShoppingCartItems(userId);
+      const existingStockIds = new Set(existingCartItems.map((item: any) => item.stockItemId));
+
+      const results = {
+        added: [] as string[],
+        skipped: [] as string[],
+        errors: [] as { stockItemId: string; error: string }[],
+      };
+
+      // Add items to cart
+      for (const item of items) {
+        try {
+          // Check if already in cart
+          if (existingStockIds.has(item.stockItemId)) {
+            results.skipped.push(item.stockItemId);
+            continue;
+          }
+
+          // Get stock item details
+          const stockItem = stockItemsData.find((s: any) => s.id === item.stockItemId);
+          if (!stockItem) {
+            results.errors.push({
+              stockItemId: item.stockItemId,
+              error: "Stock item not found",
+            });
+            continue;
+          }
+
+          // Insert into cart
+          await storage.addToShoppingCart(userId, {
+            stockItemId: item.stockItemId,
+            stockItemName: stockItem.name,
+            shortageQty: item.shortageQty,
+            unit: stockItem.unit,
+            notes: item.notes || null,
+            productionBatchId: null,
+            productName: null,
+          });
+
+          results.added.push(item.stockItemId);
+        } catch (error: any) {
+          results.errors.push({
+            stockItemId: item.stockItemId,
+            error: error.message,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${results.added.length} items added to shopping list`,
+        results,
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   });
 

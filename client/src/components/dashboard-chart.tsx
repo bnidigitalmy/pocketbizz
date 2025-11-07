@@ -18,12 +18,13 @@ const timeRangeLabels = {
 export function DashboardChart() {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
-  const { data: monthlyData = [], isLoading } = useQuery({
+  const { data: monthlyData = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ["/api/reports/monthly"],
+    retry: 1,
   });
 
   const chartData = useMemo(() => {
-    if (!monthlyData || monthlyData.length === 0) return [];
+    if (!Array.isArray(monthlyData) || monthlyData.length === 0) return [];
 
     // Filter by time range
     const now = new Date();

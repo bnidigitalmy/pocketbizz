@@ -230,8 +230,9 @@ export interface IStorage {
   // Stock Items (Warehouse Inventory)
   getStockItems(userId: string): Promise<StockItem[]>;
   getStockItem(userId: string, id: string): Promise<StockItem | undefined>;
+  getStockItemsByIds(ids: string[], userId: string): Promise<StockItem[]>;
   createStockItem(userId: string, item: InsertStockItem): Promise<StockItem>;
-  updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>): Promise<StockItem>;
+  updateStockItem(userId: string, id: string, item: Partial<InsertItem>): Promise<StockItem>;
   deleteStockItem(userId: string, id: string): Promise<void>;
   getLowStockItems(userId: string): Promise<StockItem[]>;
   
@@ -1483,20 +1484,31 @@ export class DatabaseStorage implements IStorage {
 
   // Advanced Analytics Methods
   async getProductPerformanceAnalytics(userId: string): Promise<any> {
-    // Get all products
-    const allProducts = await db.select().from(products)
-      .where(eq(products.userId, userId));
-    
-    // Calculate performance metrics for each product
-    const productMetrics = await Promise.all(
-      allProducts.map(async (product) => {
-        // Sales data (POS)
-        const salesData = await db.select({
-          totalQuantity: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
-          totalRevenue: sql<string>`COALESCE(SUM(${salesItems.quantity} * ${salesItems.unitPrice}), 0)`,
-        })
-        .from(salesItems)
-        .where(and(eq(salesItems.productId, product.id), eq(salesItems.userId, userId)));
+    try {
+      // Get all products
+      const allProducts = await db.select().from(products)
+        .where(eq(products.userId, userId));
+      
+      // If no products, return empty structure
+      if (!allProducts || allProducts.length === 0) {
+        return {
+          mostProfitable: [],
+          fastestSelling: [],
+          mostRejected: [],
+          allProducts: [],
+        };
+      }
+      
+      // Calculate performance metrics for each product
+      const productMetrics = await Promise.all(
+        allProducts.map(async (product) => {
+          // Sales data (POS)
+          const salesData = await db.select({
+            totalQuantity: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
+            totalRevenue: sql<string>`COALESCE(SUM(${salesItems.quantity} * ${salesItems.unitPrice}), 0)`,
+          })
+          .from(salesItems)
+          .where(and(eq(salesItems.productId, product.id), eq(salesItems.userId, userId)));
 
         // Delivery data (vendors)
         const deliveryData = await db.select({
@@ -1547,12 +1559,21 @@ export class DatabaseStorage implements IStorage {
       .sort((a, b) => parseFloat(b.rejectionRate) - parseFloat(a.rejectionRate))
       .slice(0, 5);
 
-    return {
-      mostProfitable,
-      fastestSelling,
-      mostRejected,
-      allProducts: productMetrics,
-    };
+      return {
+        mostProfitable,
+        fastestSelling,
+        mostRejected,
+        allProducts: productMetrics,
+      };
+    } catch (error) {
+      console.error("Product performance analytics error:", error);
+      return {
+        mostProfitable: [],
+        fastestSelling: [],
+        mostRejected: [],
+        allProducts: [],
+      };
+    }
   }
 
   async getVendorPerformanceLeaderboard(userId: string): Promise<any[]> {
@@ -2054,6 +2075,14 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select().from(stockItems)
       .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)));
     return result[0];
+  }
+
+  async getStockItemsByIds(ids: string[], userId: string): Promise<StockItem[]> {
+    return await db.select().from(stockItems)
+      .where(and(
+        inArray(stockItems.id, ids),
+        eq(stockItems.userId, userId)
+      ));
   }
   
   async createStockItem(userId: string, item: InsertStockItem): Promise<StockItem> {

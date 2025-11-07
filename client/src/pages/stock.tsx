@@ -1,7 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus, Upload, Download, FileSpreadsheet, ShoppingCart, X } from "lucide-react";
 import { SmartFilters } from "@/components/smart-filters";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useLocation } from "wouter";
+import { 
+  exportToExcel, 
+  exportToCSV, 
+  parseExcelFile, 
+  parseCSVFile, 
+  downloadSampleTemplate, 
+  validateImportData,
+  type StockItemImport 
+} from "@/lib/import-export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,12 +109,24 @@ interface StockItem {
 
 export default function Stock() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [replenishDialogOpen, setReplenishDialogOpen] = useState(false);
   const [replenishingItem, setReplenishingItem] = useState<StockItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Shopping List Selection State
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [addToCartDialogOpen, setAddToCartDialogOpen] = useState(false);
+  const [cartQuantities, setCartQuantities] = useState<Record<string, string>>({});
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
 
   const { data: stockItems = [], isLoading } = useQuery<StockItem[]>({
     queryKey: ["/api/stock"],
@@ -276,6 +299,7 @@ export default function Stock() {
     return parseFloat(item.currentQuantity) <= parseFloat(item.lowStockThreshold);
   };
 
+  // Filter stock items first (needed by selection handlers)
   const filteredStockItems = useMemo(() => {
     return stockItems.filter((item) => {
       if (filters.lowStock && !isLowStock(item)) return false;
@@ -293,17 +317,416 @@ export default function Stock() {
 
   const lowStockCount = stockItems.filter(isLowStock).length;
 
+  // Selection handlers for Shopping List
+  const handleSelectItem = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedItems(new Set(filteredStockItems.map(item => item.id)));
+  };
+
+  const handleSelectLowStock = () => {
+    const lowStockIds = filteredStockItems
+      .filter(item => isLowStock(item))
+      .map(item => item.id);
+    setSelectedItems(new Set(lowStockIds));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedItems(new Set());
+    setCartQuantities({});
+    setItemNotes({});
+  };
+
+  const handleRemoveFromSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+  };
+
+  const handleQuantityChange = (itemId: string, value: string) => {
+    setCartQuantities(prev => ({
+      ...prev,
+      [itemId]: value,
+    }));
+  };
+
+  const handleNotesChange = (itemId: string, value: string) => {
+    setItemNotes(prev => ({
+      ...prev,
+      [itemId]: value,
+    }));
+  };
+
+  // Calculate suggested quantity to bring stock above threshold
+  const suggestedQuantity = (item: StockItem): string => {
+    const current = parseFloat(item.currentQuantity);
+    const threshold = parseFloat(item.lowStockThreshold);
+    const packageSize = parseFloat(item.packageSize);
+    
+    if (current >= threshold) return packageSize.toString();
+    
+    // Calculate shortage
+    const shortage = threshold - current;
+    // Round up to nearest package
+    const packagesNeeded = Math.ceil(shortage / packageSize);
+    return (packagesNeeded * packageSize).toString();
+  };
+
+  // Get selected stock items
+  const selectedStockItems = useMemo(() => {
+    return filteredStockItems.filter(item => selectedItems.has(item.id));
+  }, [filteredStockItems, selectedItems]);
+
+  // Calculate estimated total cost
+  const estimatedTotal = useMemo(() => {
+    return selectedStockItems.reduce((total, item) => {
+      const qty = parseFloat(cartQuantities[item.id] || suggestedQuantity(item));
+      const pkgSize = parseFloat(item.packageSize);
+      const pkgPrice = parseFloat(item.purchasePrice);
+      const packagesNeeded = Math.ceil(qty / pkgSize);
+      return total + (packagesNeeded * pkgPrice);
+    }, 0);
+  }, [selectedStockItems, cartQuantities]);
+
+  // Count low stock items in selection
+  const selectedLowStockCount = useMemo(() => {
+    return selectedStockItems.filter(item => isLowStock(item)).length;
+  }, [selectedStockItems]);
+
+  // Bulk add to cart mutation
+  const bulkAddToCartMutation = useMutation({
+    mutationFn: async (data: { items: Array<{ stockItemId: string; shortageQty: string; notes?: string }> }) => {
+      const response = await apiRequest("POST", "/api/shopping-cart/bulk", data);
+      return await response.json();
+    },
+    onSuccess: (response: {
+      success: boolean;
+      message: string;
+      results: {
+        added: string[];
+        skipped: string[];
+        errors: Array<{ stockItemId: string; error: string }>;
+      };
+    }) => {
+      // Refresh shopping cart
+      queryClient.invalidateQueries({ queryKey: ["/api/shopping-cart"] });
+      
+      // Show success message
+      const { results } = response;
+      const successCount = results.added.length;
+      const skippedCount = results.skipped.length;
+      const errorCount = results.errors.length;
+
+      let description = `${successCount} item ditambah ke senarai belian`;
+      if (skippedCount > 0) {
+        description += `. ${skippedCount} item sudah dalam senarai`;
+      }
+      if (errorCount > 0) {
+        description += `. ${errorCount} item gagal ditambah`;
+      }
+
+      toast({
+        title: "Berjaya!",
+        description,
+        action: (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setLocation("/shopping-list")}
+          >
+            Lihat Senarai
+          </Button>
+        ),
+      });
+
+      // Clear selection and close dialog
+      handleClearSelection();
+      setAddToCartDialogOpen(false);
+      setSelectMode(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal menambah item ke senarai",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBulkAddToCart = () => {
+    const items = selectedStockItems.map(item => ({
+      stockItemId: item.id,
+      shortageQty: cartQuantities[item.id] || suggestedQuantity(item),
+      notes: itemNotes[item.id] || undefined,
+    }));
+
+    bulkAddToCartMutation.mutate({ items });
+  };
+
+  // Export functions
+  const handleExportExcel = async () => {
+    try {
+      // Fetch stock items directly from the state
+      if (!stockItems || stockItems.length === 0) {
+        toast({
+          title: "Tiada Data",
+          description: "Tiada item stok untuk dieksport.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Transform data to export format
+      const exportData = stockItems.map(item => ({
+        'Item Name': item.name,
+        'Unit': item.unit,
+        'Package Size': item.packageSize,
+        'Purchase Price (RM)': item.purchasePrice,
+        'Current Quantity': item.currentQuantity,
+        'Low Stock Threshold': item.lowStockThreshold,
+        'Notes': item.notes || '',
+      }));
+
+      const filename = `stock-items-${new Date().toISOString().split('T')[0]}.xlsx`;
+      exportToExcel(exportData, filename);
+      
+      toast({
+        title: "Berjaya!",
+        description: "Stok telah dieksport ke Excel.",
+      });
+    } catch (error: any) {
+      console.error("Export Excel error:", error);
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal mengeksport data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      // Fetch stock items directly from the state
+      if (!stockItems || stockItems.length === 0) {
+        toast({
+          title: "Tiada Data",
+          description: "Tiada item stok untuk dieksport.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Transform data to export format
+      const exportData = stockItems.map(item => ({
+        'Item Name': item.name,
+        'Unit': item.unit,
+        'Package Size': item.packageSize,
+        'Purchase Price (RM)': item.purchasePrice,
+        'Current Quantity': item.currentQuantity,
+        'Low Stock Threshold': item.lowStockThreshold,
+        'Notes': item.notes || '',
+      }));
+
+      const filename = `stock-items-${new Date().toISOString().split('T')[0]}.csv`;
+      exportToCSV(exportData, filename);
+      
+      toast({
+        title: "Berjaya!",
+        description: "Stok telah dieksport ke CSV.",
+      });
+    } catch (error: any) {
+      console.error("Export CSV error:", error);
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal mengeksport data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Import function
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+
+    try {
+      // Parse file based on type
+      let importData: StockItemImport[];
+      
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        importData = await parseExcelFile(file);
+      } else if (file.name.endsWith('.csv')) {
+        importData = await parseCSVFile(file);
+      } else {
+        throw new Error('Format fail tidak disokong. Sila gunakan .xlsx, .xls, atau .csv');
+      }
+
+      // Validate data
+      const validation = validateImportData(importData);
+      if (!validation.valid) {
+        throw new Error(`Ralat validasi:\n${validation.errors.join('\n')}`);
+      }
+
+      // Send to backend
+      const res = await apiRequest("POST", "/api/stock/import", {
+        items: importData,
+        mode: importMode,
+      });
+      const response = await res.json();
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stock/low"] });
+
+      toast({
+        title: "Berjaya!",
+        description: response.message,
+      });
+
+      if (response.results.errors.length > 0) {
+        // Show errors in a separate toast
+        const errorSummary = response.results.errors.slice(0, 5).map((err: any) => 
+          `Row ${err.row}: ${err.error}`
+        ).join('\n');
+        
+        toast({
+          title: "Beberapa item gagal diimport",
+          description: errorSummary + (response.results.errors.length > 5 ? `\n...dan ${response.results.errors.length - 5} lagi` : ''),
+          variant: "destructive",
+        });
+      }
+
+      setImportDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Ralat Import",
+        description: error.message || "Gagal mengimport data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-4 md:py-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Stok Gudang</h1>
-          <p className="text-muted-foreground">Urus bahan mentah dan inventori</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Stok Gudang</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Urus bahan mentah dan inventori</p>
         </div>
-        <Button onClick={handleAdd} data-testid="button-add-stock">
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Stok
-        </Button>
+        <div className="flex gap-2 flex-wrap w-full sm:w-auto">
+          {/* Selection Mode Toggle */}
+          <Button
+            variant={selectMode ? "default" : "outline"}
+            onClick={() => {
+              setSelectMode(!selectMode);
+              if (selectMode) handleClearSelection();
+            }}
+            data-testid="button-toggle-select-mode"
+            className="flex-1 sm:flex-none"
+            size="sm"
+          >
+            <ShoppingCart className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">{selectMode ? "Batal Pilihan" : "Pilih untuk Beli"}</span>
+            <span className="sm:hidden">{selectMode ? "Batal" : "Pilih"}</span>
+          </Button>
+
+          {/* Quick Select Buttons (shown when in select mode) */}
+          {selectMode && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectLowStock}
+                disabled={lowStockCount === 0}
+                data-testid="button-select-low-stock"
+                className="flex-1 sm:flex-none"
+              >
+                <AlertTriangle className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden md:inline">Pilih Stok Rendah ({lowStockCount})</span>
+                <span className="md:hidden">Rendah ({lowStockCount})</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                data-testid="button-select-all"
+              >
+                <span className="hidden sm:inline">Pilih Semua</span>
+                <span className="sm:hidden">Semua</span>
+              </Button>
+              
+              {selectedItems.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSelection}
+                  data-testid="button-clear-selection"
+                >
+                  <X className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Clear ({selectedItems.size})</span>
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* Divider when in select mode */}
+          {selectMode && <div className="hidden sm:block border-l h-8 self-center" />}
+
+          {/* Regular action buttons */}
+          {!selectMode && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setImportDialogOpen(true)}
+                data-testid="button-import-stock"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportExcel}
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportCSV}
+                data-testid="button-export-csv"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button onClick={handleAdd} data-testid="button-add-stock">
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Stok
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {lowStockCount > 0 && (
@@ -372,6 +795,17 @@ export default function Stock() {
               <Table>
               <TableHeader>
                 <TableRow>
+                  {selectMode && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedItems.size === filteredStockItems.length && filteredStockItems.length > 0}
+                        onCheckedChange={(checked) => 
+                          checked ? handleSelectAll() : handleClearSelection()
+                        }
+                        data-testid="checkbox-select-all"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Nama Bahan</TableHead>
                   <TableHead>Pakej</TableHead>
                   <TableHead className="text-right">Kuantiti</TableHead>
@@ -387,6 +821,15 @@ export default function Stock() {
                   const unitPrice = parseFloat(item.purchasePrice) / parseFloat(item.packageSize);
                   return (
                     <TableRow key={item.id} data-testid={`row-stock-${item.id}`}>
+                      {selectMode && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.has(item.id)}
+                            onCheckedChange={() => handleSelectItem(item.id)}
+                            data-testid={`checkbox-stock-${item.id}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         <span className="text-sm">{item.packageSize} {item.unit}</span>
@@ -794,6 +1237,278 @@ export default function Stock() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Stok dari Excel/CSV</DialogTitle>
+            <DialogDescription>
+              Muat naik fail Excel (.xlsx, .xls) atau CSV untuk import stok secara pukal
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Import Mode Selection */}
+            <div className="space-y-2">
+              <Label>Mod Import</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="importMode"
+                    value="append"
+                    checked={importMode === 'append'}
+                    onChange={(e) => setImportMode(e.target.value as 'append' | 'replace')}
+                    className="cursor-pointer"
+                  />
+                  <span>Tambah ke senarai sedia ada</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="importMode"
+                    value="replace"
+                    checked={importMode === 'replace'}
+                    onChange={(e) => setImportMode(e.target.value as 'append' | 'replace')}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-destructive">Ganti semua data</span>
+                </label>
+              </div>
+              {importMode === 'replace' && (
+                <p className="text-sm text-destructive">
+                  ⚠️ Amaran: Semua stok sedia ada akan dipadam dan diganti dengan data baru!
+                </p>
+              )}
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="file-upload">Pilih Fail</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="file-upload"
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileUpload}
+                  disabled={isImporting}
+                  className="cursor-pointer"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Format yang disokong: .xlsx, .xls, .csv
+              </p>
+            </div>
+
+            {/* Sample Template */}
+            <div className="space-y-2">
+              <Label>Template</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadSampleTemplate}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Muat Turun Template Contoh
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Gunakan template ini sebagai rujukan format yang betul
+              </p>
+            </div>
+
+            {/* Format Requirements */}
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <h4 className="font-medium mb-2">Format yang diperlukan:</h4>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• <strong>Item Name</strong>: Nama bahan (wajib)</li>
+                <li>• <strong>Unit</strong>: Unit ukuran (wajib) - contoh: kg, gram, liter, pcs</li>
+                <li>• <strong>Package Size</strong>: Saiz pakej (nombor positif)</li>
+                <li>• <strong>Purchase Price (RM)</strong>: Harga beli (nombor positif)</li>
+                <li>• <strong>Current Quantity</strong>: Kuantiti semasa</li>
+                <li>• <strong>Low Stock Threshold</strong>: Ambang stok rendah</li>
+                <li>• <strong>Notes</strong>: Catatan (optional)</li>
+              </ul>
+            </div>
+
+            {isImporting && (
+              <div className="flex items-center justify-center py-4 gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span>Sedang mengimport...</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(false)}
+              disabled={isImporting}
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add to Shopping List Dialog */}
+      <Dialog open={addToCartDialogOpen} onOpenChange={setAddToCartDialogOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] sm:max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Tambah ke Senarai Belian</DialogTitle>
+            <DialogDescription className="text-sm">
+              Semak dan laraskan kuantiti untuk {selectedItems.size} item dipilih
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 pr-1 sm:pr-2">
+            {/* Summary Card */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="pt-4 sm:pt-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Jumlah</p>
+                    <p className="text-xl sm:text-2xl font-bold">{selectedItems.size}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Anggaran</p>
+                    <p className="text-lg sm:text-2xl font-bold">
+                      <span className="text-xs sm:text-base">RM</span> {estimatedTotal.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Rendah</p>
+                    <p className="text-xl sm:text-2xl font-bold text-amber-600">
+                      {selectedLowStockCount}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Items List with Editable Quantities */}
+            <div className="space-y-3">
+              {selectedStockItems.map((item) => (
+                <Card key={item.id}>
+                  <CardContent className="pt-3 sm:pt-4">
+                    {/* Mobile: Stack vertically, Desktop: Horizontal */}
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+                      {/* Item Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium text-sm sm:text-base">{item.name}</h4>
+                          {isLowStock(item) && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Rendah
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1 text-xs sm:text-sm text-muted-foreground">
+                          <span>Stok: {item.currentQuantity} {item.unit}</span>
+                          <span>Threshold: {item.lowStockThreshold} {item.unit}</span>
+                          <span className="hidden sm:inline">Pakej: {item.packageSize} {item.unit} @ RM {item.purchasePrice}</span>
+                          <span className="sm:hidden">Pakej: {item.packageSize} {item.unit} @ RM {item.purchasePrice}</span>
+                        </div>
+                      </div>
+
+                      {/* Quantity Input + Remove Button */}
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="flex-1 sm:w-40">
+                          <Label className="text-xs">Kuantiti Beli</Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={cartQuantities[item.id] || suggestedQuantity(item)}
+                              onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                              className="w-16 sm:w-20 text-sm"
+                            />
+                            <span className="text-xs sm:text-sm text-muted-foreground self-center">
+                              {item.unit}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Cadangan: {suggestedQuantity(item)} {item.unit}
+                          </p>
+                        </div>
+
+                        {/* Remove Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveFromSelection(item.id)}
+                          className="mt-5"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Optional Notes */}
+                    <div className="mt-3">
+                      <Textarea
+                        placeholder="Catatan (optional)..."
+                        value={itemNotes[item.id] || ""}
+                        onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                        className="h-14 sm:h-16 text-xs sm:text-sm"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setAddToCartDialogOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleBulkAddToCart}
+              disabled={bulkAddToCartMutation.isPending}
+            >
+              {bulkAddToCartMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Menambah...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Tambah {selectedItems.size} Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating Action Button (appears when items selected) */}
+      {selectedItems.size > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            size="lg"
+            className="shadow-lg gap-2 px-6"
+            onClick={() => setAddToCartDialogOpen(true)}
+            data-testid="button-add-to-shopping-list"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            Tambah ke Senarai Belian
+            <Badge variant="secondary" className="ml-2">
+              {selectedItems.size}
+            </Badge>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

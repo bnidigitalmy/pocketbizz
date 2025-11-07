@@ -5,8 +5,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Package, AlertTriangle } from "lucide-react";
 
 export function ProductPerformanceWidget() {
-  const { data: performance, isLoading } = useQuery<any>({
+  const { data: performance, isLoading, isError } = useQuery<any>({
     queryKey: ["/api/analytics/product-performance"],
+    retry: 1,
   });
 
   if (isLoading) {
@@ -24,7 +25,15 @@ export function ProductPerformanceWidget() {
     );
   }
 
-  if (!performance) return null;
+  // Handle error or empty data gracefully
+  if (isError || !performance) return null;
+  
+  // Check if all arrays are empty
+  const hasData = (performance.mostProfitable?.length > 0) || 
+                  (performance.fastestSelling?.length > 0) || 
+                  (performance.mostRejected?.length > 0);
+  
+  if (!hasData) return null;
 
   return (
     <div className="space-y-4">

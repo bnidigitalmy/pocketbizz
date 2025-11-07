@@ -1,3 +1,7 @@
+// Load environment variables first (before any other imports)
+import dotenv from "dotenv";
+dotenv.config();
+
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express, { type Request, Response, NextFunction } from "express";

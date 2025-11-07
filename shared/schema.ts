@@ -7,7 +7,8 @@ import {
   decimal, 
   timestamp, 
   date,
-  pgEnum
+  pgEnum,
+  json
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -952,6 +953,20 @@ export const goals = pgTable("goals", {
   notes: text("notes"), // User notes or motivation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Audit Logs for security and compliance tracking
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // Null if user deleted
+  action: varchar("action", { length: 50 }).notNull(), // LOGIN, LOGOUT, CREATE_USER, DELETE_PRODUCT, etc.
+  resource: varchar("resource", { length: 100 }), // products, users, subscriptions, etc.
+  resourceId: varchar("resource_id", { length: 255 }), // ID of affected resource
+  details: json("details").$type<Record<string, any>>(), // Additional context (JSON)
+  ipAddress: varchar("ip_address", { length: 45 }), // IPv4 or IPv6
+  userAgent: text("user_agent"), // Browser/client info
+  status: varchar("status", { length: 20 }).notNull().default("success"), // success, failure, error
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Insert Schemas
