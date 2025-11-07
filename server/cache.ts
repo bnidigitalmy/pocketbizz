@@ -91,7 +91,7 @@ export async function set(key: string, value: any, ttl: number = CACHE_TTL.MEDIU
 
     // Set in Redis if available
     if (redis) {
-      await redis.setex(key, ttl, serialized);
+      await redis.setEx(key, ttl, serialized); // Use setEx (capital E) for Redis v4+
       log(`[Cache] SET (Redis): ${key} (TTL: ${ttl}s)`);
     }
 
