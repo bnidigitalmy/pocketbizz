@@ -59,6 +59,7 @@ const productFormSchema = z.object({
   unitsPerBatch: z.string().min(1, "Unit per batch diperlukan"),
   labourCost: z.string().min(0, "Kos buruh diperlukan"),
   otherCosts: z.string().min(0, "Kos lain diperlukan"),
+  packagingCost: z.string().min(0, "Kos packaging diperlukan"),
   sellingPrice: z.string().min(1, "Harga jualan diperlukan"),
   recipeItems: z.array(z.object({
     stockItemId: z.string().min(1, "Pilih bahan"),
@@ -127,6 +128,7 @@ export default function Products() {
       unitsPerBatch: "1",
       labourCost: "0",
       otherCosts: "0",
+      packagingCost: "0",
       sellingPrice: "0",
       recipeItems: [{ stockItemId: "", quantityNeeded: "", usageUnit: "" }],
     },
@@ -228,6 +230,7 @@ export default function Products() {
         unitsPerBatch: String(editingProduct.unitsPerBatch || 1),
         labourCost: editingProduct.labourCost || "0",
         otherCosts: editingProduct.otherCosts || "0",
+        packagingCost: editingProduct.packagingCost || "0",
         sellingPrice: editingProduct.sellingPrice || "0",
         recipeItems: editRecipeItems.length > 0 
           ? editRecipeItems.map(item => ({
@@ -331,6 +334,7 @@ export default function Products() {
     const recipeItems = form.watch("recipeItems") || [];
     const labourCost = parseFloat(form.watch("labourCost")) || 0;
     const otherCosts = parseFloat(form.watch("otherCosts")) || 0;
+    const packagingCost = parseFloat(form.watch("packagingCost")) || 0;
     const unitsPerBatch = parseInt(form.watch("unitsPerBatch")) || 1;
 
     // Calculate materials cost from recipe items (with unit conversion)
@@ -356,8 +360,11 @@ export default function Products() {
       }
     });
 
-    // Total cost per batch = materials + labour + other costs
-    const totalCostPerBatch = materialsCost + labourCost + otherCosts;
+    // Total packaging cost = packaging cost per unit × units per batch
+    const totalPackagingCost = packagingCost * unitsPerBatch;
+    
+    // Total cost per batch = materials + labour + other costs + packaging
+    const totalCostPerBatch = materialsCost + labourCost + otherCosts + totalPackagingCost;
     
     // Cost per unit = total cost per batch / units per batch
     const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
@@ -372,6 +379,8 @@ export default function Products() {
 
     return {
       materialsCost: materialsCost.toFixed(2),
+      packagingCost: packagingCost.toFixed(2),
+      totalPackagingCost: totalPackagingCost.toFixed(2),
       totalCostPerBatch: totalCostPerBatch.toFixed(2),
       costPerUnit: costPerUnit.toFixed(2),
       suggestedMarginPercent,
@@ -673,7 +682,7 @@ export default function Products() {
                 {/* Production Costs */}
                 <div className="space-y-4">
                   <h3 className="font-medium">Kos Pengeluaran</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="unitsPerBatch"
@@ -691,6 +700,28 @@ export default function Products() {
                           </FormControl>
                           <FormDescription className="text-xs">
                             Berapa unit dihasilkan dari 1 resepi
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="packagingCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kos Packaging Per Unit (RM)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.001"
+                              placeholder="0" 
+                              {...field} 
+                              data-testid="input-packaging-cost"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Contoh: 50 pcs @ RM11.90 = RM0.238 per unit
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -752,10 +783,14 @@ export default function Products() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Kos Bahan Mentah</p>
                         <p className="font-semibold">RM {costs.materialsCost}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Kos Packaging</p>
+                        <p className="font-semibold">RM {costs.totalPackagingCost}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Jumlah Kos/Batch</p>
@@ -765,9 +800,46 @@ export default function Products() {
                         <p className="text-muted-foreground">Kos Per Unit</p>
                         <p className="font-semibold text-lg">RM {costs.costPerUnit}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Margin Dicadangkan</p>
-                        <p className="font-semibold text-primary">{costs.suggestedMarginPercent}%</p>
+                      <div className="md:col-span-2">
+                        <p className="text-muted-foreground mb-1">Cadangan Harga (markup):</p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 2).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            2x = RM {(parseFloat(costs.costPerUnit) * 2).toFixed(2)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 2.5).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            2.5x = RM {(parseFloat(costs.costPerUnit) * 2.5).toFixed(2)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 3).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            3x = RM {(parseFloat(costs.costPerUnit) * 3).toFixed(2)}
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
