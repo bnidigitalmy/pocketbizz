@@ -365,10 +365,15 @@ export default function Production() {
                     min="1"
                     value={quantity}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      // Only update if valid number, allow temporary invalid state for editing
-                      if (!isNaN(val)) {
-                        setQuantity(val);
+                      const val = e.target.value;
+                      // Allow empty string for editing, otherwise parse the number
+                      if (val === '') {
+                        setQuantity('' as any);
+                      } else {
+                        const numVal = parseInt(val);
+                        if (!isNaN(numVal)) {
+                          setQuantity(numVal);
+                        }
                       }
                     }}
                     onBlur={(e) => {
