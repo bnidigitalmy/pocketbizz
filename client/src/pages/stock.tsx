@@ -962,6 +962,9 @@ export default function Stock() {
                           data-testid="input-stock-package-size"
                         />
                       </FormControl>
+                      <FormDescription className="text-xs">
+                        Saiz 1 pakej/botol/kotak yang dibeli
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -992,21 +995,37 @@ export default function Stock() {
                 <FormField
                   control={form.control}
                   name="currentQuantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kuantiti Semasa</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="100"
-                          {...field}
-                          data-testid="input-stock-quantity"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const packageSize = parseFloat(form.watch("packageSize") || "1");
+                    const currentQty = parseFloat(field.value || "0");
+                    const unit = form.watch("unit") || "";
+                    const totalUnits = packageSize * currentQty;
+                    
+                    return (
+                      <FormItem>
+                        <FormLabel>Kuantiti Semasa (Pakej)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="3"
+                            {...field}
+                            data-testid="input-stock-quantity"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          {currentQty > 0 && packageSize > 0 && unit ? (
+                            <span className="font-medium text-primary">
+                              = {totalUnits.toFixed(2)} {unit} total
+                            </span>
+                          ) : (
+                            "Berapa pakej/botol/kotak ada sekarang"
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField

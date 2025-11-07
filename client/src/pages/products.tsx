@@ -589,26 +589,45 @@ export default function Products() {
                       <FormField
                         control={form.control}
                         name={`recipeItems.${index}.stockItemId`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel className="text-xs">Bahan</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid={`select-stock-item-${index}`}>
-                                  <SelectValue placeholder="Pilih bahan" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {stockItems.map((item) => (
-                                  <SelectItem key={item.id} value={item.id}>
-                                    {item.name} ({item.unit}) - RM{item.purchasePrice}/{item.unit}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          const selectedStock = stockItems.find(s => s.id === field.value);
+                          const unitPrice = selectedStock 
+                            ? parseFloat(selectedStock.purchasePrice) / parseFloat(selectedStock.packageSize)
+                            : 0;
+                          
+                          return (
+                            <FormItem className="flex-1">
+                              <FormLabel className="text-xs">Bahan</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-stock-item-${index}`}>
+                                    <SelectValue placeholder="Pilih bahan" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {stockItems.map((item) => {
+                                    const pricePerUnit = parseFloat(item.purchasePrice) / parseFloat(item.packageSize);
+                                    return (
+                                      <SelectItem key={item.id} value={item.id}>
+                                        {item.name} - {item.packageSize}{item.unit} @ RM{parseFloat(item.purchasePrice).toFixed(2)}
+                                        <span className="text-xs text-muted-foreground ml-1">
+                                          (RM{pricePerUnit.toFixed(4)}/{item.unit})
+                                        </span>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              {selectedStock && (
+                                <FormDescription className="text-xs">
+                                  Pakej: {selectedStock.packageSize}{selectedStock.unit} @ RM{parseFloat(selectedStock.purchasePrice).toFixed(2)}
+                                  {' '}<span className="font-medium text-primary">(RM{unitPrice.toFixed(4)}/{selectedStock.unit})</span>
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={form.control}
@@ -647,21 +666,42 @@ export default function Products() {
                       <FormField
                         control={form.control}
                         name={`recipeItems.${index}.quantityNeeded`}
-                        render={({ field }) => (
-                          <FormItem className="w-32">
-                            <FormLabel className="text-xs">Kuantiti</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                placeholder="0" 
-                                {...field} 
-                                data-testid={`input-quantity-${index}`}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          const selectedStockId = form.watch(`recipeItems.${index}.stockItemId`);
+                          const selectedStock = stockItems.find(s => s.id === selectedStockId);
+                          const usageUnit = form.watch(`recipeItems.${index}.usageUnit`) || selectedStock?.unit;
+                          const quantityNeeded = parseFloat(field.value || "0");
+                          
+                          let cost = 0;
+                          if (selectedStock && quantityNeeded > 0) {
+                            const packagePrice = parseFloat(selectedStock.purchasePrice);
+                            const packageSize = parseFloat(selectedStock.packageSize);
+                            const unitPrice = packagePrice / packageSize;
+                            const convertedQty = convertUnit(quantityNeeded, usageUnit || selectedStock.unit, selectedStock.unit);
+                            cost = convertedQty * unitPrice;
+                          }
+                          
+                          return (
+                            <FormItem className="w-32">
+                              <FormLabel className="text-xs">Kuantiti</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01"
+                                  placeholder="0" 
+                                  {...field} 
+                                  data-testid={`input-quantity-${index}`}
+                                />
+                              </FormControl>
+                              {cost > 0 && (
+                                <FormDescription className="text-xs font-medium text-primary">
+                                  ≈ RM{cost.toFixed(4)}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       {form.watch("recipeItems")?.length > 1 && (
                         <Button
