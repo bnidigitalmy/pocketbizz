@@ -412,7 +412,9 @@ export default function Production() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Kuantiti:</span>
-                      <span className="font-medium">{productionPlan.quantity} unit</span>
+                      <span className="font-medium">
+                        {productionPlan.quantity} batch ({productionPlan.totalUnits} unit)
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Anggaran Kos:</span>
@@ -446,7 +448,12 @@ export default function Production() {
 
                 {/* Materials List */}
                 <div className="space-y-2">
-                  <h3 className="font-medium text-sm">Bahan Diperlukan</h3>
+                  <h3 className="font-medium text-sm">
+                    Bahan Diperlukan 
+                    <span className="text-muted-foreground font-normal ml-2">
+                      (untuk {productionPlan.quantity} batch)
+                    </span>
+                  </h3>
                   <div className="space-y-2">
                     {productionPlan.materialsNeeded.map((material) => (
                       <Card key={material.stockItemId} className={
@@ -461,8 +468,8 @@ export default function Production() {
                               </div>
                               <div className="mt-2 space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Diperlukan:</span>
-                                  <span className="font-mono">
+                                  <span className="text-muted-foreground">Jumlah Diperlukan:</span>
+                                  <span className="font-mono font-semibold">
                                     {material.quantityNeeded.toFixed(2)} {material.usageUnit}
                                   </span>
                                 </div>
