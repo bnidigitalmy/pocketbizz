@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus, Upload, Download, FileSpreadsheet, ShoppingCart, X } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Package, PackagePlus, Upload, Download, FileSpreadsheet, ShoppingCart, X, History } from "lucide-react";
 import { SmartFilters } from "@/components/smart-filters";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation } from "wouter";
@@ -852,6 +852,14 @@ export default function Stock() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setLocation(`/stock/${item.id}/history`)}
+                            title="Sejarah Pergerakan"
+                          >
+                            <History className="h-4 w-4 text-blue-600" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
