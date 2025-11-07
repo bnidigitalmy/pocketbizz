@@ -1956,11 +1956,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/stock", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
+      console.log("📦 POST /api/stock - Request body:", JSON.stringify(req.body, null, 2));
       const data = insertStockItemSchema.parse(req.body);
+      console.log("✅ Validation passed, creating stock item...");
       const item = await storage.createStockItem(req.user!.id, data);
+      console.log("✅ Stock item created:", item.id);
       res.json(item);
     } catch (error: any) {
-      res.status(400).json({ error: "Invalid stock item data", message: error.message });
+      console.error("❌ POST /api/stock error:", error.message);
+      if (error.issues) {
+        console.error("Validation issues:", JSON.stringify(error.issues, null, 2));
+      }
+      res.status(400).json({ error: "Invalid stock item data", message: error.message, issues: error.issues });
     }
   });
 
