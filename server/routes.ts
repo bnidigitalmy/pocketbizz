@@ -1546,7 +1546,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/production", requireAuth, async (req, res) => {
     try {
       const batches = await storage.getProductionBatches(req.user!.id);
-      res.json(batches);
+      
+      // Enrich batches with product details (unitsPerBatch) for display
+      const enrichedBatches = await Promise.all(
+        batches.map(async (batch) => {
+          const product = await storage.getProduct(req.user!.id, batch.productId);
+          return {
+            ...batch,
+            unitsPerBatch: product?.unitsPerBatch || 1,
+          };
+        })
+      );
+      
+      res.json(enrichedBatches);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch production batches" });
     }
@@ -1630,7 +1642,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitsPerBatch: product.unitsPerBatch,
           totalCostPerBatch: product.totalCostPerBatch
         },
-        quantity,
+        quantity, // Number of batches
+        totalUnits: quantity * product.unitsPerBatch, // Total units to be produced
         materialsNeeded,
         allStockSufficient,
         totalProductionCost: parseFloat(product.totalCostPerBatch) * quantity
@@ -1682,11 +1695,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create production batch
+      // quantity = number of batches to produce
+      // totalUnits = total units produced (quantity * unitsPerBatch)
+      const totalUnits = quantity * product.unitsPerBatch;
+      
       const batchData = {
         productId,
         productName: product.name,
-        quantity,
-        remainingQty: quantity.toString(), // Initialize with full quantity as finished goods
+        quantity: totalUnits, // Store total units produced
+        remainingQty: totalUnits.toString(), // Initialize with full quantity in units
         batchDate,
         expiryDate: expiryDate || null,
         totalCost: (parseFloat(product.totalCostPerBatch) * quantity).toString(),
@@ -1729,7 +1746,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/finished-products", requireAuth, async (req, res) => {
     try {
       const summary = await storage.getFinishedProductsSummary(req.user!.id);
-      res.json(summary);
+      
+      // Enrich with product details (unitsPerBatch)
+      const enrichedSummary = await Promise.all(
+        summary.map(async (item) => {
+          const product = await storage.getProduct(req.user!.id, item.productId);
+          return {
+            ...item,
+            unitsPerBatch: product?.unitsPerBatch || 1,
+          };
+        })
+      );
+      
+      res.json(enrichedSummary);
     } catch (error) {
       console.error("Finished products summary error:", error);
       res.status(500).json({ error: "Failed to fetch finished products summary" });
@@ -1756,7 +1785,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { productId } = req.params;
       const batches = await storage.getBatchesByProduct(req.user!.id, productId);
-      res.json(batches);
+      
+      // Enrich with product details
+      const product = await storage.getProduct(req.user!.id, productId);
+      const enrichedBatches = batches.map(batch => ({
+        ...batch,
+        unitsPerBatch: product?.unitsPerBatch || 1,
+      }));
+      
+      res.json(enrichedBatches);
     } catch (error) {
       console.error("Batches by product error:", error);
       res.status(500).json({ error: "Failed to fetch batches" });

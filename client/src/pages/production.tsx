@@ -60,7 +60,8 @@ type ProductionPlan = {
     unitsPerBatch: number;
     totalCostPerBatch: string;
   };
-  quantity: number;
+  quantity: number; // Number of batches
+  totalUnits: number; // Total units produced
   materialsNeeded: MaterialPreview[];
   allStockSufficient: boolean;
   totalProductionCost: number;
@@ -340,7 +341,7 @@ export default function Production() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="quantity">Kuantiti (unit)</Label>
+                  <Label htmlFor="quantity">Kuantiti (batch)</Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -349,6 +350,18 @@ export default function Production() {
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                     data-testid="input-quantity"
                   />
+                  {selectedProductId && (() => {
+                    const selectedProduct = products?.find((p: any) => p.id === selectedProductId);
+                    if (selectedProduct) {
+                      const totalUnits = quantity * (selectedProduct.unitsPerBatch || 1);
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          {quantity} batch = <span className="font-semibold text-primary">{totalUnits} unit</span>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
@@ -543,7 +556,9 @@ export default function Production() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Kuantiti:</span>
-                      <span className="font-medium">{productionPlan.quantity} unit</span>
+                      <span className="font-medium">
+                        {productionPlan.quantity} batch ({productionPlan.totalUnits} unit)
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Jumlah Kos:</span>
@@ -612,7 +627,14 @@ export default function Production() {
                       <CardTitle className="truncate text-base">{batch.productName}</CardTitle>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <Badge variant="secondary">
-                          {batch.quantity} unit
+                          {(() => {
+                            const unitsPerBatch = batch.unitsPerBatch || 1;
+                            const totalUnits = batch.quantity;
+                            const batchCount = Math.round(totalUnits / unitsPerBatch);
+                            return batchCount > 0 
+                              ? `${batchCount} batch (${totalUnits} unit)`
+                              : `${totalUnits} unit`;
+                          })()}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {new Date(batch.batchDate).toLocaleDateString('ms-MY')}

@@ -125,13 +125,22 @@ export default function FinishedProducts() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold font-mono">{totalRemaining}</span>
-                  <span className="text-sm text-muted-foreground">unit</span>
+                  {(() => {
+                    const unitsPerBatch = (product as any).unitsPerBatch || 1;
+                    const batchCount = Math.round(totalRemaining / unitsPerBatch);
+                    return (
+                      <>
+                        <span className="text-3xl font-bold font-mono">{batchCount}</span>
+                        <span className="text-sm text-muted-foreground">batch</span>
+                        <span className="text-lg text-muted-foreground">({totalRemaining} unit)</span>
+                      </>
+                    );
+                  })()}
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {product.batchCount} batch
+                    {product.batchCount} production
                   </Badge>
                   {product.nearestExpiry && (
                     <Badge className={`text-xs ${expiryStatus.color} flex items-center gap-1`}>
@@ -230,7 +239,12 @@ export default function FinishedProducts() {
                             <div>
                               <span className="text-sm text-muted-foreground">Baki:</span>
                               <p className="text-lg font-bold font-mono">
-                                {remaining} / {batch.quantity}
+                                {(() => {
+                                  const unitsPerBatch = (batch as any).unitsPerBatch || 1;
+                                  const remainingBatches = Math.round(remaining / unitsPerBatch * 10) / 10;
+                                  const totalBatches = Math.round(batch.quantity / unitsPerBatch);
+                                  return `${remainingBatches} batch (${remaining}/${batch.quantity} unit)`;
+                                })()}
                               </p>
                             </div>
                             <div className="flex-1">
