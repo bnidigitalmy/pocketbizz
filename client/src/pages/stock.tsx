@@ -57,6 +57,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 
 const stockItemSchema = z.object({
