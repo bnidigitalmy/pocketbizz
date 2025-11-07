@@ -364,7 +364,20 @@ export default function Production() {
                     type="number"
                     min="1"
                     value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      // Only update if valid number, allow temporary invalid state for editing
+                      if (!isNaN(val)) {
+                        setQuantity(val);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Ensure minimum value on blur
+                      const val = parseInt(e.target.value);
+                      if (isNaN(val) || val < 1) {
+                        setQuantity(1);
+                      }
+                    }}
                     data-testid="input-quantity"
                   />
                   {selectedProductId && (() => {
