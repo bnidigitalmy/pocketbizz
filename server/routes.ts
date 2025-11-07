@@ -1261,8 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check product limit for trial users
       if (req.user) {
-        const currentProducts = await storage.getProducts(req.user.id);
-        const userProductCount = currentProducts.length;
+        const userProductCount = await storage.getProductCount(req.user.id);
         const productLimit = await getUserProductLimit(req.user);
         
         if (productLimit > 0 && userProductCount >= productLimit) {
@@ -1296,12 +1295,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = productSchema.parse(req.body);
       const { recipeItems, ...productData } = data;
       
+      // Validate recipe before processing
+      const validation = await storage.validateRecipe(req.user!.id, recipeItems);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: "Recipe validation failed", 
+          details: validation.errors.filter(e => !e.startsWith("Warning:"))
+        });
+      }
+      
       // Calculate materials cost from recipe items WITH UNIT CONVERSION
       let materialsCost = 0;
       const recipeItemsWithCost = [];
       
+      // Batch fetch all stock items first (optimization: 1 query instead of N)
+      const stockItemIds = recipeItems.map(item => item.stockItemId);
+      const stockItemsData = await storage.getStockItemsByIds(stockItemIds, req.user!.id);
+      const stockItemsMap = Object.fromEntries(stockItemsData.map(s => [s.id, s]));
+      
       for (const item of recipeItems) {
-        const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
+        const stockItem = stockItemsMap[item.stockItemId];
         if (stockItem) {
           const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
           const usageUnit = item.usageUnit || stockItem.unit; // Default to stock unit if not provided
@@ -1391,13 +1404,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = productSchema.parse(req.body);
       const { recipeItems, ...productData } = data;
       
+      // Validate recipe if provided
+      if (recipeItems && recipeItems.length > 0) {
+        const validation = await storage.validateRecipe(req.user!.id, recipeItems);
+        if (!validation.valid) {
+          return res.status(400).json({ 
+            error: "Recipe validation failed", 
+            details: validation.errors.filter(e => !e.startsWith("Warning:"))
+          });
+        }
+      }
+      
       // Calculate materials cost from recipe items WITH UNIT CONVERSION if provided
       let materialsCost = 0;
       let recipeItemsWithCost: any[] = [];
       
       if (recipeItems && recipeItems.length > 0) {
+        // Batch fetch all stock items first (optimization: 1 query instead of N)
+        const stockItemIds = recipeItems.map(item => item.stockItemId);
+        const stockItemsData = await storage.getStockItemsByIds(stockItemIds, req.user!.id);
+        const stockItemsMap = Object.fromEntries(stockItemsData.map(s => [s.id, s]));
+        
         for (const item of recipeItems) {
-          const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
+          const stockItem = stockItemsMap[item.stockItemId];
           if (stockItem) {
             const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
             const usageUnit = item.usageUnit || stockItem.unit;

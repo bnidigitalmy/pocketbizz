@@ -144,12 +144,14 @@ export interface IStorage {
   // Products
   getProducts(userId: string): Promise<Product[]>;
   getProduct(userId: string, id: string): Promise<Product | undefined>;
+  getProductCount(userId: string): Promise<number>;
   createProduct(userId: string, product: InsertProduct, recipeItemsList: any[]): Promise<Product>;
   updateProduct(userId: string, id: string, product: Partial<InsertProduct>, recipeItemsList?: any[]): Promise<Product>;
   deleteProduct(userId: string, id: string): Promise<void>;
   
   // Recipe Items
   getRecipeItems(productId: string): Promise<any[]>;
+  validateRecipe(userId: string, recipeItems: any[]): Promise<{valid: boolean; errors: string[]}>;
   
   // Ingredients (legacy)
   getIngredients(userId: string, productId: string): Promise<Ingredient[]>;
@@ -414,26 +416,51 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Products
   async getProducts(userId: string): Promise<Product[]> {
-    const result = await db.select().from(products)
+    // Query 1: Get all products
+    const allProducts = await db.select().from(products)
       .where(eq(products.userId, userId))
       .orderBy(desc(products.createdAt));
     
-    // Get ingredients for each product
-    const productsWithIngredients = await Promise.all(
-      result.map(async (product) => {
-        const productIngredients = await db.select().from(ingredients)
-          .where(and(eq(ingredients.productId, product.id), eq(ingredients.userId, userId)));
-        return { ...product, ingredients: productIngredients };
-      })
-    );
+    // Early return if no products
+    if (allProducts.length === 0) {
+      return [];
+    }
     
-    return productsWithIngredients as any;
+    // Query 2: Get all ingredients for these products in one batch query
+    const productIds = allProducts.map(p => p.id);
+    const allIngredients = await db.select().from(ingredients)
+      .where(and(
+        inArray(ingredients.productId, productIds),
+        eq(ingredients.userId, userId)
+      ));
+    
+    // Group ingredients by product ID in JavaScript (efficient in-memory operation)
+    const ingredientsMap = allIngredients.reduce((acc, ingredient) => {
+      if (!acc[ingredient.productId]) {
+        acc[ingredient.productId] = [];
+      }
+      acc[ingredient.productId].push(ingredient);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    // Combine products with their ingredients
+    return allProducts.map(product => ({
+      ...product,
+      ingredients: ingredientsMap[product.id] || [],
+    })) as any;
   }
 
   async getProduct(userId: string, id: string): Promise<Product | undefined> {
     const [product] = await db.select().from(products)
       .where(and(eq(products.id, id), eq(products.userId, userId)));
     return product || undefined;
+  }
+
+  async getProductCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.userId, userId));
+    return result.count;
   }
 
   async createProduct(userId: string, product: InsertProduct, recipeItemsList: any[]): Promise<Product> {
@@ -2232,6 +2259,68 @@ export class DatabaseStorage implements IStorage {
   
   async deleteRecipeItems(productId: string): Promise<void> {
     await db.delete(recipeItems).where(eq(recipeItems.productId, productId));
+  }
+
+  async validateRecipe(userId: string, recipeItemsList: any[]): Promise<{valid: boolean; errors: string[]}> {
+    const errors: string[] = [];
+    
+    // Check 1: Recipe must have at least one item
+    if (!recipeItemsList || recipeItemsList.length === 0) {
+      errors.push("Recipe must have at least one ingredient");
+      return { valid: false, errors };
+    }
+    
+    // Check 2: Stock items exist and batch fetch them
+    const stockItemIds = recipeItemsList.map(r => r.stockItemId);
+    const existingStockItems = await this.getStockItemsByIds(stockItemIds, userId);
+    const existingIds = new Set(existingStockItems.map(s => s.id));
+    
+    recipeItemsList.forEach((item, index) => {
+      if (!existingIds.has(item.stockItemId)) {
+        errors.push(`Recipe item ${index + 1}: Stock item no longer exists or does not belong to you`);
+      }
+    });
+    
+    // Check 3: Quantities are positive numbers
+    recipeItemsList.forEach((item, index) => {
+      const qty = parseFloat(item.quantityNeeded);
+      if (isNaN(qty) || qty <= 0) {
+        errors.push(`Recipe item ${index + 1}: Quantity must be a positive number (got "${item.quantityNeeded}")`);
+      }
+    });
+    
+    // Check 4: No duplicate stock items
+    const uniqueIds = new Set(stockItemIds);
+    if (uniqueIds.size !== stockItemIds.length) {
+      errors.push("Recipe contains duplicate ingredients. Each stock item can only be used once per product.");
+    }
+    
+    // Check 5: Stock availability warnings (not errors, just warnings)
+    const warnings: string[] = [];
+    recipeItemsList.forEach((item, index) => {
+      const stockItem = existingStockItems.find(s => s.id === item.stockItemId);
+      if (stockItem) {
+        const currentQty = parseFloat(stockItem.currentQuantity);
+        if (currentQty <= 0) {
+          warnings.push(`Warning: Recipe item ${index + 1} ("${stockItem.name}") is currently out of stock`);
+        } else if (currentQty < parseFloat(item.quantityNeeded)) {
+          warnings.push(`Warning: Recipe item ${index + 1} ("${stockItem.name}") has insufficient stock (available: ${currentQty}${stockItem.unit}, needed: ${item.quantityNeeded}${item.usageUnit})`);
+        }
+      }
+    });
+    
+    // Add warnings to errors array but don't fail validation
+    if (warnings.length > 0) {
+      errors.push(...warnings);
+    }
+    
+    // Validation passes if no critical errors (only warnings are okay)
+    const hasCriticalErrors = errors.some(e => !e.startsWith("Warning:"));
+    
+    return {
+      valid: !hasCriticalErrors,
+      errors,
+    };
   }
   
   // Shopping Cart
