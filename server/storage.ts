@@ -14,6 +14,7 @@ import {
   googleDriveSyncLog,
   vendorCommissions,
   stockItems,
+  stockMovements,
   recipeItems,
   categories,
   shoppingCart,
@@ -49,6 +50,8 @@ import {
   type InsertVendorCommission,
   type StockItem,
   type InsertStockItem,
+  type StockMovement,
+  type InsertStockMovement,
   type RecipeItem,
   type InsertRecipeItem,
   type Category,
@@ -232,9 +235,14 @@ export interface IStorage {
   getStockItem(userId: string, id: string): Promise<StockItem | undefined>;
   getStockItemsByIds(ids: string[], userId: string): Promise<StockItem[]>;
   createStockItem(userId: string, item: InsertStockItem): Promise<StockItem>;
-  updateStockItem(userId: string, id: string, item: Partial<InsertItem>): Promise<StockItem>;
+  updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>, expectedVersion?: number): Promise<StockItem>;
   deleteStockItem(userId: string, id: string): Promise<void>;
+  deleteAllStockItems(userId: string): Promise<void>;
   getLowStockItems(userId: string): Promise<StockItem[]>;
+  
+  // Stock Movements (Audit Trail)
+  logStockMovement(movement: InsertStockMovement): Promise<StockMovement>;
+  getStockMovements(userId: string, stockItemId?: string): Promise<StockMovement[]>;
   
   // Categories
   getCategories(userId: string): Promise<Category[]>;
@@ -2086,21 +2094,88 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createStockItem(userId: string, item: InsertStockItem): Promise<StockItem> {
-    const result = await db.insert(stockItems).values({ ...item, userId }).returning();
-    return result[0];
+    return await db.transaction(async (tx) => {
+      // Create the stock item
+      const [created] = await tx.insert(stockItems).values({ ...item, userId }).returning();
+      
+      // Log the initial stock movement
+      await tx.insert(stockMovements).values({
+        userId,
+        stockItemId: created.id,
+        movementType: 'purchase',
+        quantityBefore: '0',
+        quantityChange: created.currentQuantity,
+        quantityAfter: created.currentQuantity,
+        reason: `Initial stock: ${created.name}`,
+        referenceType: 'initial_stock',
+        createdBy: userId,
+      });
+      
+      return created;
+    });
   }
   
-  async updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>): Promise<StockItem> {
-    const result = await db.update(stockItems)
-      .set({ ...item, updatedAt: new Date() })
-      .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)))
-      .returning();
-    return result[0];
+  async updateStockItem(userId: string, id: string, item: Partial<InsertStockItem>, expectedVersion?: number): Promise<StockItem> {
+    return await db.transaction(async (tx) => {
+      // Get current state
+      const [current] = await tx.select().from(stockItems)
+        .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)))
+        .for('update'); // Lock row to prevent concurrent modifications
+      
+      if (!current) {
+        throw new Error('Stock item not found');
+      }
+      
+      // Check version if optimistic locking is enabled
+      if (expectedVersion !== undefined && current.version !== expectedVersion) {
+        throw new Error('Stock item was modified by another user. Please refresh and try again.');
+      }
+      
+      // Prepare update data
+      const updateData: any = { 
+        ...item, 
+        updatedAt: new Date(),
+        version: current.version + 1, // Increment version
+      };
+      
+      // Update the stock item
+      const [updated] = await tx.update(stockItems)
+        .set(updateData)
+        .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)))
+        .returning();
+      
+      // Log stock movement if quantity changed
+      if (item.currentQuantity && item.currentQuantity !== current.currentQuantity) {
+        const qtyBefore = parseFloat(current.currentQuantity);
+        const qtyAfter = parseFloat(item.currentQuantity);
+        const qtyChange = qtyAfter - qtyBefore;
+        
+        await tx.insert(stockMovements).values({
+          userId,
+          stockItemId: id,
+          movementType: qtyChange > 0 ? 'replenish' : 'adjust',
+          quantityBefore: current.currentQuantity,
+          quantityChange: qtyChange.toFixed(2),
+          quantityAfter: item.currentQuantity,
+          reason: (item as any).notes || 'Stock quantity updated',
+          referenceType: 'manual_update',
+          createdBy: userId,
+        });
+      }
+      
+      return updated;
+    });
   }
   
   async deleteStockItem(userId: string, id: string): Promise<void> {
     await db.delete(stockItems)
       .where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)));
+    // Note: stockMovements will be cascaded deleted automatically due to foreign key
+  }
+  
+  async deleteAllStockItems(userId: string): Promise<void> {
+    // Batch delete - much faster than sequential deletes
+    await db.delete(stockItems).where(eq(stockItems.userId, userId));
   }
   
   async getLowStockItems(userId: string): Promise<StockItem[]> {
@@ -2110,6 +2185,27 @@ export class DatabaseStorage implements IStorage {
         sql`${stockItems.currentQuantity} <= ${stockItems.lowStockThreshold}`
       ))
       .orderBy(stockItems.currentQuantity);
+  }
+  
+  // Stock Movements (Audit Trail)
+  async logStockMovement(movement: InsertStockMovement): Promise<StockMovement> {
+    const [created] = await db.insert(stockMovements).values(movement).returning();
+    return created;
+  }
+  
+  async getStockMovements(userId: string, stockItemId?: string): Promise<StockMovement[]> {
+    if (stockItemId) {
+      return await db.select().from(stockMovements)
+        .where(and(
+          eq(stockMovements.userId, userId),
+          eq(stockMovements.stockItemId, stockItemId)
+        ))
+        .orderBy(desc(stockMovements.createdAt));
+    }
+    
+    return await db.select().from(stockMovements)
+      .where(eq(stockMovements.userId, userId))
+      .orderBy(desc(stockMovements.createdAt));
   }
   
   // Categories

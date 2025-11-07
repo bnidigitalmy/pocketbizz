@@ -86,8 +86,37 @@ export const stockItems = pgTable("stock_items", {
   currentQuantity: decimal("current_quantity", { precision: 10, scale: 2 }).notNull().default("0"), // Current stock quantity in warehouse (in base units)
   lowStockThreshold: decimal("low_stock_threshold", { precision: 10, scale: 2 }).notNull().default("5"), // Alert when below this
   notes: text("notes"), // Optional notes
+  version: integer("version").notNull().default(0), // Optimistic locking: increments on every update to prevent concurrent modification issues
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Stock Movement Types Enum (for audit trail)
+export const stockMovementTypeEnum = pgEnum("stock_movement_type", [
+  "purchase",      // Initial stock purchase
+  "replenish",     // Stock replenishment (adding more)
+  "adjust",        // Manual quantity adjustment
+  "production_use",// Used in production/recipe
+  "waste",         // Damaged/expired/wasted
+  "return",        // Returned to supplier
+  "transfer",      // Transfer between locations (future)
+  "correction",    // Inventory correction/audit
+]);
+
+// Stock Movements Table (Audit Trail for Stock Changes)
+export const stockMovements = pgTable("stock_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stockItemId: varchar("stock_item_id").notNull().references(() => stockItems.id, { onDelete: "cascade" }),
+  movementType: stockMovementTypeEnum("movement_type").notNull(),
+  quantityBefore: decimal("quantity_before", { precision: 10, scale: 2 }).notNull(), // Quantity before change
+  quantityChange: decimal("quantity_change", { precision: 10, scale: 2 }).notNull(), // Positive = increase, Negative = decrease
+  quantityAfter: decimal("quantity_after", { precision: 10, scale: 2 }).notNull(), // Quantity after change
+  reason: text("reason"), // Optional explanation (e.g., "Replenished from Supplier X", "Used in Batch #123")
+  referenceId: varchar("reference_id"), // Link to related entity (purchase order ID, production batch ID, etc.)
+  referenceType: text("reference_type"), // Type of reference (e.g., "purchase_order", "production_batch", "manual")
+  createdBy: varchar("created_by").references(() => users.id), // Who made the change
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Categories Table (Product Categories)
@@ -576,8 +605,14 @@ export const salesItemsRelations = relations(salesItems, ({ one }) => ({
 export const insertStockItemSchema = createInsertSchema(stockItems).omit({
   id: true,
   userId: true,
+  version: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
@@ -732,6 +767,9 @@ export const insertPOTemplateItemSchema = createInsertSchema(poTemplateItems).om
 // Types
 export type StockItem = typeof stockItems.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
+
+export type StockMovement = typeof stockMovements.$inferSelect;
+export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;

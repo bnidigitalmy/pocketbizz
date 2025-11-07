@@ -1925,11 +1925,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/stock/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
       const { id } = req.params;
-      const data = insertStockItemSchema.partial().parse(req.body);
-      const item = await storage.updateStockItem(req.user!.id, id, data);
+      const { expectedVersion, ...data } = req.body;
+      const parsedData = insertStockItemSchema.partial().parse(data);
+      const item = await storage.updateStockItem(req.user!.id, id, parsedData, expectedVersion);
       res.json(item);
     } catch (error: any) {
+      if (error.message?.includes('modified by another user')) {
+        return res.status(409).json({ error: "Conflict", message: error.message });
+      }
       res.status(400).json({ error: "Invalid stock item data", message: error.message });
+    }
+  });
+  
+  // Stock Movement History (Audit Trail)
+  app.get("/api/stock/:id/movements", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const movements = await storage.getStockMovements(req.user!.id, id);
+      res.json(movements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock movements" });
+    }
+  });
+  
+  app.get("/api/stock-movements", requireAuth, async (req, res) => {
+    try {
+      const movements = await storage.getStockMovements(req.user!.id);
+      res.json(movements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock movements" });
     }
   });
 
@@ -2074,12 +2098,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { items: importItems, mode } = importSchema.parse(req.body);
 
-      // If mode is 'replace', delete existing items first
+      // If mode is 'replace', delete existing items first (OPTIMIZED: batch delete)
       if (mode === 'replace') {
-        const existingItems = await storage.getStockItems(req.user!.id);
-        for (const item of existingItems) {
-          await storage.deleteStockItem(req.user!.id, item.id);
-        }
+        await storage.deleteAllStockItems(req.user!.id);
       }
 
       // Import new items
