@@ -1280,6 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         unitsPerBatch: z.string(),
         labourCost: z.string(),
         otherCosts: z.string(),
+        packagingCost: z.string(),
         sellingPrice: z.string(),
         recipeItems: z.array(z.object({
           stockItemId: z.string(),
@@ -1342,13 +1343,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Calculate total cost per batch
+      // Calculate total cost per batch (including packaging)
       const labourCost = parseFloat(productData.labourCost) || 0;
       const otherCosts = parseFloat(productData.otherCosts) || 0;
-      const totalCostPerBatch = materialsCost + labourCost + otherCosts;
+      const packagingCost = parseFloat(productData.packagingCost) || 0;
+      const unitsPerBatch = parseInt(productData.unitsPerBatch) || 1;
+      
+      // Packaging cost is per unit, so multiply by units per batch
+      const totalPackagingCost = packagingCost * unitsPerBatch;
+      
+      const totalCostPerBatch = materialsCost + labourCost + otherCosts + totalPackagingCost;
       
       // Calculate cost per unit
-      const unitsPerBatch = parseInt(productData.unitsPerBatch) || 1;
       const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
       
       const product = await storage.createProduct(
@@ -1358,6 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitsPerBatch: unitsPerBatch,
           labourCost: labourCost.toFixed(2),
           otherCosts: otherCosts.toFixed(2),
+          packagingCost: packagingCost.toFixed(2),
           materialsCost: materialsCost.toFixed(2),
           totalCostPerBatch: totalCostPerBatch.toFixed(2),
           costPerUnit: costPerUnit.toFixed(2),
@@ -1453,13 +1460,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Calculate total cost per batch
+        // Calculate total cost per batch (including packaging)
         const labourCost = parseFloat(productData.labourCost as string) || 0;
         const otherCosts = parseFloat(productData.otherCosts as string) || 0;
-        const totalCostPerBatch = materialsCost + labourCost + otherCosts;
+        const packagingCost = parseFloat(productData.packagingCost as string) || 0;
+        const unitsPerBatch = parseInt(productData.unitsPerBatch as string) || 1;
+        
+        // Packaging cost is per unit, so multiply by units per batch
+        const totalPackagingCost = packagingCost * unitsPerBatch;
+        
+        const totalCostPerBatch = materialsCost + labourCost + otherCosts + totalPackagingCost;
         
         // Calculate cost per unit
-        const unitsPerBatch = parseInt(productData.unitsPerBatch as string) || 1;
         const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
         
         const updateData: any = {
@@ -1467,6 +1479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitsPerBatch: unitsPerBatch,
           labourCost: labourCost.toFixed(2),
           otherCosts: otherCosts.toFixed(2),
+          packagingCost: packagingCost.toFixed(2),
           materialsCost: materialsCost.toFixed(2),
           totalCostPerBatch: totalCostPerBatch.toFixed(2),
           costPerUnit: costPerUnit.toFixed(2),

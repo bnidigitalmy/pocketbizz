@@ -137,8 +137,9 @@ export const products = pgTable("products", {
   unitsPerBatch: integer("units_per_batch").notNull().default(1), // How many units 1 recipe produces
   labourCost: decimal("labour_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Labour cost per batch
   otherCosts: decimal("other_costs", { precision: 10, scale: 2 }).notNull().default("0"), // Gas, electricity, etc per batch
+  packagingCost: decimal("packaging_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Packaging cost per unit (e.g., RM0.238 per piece)
   materialsCost: decimal("materials_cost", { precision: 10, scale: 2 }).notNull().default("0"), // Auto-calculated from recipe items
-  totalCostPerBatch: decimal("total_cost_per_batch", { precision: 10, scale: 2 }).notNull().default("0"), // materials + labour + other
+  totalCostPerBatch: decimal("total_cost_per_batch", { precision: 10, scale: 2 }).notNull().default("0"), // materials + labour + other + packaging
   costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }).notNull().default("0"), // totalCostPerBatch / unitsPerBatch
   suggestedMargin: decimal("suggested_margin", { precision: 5, scale: 2 }).notNull().default("30"), // Suggested profit margin %
   suggestedPrice: decimal("suggested_price", { precision: 10, scale: 2 }).notNull().default("0"), // Auto-calculated: costPerUnit * (1 + suggestedMargin/100)
