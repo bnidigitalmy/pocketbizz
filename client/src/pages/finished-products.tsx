@@ -3,6 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { 
   Package, 
   Calendar, 
@@ -167,26 +173,17 @@ export default function FinishedProducts() {
         </Card>
       )}
 
-      {/* Batch Details Modal/Sheet */}
-      {selectedProduct && (
-        <Card className="mt-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Batch Details - {products?.find(p => p.productId === selectedProduct)?.productName}
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedProduct(null)}
-                data-testid="button-close-batch-details"
-              >
-                Tutup
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
+      {/* Batch Details Sheet - Mobile Native Style */}
+      <Sheet open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              {products?.find(p => p.productId === selectedProduct)?.productName}
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="mt-6">
             {batchesLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -275,9 +272,9 @@ export default function FinishedProducts() {
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
