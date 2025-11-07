@@ -134,18 +134,10 @@ export default function Products() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      console.log("[DEBUG] Creating product, data:", data);
-      try {
-        const res = await apiRequest("POST", "/api/products", data);
-        console.log("[DEBUG] Product created successfully, status:", res.status);
-        return res.json();
-      } catch (err) {
-        console.error("[DEBUG] Error in mutationFn:", err);
-        throw err;
-      }
+      const res = await apiRequest("POST", "/api/products", data);
+      return res.json();
     },
     onSuccess: (data) => {
-      console.log("[DEBUG] onSuccess called, data:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: "Berjaya!",
@@ -156,12 +148,7 @@ export default function Products() {
       form.reset();
     },
     onError: (error: any) => {
-      console.error("[DEBUG] onError called!");
-      console.error("[DEBUG] Error object:", error);
-      console.error("[DEBUG] Error message:", error?.message);
-      console.error("[DEBUG] Error data:", error?.data);
       const message = error?.message || error?.data?.message || "Gagal menambah produk.";
-      console.log("[DEBUG] Showing toast with message:", message);
       toast({
         title: "Ralat",
         description: message,
@@ -186,7 +173,6 @@ export default function Products() {
       form.reset();
     },
     onError: (error: any) => {
-      console.error("Update product error:", error);
       const message = error?.message || error?.data?.message || "Gagal mengemaskini produk.";
       toast({
         title: "Ralat",
@@ -316,12 +302,9 @@ export default function Products() {
       if (editingProduct) {
         updateMutation.mutate({ id: editingProduct.id, data: productData });
       } else {
-        console.log("[DEBUG] About to call createMutation.mutate");
         createMutation.mutate(productData);
-        console.log("[DEBUG] createMutation.mutate called, isPending:", createMutation.isPending);
       }
     } catch (error: any) {
-      console.error("[DEBUG] Caught error in handleSubmit:", error);
       const message = error?.message || error?.data?.message || "Gagal menyimpan produk";
       toast({
         title: "Ralat",
