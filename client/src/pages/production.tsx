@@ -624,9 +624,6 @@ export default function Production() {
                     />
                   )}
                 </div>
-                    data-testid="input-expiry-date"
-                  />
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Nota (Optional)</Label>
