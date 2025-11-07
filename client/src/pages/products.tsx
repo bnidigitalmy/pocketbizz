@@ -673,12 +673,18 @@ export default function Products() {
                           const quantityNeeded = parseFloat(field.value || "0");
                           
                           let cost = 0;
+                          let convertedQty = 0;
+                          let showConversion = false;
+                          
                           if (selectedStock && quantityNeeded > 0) {
                             const packagePrice = parseFloat(selectedStock.purchasePrice);
                             const packageSize = parseFloat(selectedStock.packageSize);
                             const unitPrice = packagePrice / packageSize;
-                            const convertedQty = convertUnit(quantityNeeded, usageUnit || selectedStock.unit, selectedStock.unit);
+                            convertedQty = convertUnit(quantityNeeded, usageUnit || selectedStock.unit, selectedStock.unit);
                             cost = convertedQty * unitPrice;
+                            
+                            // Show conversion if usage unit differs from stock unit
+                            showConversion = usageUnit && usageUnit.toLowerCase() !== selectedStock.unit.toLowerCase();
                           }
                           
                           return (
@@ -694,8 +700,15 @@ export default function Products() {
                                 />
                               </FormControl>
                               {cost > 0 && (
-                                <FormDescription className="text-xs font-medium text-primary">
-                                  ≈ RM{cost.toFixed(4)}
+                                <FormDescription className="text-xs space-y-0.5">
+                                  {showConversion && selectedStock && (
+                                    <div className="text-muted-foreground">
+                                      = {convertedQty.toFixed(2)} {selectedStock.unit}
+                                    </div>
+                                  )}
+                                  <div className="font-medium text-primary">
+                                    ≈ RM{cost.toFixed(4)}
+                                  </div>
                                 </FormDescription>
                               )}
                               <FormMessage />
