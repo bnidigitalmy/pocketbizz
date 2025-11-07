@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -74,6 +75,8 @@ export default function Production() {
   const [quantity, setQuantity] = useState(1);
   const [batchDate, setBatchDate] = useState(new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState("");
+  const [expiryInputType, setExpiryInputType] = useState<'days' | 'date'>('days'); // New state
+  const [shelfLifeDays, setShelfLifeDays] = useState(""); // New state for days input
   const [notes, setNotes] = useState("");
   const [productionPlan, setProductionPlan] = useState<ProductionPlan | null>(null);
   const { toast } = useToast();
@@ -151,8 +154,22 @@ export default function Production() {
     setQuantity(1);
     setBatchDate(new Date().toISOString().split('T')[0]);
     setExpiryDate("");
+    setExpiryInputType('days');
+    setShelfLifeDays("");
     setNotes("");
     setProductionPlan(null);
+  };
+
+  // Calculate expiry date from shelf life days
+  const calculateExpiryDate = (days: string) => {
+    if (!days || parseInt(days) <= 0) {
+      setExpiryDate("");
+      return;
+    }
+    
+    const date = new Date(batchDate);
+    date.setDate(date.getDate() + parseInt(days));
+    setExpiryDate(date.toISOString().split('T')[0]);
   };
 
   const handlePreview = () => {
@@ -516,18 +533,90 @@ export default function Production() {
                     id="batch-date"
                     type="date"
                     value={batchDate}
-                    onChange={(e) => setBatchDate(e.target.value)}
+                    onChange={(e) => {
+                      setBatchDate(e.target.value);
+                      // Recalculate expiry if using days mode
+                      if (expiryInputType === 'days' && shelfLifeDays) {
+                        const date = new Date(e.target.value);
+                        date.setDate(date.getDate() + parseInt(shelfLifeDays));
+                        setExpiryDate(date.toISOString().split('T')[0]);
+                      }
+                    }}
                     data-testid="input-batch-date"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="expiry-date">Tarikh Luput (Optional)</Label>
-                  <Input
-                    id="expiry-date"
-                    type="date"
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
+                <div className="space-y-3">
+                  <Label>Tarikh Luput (Optional)</Label>
+                  
+                  {/* Toggle between Days and Date */}
+                  <RadioGroup 
+                    value={expiryInputType} 
+                    onValueChange={(value: 'days' | 'date') => {
+                      setExpiryInputType(value);
+                      if (value === 'days') {
+                        setExpiryDate("");
+                        setShelfLifeDays("");
+                      } else {
+                        setShelfLifeDays("");
+                      }
+                    }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="days" id="expiry-days" />
+                      <Label htmlFor="expiry-days" className="font-normal cursor-pointer">
+                        Tempoh (Hari)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="date" id="expiry-date-radio" />
+                      <Label htmlFor="expiry-date-radio" className="font-normal cursor-pointer">
+                        Tarikh Spesifik
+                      </Label>
+                    </div>
+                  </RadioGroup>
+
+                  {/* Days Input */}
+                  {expiryInputType === 'days' && (
+                    <div className="space-y-2">
+                      <Input
+                        id="shelf-life-days"
+                        type="number"
+                        min="1"
+                        placeholder="Contoh: 7 (7 hari dari tarikh produksi)"
+                        value={shelfLifeDays}
+                        onChange={(e) => {
+                          setShelfLifeDays(e.target.value);
+                          calculateExpiryDate(e.target.value);
+                        }}
+                        data-testid="input-shelf-life-days"
+                      />
+                      {shelfLifeDays && expiryDate && (
+                        <p className="text-sm text-muted-foreground">
+                          Tarikh luput: <span className="font-semibold text-primary">
+                            {new Date(expiryDate).toLocaleDateString('ms-MY', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Date Input */}
+                  {expiryInputType === 'date' && (
+                    <Input
+                      id="expiry-date"
+                      type="date"
+                      value={expiryDate}
+                      onChange={(e) => setExpiryDate(e.target.value)}
+                      data-testid="input-expiry-date"
+                    />
+                  )}
+                </div>
                     data-testid="input-expiry-date"
                   />
                 </div>
