@@ -13,7 +13,9 @@ export interface POData {
   poNumber: string;
   supplierName: string;
   supplierPhone?: string | null;
-  supplierAddress?: string;
+  supplierEmail?: string | null;
+  supplierAddress?: string | null;
+  deliveryAddress?: string | null;
   totalAmount: string;
   notes?: string | null;
   createdAt: string;
@@ -23,6 +25,7 @@ export interface POData {
 
 export interface BusinessInfo {
   name: string;
+  registrationNumber?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -57,9 +60,14 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
   // Business contact info
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  if (business.address) {
-    doc.text(business.address, 14, yPos);
+  if (business.registrationNumber) {
+    doc.text(`Reg No: ${business.registrationNumber}`, 14, yPos);
     yPos += 4;
+  }
+  if (business.address) {
+    const addressLines = doc.splitTextToSize(business.address, 80);
+    doc.text(addressLines, 14, yPos);
+    yPos += addressLines.length * 4;
   }
   if (business.phone || business.email) {
     const contactText = [business.phone, business.email].filter(Boolean).join(" | ");
@@ -124,8 +132,9 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
   doc.setFont("helvetica", "bold");
   doc.text("Nama:", rightColX, supplierY);
   doc.setFont("helvetica", "normal");
-  doc.text(poData.supplierName, rightColX + 15, supplierY);
-  supplierY += 5;
+  const supplierNameLines = doc.splitTextToSize(poData.supplierName, 75);
+  doc.text(supplierNameLines, rightColX + 15, supplierY);
+  supplierY += supplierNameLines.length * 4 + 1;
   
   if (poData.supplierPhone) {
     doc.setFont("helvetica", "bold");
@@ -134,8 +143,46 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
     doc.text(poData.supplierPhone, rightColX + 15, supplierY);
     supplierY += 5;
   }
+  
+  if (poData.supplierEmail) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Email:", rightColX, supplierY);
+    doc.setFont("helvetica", "normal");
+    doc.text(poData.supplierEmail, rightColX + 15, supplierY);
+    supplierY += 5;
+  }
+  
+  if (poData.supplierAddress) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Alamat:", rightColX, supplierY);
+    doc.setFont("helvetica", "normal");
+    const addressLines = doc.splitTextToSize(poData.supplierAddress, 75);
+    doc.text(addressLines, rightColX + 15, supplierY);
+    supplierY += addressLines.length * 4;
+  }
 
-  yPos += 10;
+  yPos = Math.max(yPos, supplierY);
+  yPos += 5;
+  
+  // ============ DELIVERY ADDRESS ============
+  if (poData.deliveryAddress) {
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, yPos, pageWidth - 14, yPos);
+    yPos += 6;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Alamat Penghantaran:", 14, yPos);
+    yPos += 5;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const deliveryLines = doc.splitTextToSize(poData.deliveryAddress, pageWidth - 28);
+    doc.text(deliveryLines, 14, yPos);
+    yPos += deliveryLines.length * 4 + 6;
+  }
+
+  yPos += 5;
 
   // ============ ITEMS TABLE ============
   const tableData = poData.items.map((item, index) => {

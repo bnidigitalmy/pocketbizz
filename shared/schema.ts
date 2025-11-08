@@ -411,6 +411,9 @@ export const purchaseOrders = pgTable("purchase_orders", {
   supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
   supplierName: text("supplier_name").notNull(), // Denormalized
   supplierPhone: text("supplier_phone"), // Denormalized for easy contact
+  supplierEmail: text("supplier_email"), // Supplier email for sending PO
+  supplierAddress: text("supplier_address"), // Supplier business address
+  deliveryAddress: text("delivery_address"), // Delivery/shipping address for this order
   status: purchaseOrderStatusEnum("status").default("draft").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   notes: text("notes"),
