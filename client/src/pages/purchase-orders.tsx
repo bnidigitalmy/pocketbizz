@@ -416,82 +416,88 @@ export default function PurchaseOrders() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-4 md:py-6 px-4 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">📦 Purchase Orders</h1>
-          <p className="text-muted-foreground">Urus pesanan pembelian dari supplier</p>
+          <h1 className="text-2xl md:text-3xl font-bold">📦 Purchase Orders</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Urus pesanan pembelian dari supplier</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={() => setTemplatesDialogOpen(true)}
             variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
             data-testid="button-templates"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            Templates ({templates.length})
+            <FileText className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Templates ({templates.length})</span>
+            <span className="sm:hidden ml-2">({templates.length})</span>
           </Button>
           <Button 
             onClick={() => setLocation("/shopping-list")}
             variant="default"
+            size="sm"
+            className="flex-1 sm:flex-none"
             data-testid="button-back-to-cart"
           >
-            <ChevronRight className="h-4 w-4 mr-2 rotate-180" />
-            Kembali ke Cart
+            <ChevronRight className="h-4 w-4 sm:mr-2 rotate-180" />
+            <span className="hidden sm:inline">Kembali ke Cart</span>
+            <span className="sm:hidden ml-2">Cart</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
         <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-600" />
+          <CardHeader className="pb-2 md:pb-3">
+            <CardTitle className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2">
+              <Clock className="h-3 md:h-4 w-3 md:w-4 text-amber-600" />
               Draft
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.draft}</div>
+            <div className="text-2xl md:text-3xl font-bold">{stats.draft}</div>
             <p className="text-xs text-muted-foreground mt-1">Belum dihantar</p>
           </CardContent>
         </Card>
 
         <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Send className="h-4 w-4 text-blue-600" />
+          <CardHeader className="pb-2 md:pb-3">
+            <CardTitle className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2">
+              <Send className="h-3 md:h-4 w-3 md:w-4 text-blue-600" />
               Dihantar
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.sent}</div>
+            <div className="text-2xl md:text-3xl font-bold">{stats.sent}</div>
             <p className="text-xs text-muted-foreground mt-1">Menunggu barang</p>
           </CardContent>
         </Card>
 
         <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
+          <CardHeader className="pb-2 md:pb-3">
+            <CardTitle className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2">
+              <Check className="h-3 md:h-4 w-3 md:w-4 text-green-600" />
               Diterima
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.received}</div>
+            <div className="text-2xl md:text-3xl font-bold">{stats.received}</div>
             <p className="text-xs text-muted-foreground mt-1">Siap</p>
           </CardContent>
         </Card>
 
         <Card className="border-purple-200 bg-purple-50 dark:bg-purple-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Package className="h-4 w-4 text-purple-600" />
+          <CardHeader className="pb-2 md:pb-3">
+            <CardTitle className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2">
+              <Package className="h-3 md:h-4 w-3 md:w-4 text-purple-600" />
               Nilai Total
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">RM {stats.totalValue.toFixed(2)}</div>
+            <div className="text-xl md:text-2xl font-bold">RM {stats.totalValue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Semua PO</p>
           </CardContent>
         </Card>
@@ -523,20 +529,20 @@ export default function PurchaseOrders() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {purchaseOrders.map((po) => (
                 <div 
                   key={po.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover-elevate"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 rounded-lg border bg-card hover-elevate gap-3"
                   data-testid={`po-${po.id}`}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-bold text-lg">{po.poNumber}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 md:gap-3 mb-2 flex-wrap">
+                      <span className="font-bold text-base md:text-lg">{po.poNumber}</span>
                       {getStatusBadge(po.status)}
                     </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>Supplier: <span className="font-medium">{po.supplierName}</span></div>
+                    <div className="text-xs md:text-sm text-muted-foreground space-y-1">
+                      <div className="truncate">Supplier: <span className="font-medium">{po.supplierName}</span></div>
                       <div>
                         Tarikh: {new Date(po.createdAt).toLocaleDateString('ms-MY', {
                           day: 'numeric',
@@ -549,24 +555,26 @@ export default function PurchaseOrders() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap sm:flex-nowrap">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewDetails(po)}
+                      className="flex-1 sm:flex-none text-xs md:text-sm"
                       data-testid={`button-view-${po.id}`}
                     >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Lihat
+                      <FileText className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Lihat</span>
                     </Button>
 
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDownloadPDF(po)}
+                      className="flex-none"
                       data-testid={`button-pdf-${po.id}`}
                     >
-                      <Download className="h-4 w-4" />
+                      <Download className="h-3 md:h-4 w-3 md:w-4" />
                     </Button>
 
                     {po.status === 'draft' && (
@@ -575,9 +583,10 @@ export default function PurchaseOrders() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenEditDialog(po)}
+                          className="flex-none hidden sm:flex"
                           data-testid={`button-edit-${po.id}`}
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-3 md:h-4 w-3 md:w-4" />
                         </Button>
                         <Button
                           variant="default"
@@ -586,10 +595,11 @@ export default function PurchaseOrders() {
                             updateStatusMutation.mutate({ id: po.id, status: 'sent' });
                             handleShareWhatsApp(po);
                           }}
+                          className="flex-1 sm:flex-none text-xs md:text-sm"
                           data-testid={`button-send-${po.id}`}
                         >
-                          <Send className="h-4 w-4 mr-2" />
-                          Hantar
+                          <Send className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Hantar</span>
                         </Button>
                       </>
                     )}
@@ -602,16 +612,16 @@ export default function PurchaseOrders() {
                           setSelectedPO(po);
                           setReceiveDialogOpen(true);
                         }}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none text-xs md:text-sm"
                         data-testid={`button-receive-${po.id}`}
                       >
-                        <Check className="h-4 w-4 mr-2" />
-                        Terima
+                        <Check className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Terima</span>
                       </Button>
                     )}
 
                     {po.status === 'received' && (
-                      <Badge variant="outline" className="px-3 py-1">
+                      <Badge variant="outline" className="px-2 md:px-3 py-1 text-xs">
                         ✅ Selesai
                       </Badge>
                     )}
@@ -622,9 +632,10 @@ export default function PurchaseOrders() {
                         size="sm"
                         onClick={() => deletePOMutation.mutate(po.id)}
                         disabled={deletePOMutation.isPending}
+                        className="flex-none"
                         data-testid={`button-delete-${po.id}`}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 md:h-4 w-3 md:w-4" />
                       </Button>
                     )}
                   </div>
@@ -637,9 +648,9 @@ export default function PurchaseOrders() {
 
       {/* Details Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base md:text-lg">
               Purchase Order: {selectedPO?.poNumber}
             </DialogTitle>
             <DialogDescription>
@@ -649,17 +660,17 @@ export default function PurchaseOrders() {
 
           {selectedPO && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Supplier</p>
+                  <p className="text-muted-foreground text-xs md:text-sm">Supplier</p>
                   <p className="font-medium">{selectedPO.supplierName}</p>
                   {selectedPO.supplierPhone && (
                     <p className="text-xs text-muted-foreground">{selectedPO.supplierPhone}</p>
                   )}
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Tarikh Dibuat</p>
-                  <p className="font-medium">
+                  <p className="text-muted-foreground text-xs md:text-sm">Tarikh Dibuat</p>
+                  <p className="font-medium text-sm md:text-base">
                     {new Date(selectedPO.createdAt).toLocaleDateString('ms-MY', {
                       day: 'numeric',
                       month: 'long',
@@ -671,89 +682,106 @@ export default function PurchaseOrders() {
 
               {selectedPO.notes && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Nota</p>
-                  <p className="text-sm">{selectedPO.notes}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Nota</p>
+                  <p className="text-xs md:text-sm">{selectedPO.notes}</p>
                 </div>
               )}
 
               <div>
-                <p className="font-medium mb-2">Item Pesanan:</p>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Kuantiti</TableHead>
-                      <TableHead>Harga</TableHead>
-                      <TableHead className="text-right">Jumlah</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedPO.items.map((item) => {
-                      const price = parseFloat(item.actualPrice || item.estimatedPrice || '0');
-                      const qty = parseFloat(item.quantity);
-                      const total = price * qty;
-
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.itemName}</TableCell>
-                          <TableCell>{qty.toFixed(1)} {item.unit}</TableCell>
-                          <TableCell>RM {price.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">RM {total.toFixed(2)}</TableCell>
+                <p className="font-medium mb-2 text-sm md:text-base">Item Pesanan:</p>
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="min-w-full inline-block align-middle">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs md:text-sm">Item</TableHead>
+                          <TableHead className="text-xs md:text-sm">Kuantiti</TableHead>
+                          <TableHead className="text-xs md:text-sm">Harga</TableHead>
+                          <TableHead className="text-right text-xs md:text-sm">Jumlah</TableHead>
                         </TableRow>
-                      );
-                    })}
-                    <TableRow className="bg-muted/50">
-                      <TableCell colSpan={3} className="font-bold">JUMLAH</TableCell>
-                      <TableCell className="text-right font-bold">
-                        RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedPO.items.map((item) => {
+                          const price = parseFloat(item.actualPrice || item.estimatedPrice || '0');
+                          const qty = parseFloat(item.quantity);
+                          const total = price * qty;
+
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium text-xs md:text-sm">{item.itemName}</TableCell>
+                              <TableCell className="text-xs md:text-sm whitespace-nowrap">{qty.toFixed(1)} {item.unit}</TableCell>
+                              <TableCell className="text-xs md:text-sm whitespace-nowrap">RM {price.toFixed(2)}</TableCell>
+                              <TableCell className="text-right text-xs md:text-sm whitespace-nowrap">RM {total.toFixed(2)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="bg-muted/50">
+                          <TableCell colSpan={3} className="font-bold text-xs md:text-sm">JUMLAH</TableCell>
+                          <TableCell className="text-right font-bold text-xs md:text-sm whitespace-nowrap">
+                            RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setDetailDialogOpen(false);
                 setSaveTemplateDialogOpen(true);
               }}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-save-template"
             >
-              <Package className="h-4 w-4 mr-2" />
+              <Package className="h-3 md:h-4 w-3 md:w-4 mr-2" />
               Simpan Template
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => selectedPO && handleDownloadPDF(selectedPO)}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-download-pdf"
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-3 md:h-4 w-3 md:w-4 mr-2" />
               Muat Turun PDF
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setDetailDialogOpen(false);
                 selectedPO && handleOpenEmailDialog(selectedPO);
               }}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-email-po"
             >
-              <Mail className="h-4 w-4 mr-2" />
+              <Mail className="h-3 md:h-4 w-3 md:w-4 mr-2" />
               Email
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => selectedPO && handleShareWhatsApp(selectedPO)}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-share-po"
             >
-              <Share2 className="h-4 w-4 mr-2" />
+              <Share2 className="h-3 md:h-4 w-3 md:w-4 mr-2" />
               WhatsApp
             </Button>
-            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setDetailDialogOpen(false)}
+              className="w-full sm:w-auto text-xs md:text-sm"
+            >
               Tutup
             </Button>
           </DialogFooter>
@@ -762,10 +790,10 @@ export default function PurchaseOrders() {
 
       {/* Email Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Hantar PO melalui Email</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Hantar PO melalui Email</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               PO akan dihantar sebagai lampiran PDF ke email supplier
             </DialogDescription>
           </DialogHeader>
@@ -773,73 +801,80 @@ export default function PurchaseOrders() {
           {selectedPO && (
             <div className="space-y-4">
               <div className="space-y-2 p-3 bg-muted rounded-md">
-                <p className="text-sm">
+                <p className="text-xs md:text-sm">
                   <strong>PO Number:</strong> {selectedPO.poNumber}
                 </p>
-                <p className="text-sm">
+                <p className="text-xs md:text-sm">
                   <strong>Jumlah:</strong> RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="recipient-email">Email Supplier *</Label>
+                <Label htmlFor="recipient-email" className="text-xs md:text-sm">Email Supplier *</Label>
                 <Input
                   id="recipient-email"
                   type="email"
                   placeholder="supplier@example.com"
                   value={emailForm.recipientEmail}
                   onChange={(e) => setEmailForm({ ...emailForm, recipientEmail: e.target.value })}
+                  className="text-sm"
                   data-testid="input-recipient-email"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="recipient-name">Nama Supplier (Pilihan)</Label>
+                <Label htmlFor="recipient-name" className="text-xs md:text-sm">Nama Supplier (Pilihan)</Label>
                 <Input
                   id="recipient-name"
                   type="text"
                   placeholder="Nama supplier"
                   value={emailForm.recipientName}
                   onChange={(e) => setEmailForm({ ...emailForm, recipientName: e.target.value })}
+                  className="text-sm"
                   data-testid="input-recipient-name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message">Mesej Tambahan (Pilihan)</Label>
+                <Label htmlFor="message" className="text-xs md:text-sm">Mesej Tambahan (Pilihan)</Label>
                 <Textarea
                   id="message"
                   placeholder="Tambah mesej kepada supplier..."
                   value={emailForm.message}
                   onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
                   rows={3}
+                  className="text-sm"
                   data-testid="input-message"
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
-              variant="outline" 
+              variant="outline"
+              size="sm"
               onClick={() => setEmailDialogOpen(false)}
               disabled={sendEmailMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
             >
               Batal
             </Button>
             <Button
+              size="sm"
               onClick={handleSendEmail}
               disabled={sendEmailMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-send-email"
             >
               {sendEmailMutation.isPending ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
+                  <div className="h-3 md:h-4 w-3 md:w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
                   Menghantar...
                 </>
               ) : (
                 <>
-                  <Mail className="h-4 w-4 mr-2" />
+                  <Mail className="h-3 md:h-4 w-3 md:w-4 mr-2" />
                   Hantar Email
                 </>
               )}
@@ -850,10 +885,10 @@ export default function PurchaseOrders() {
 
       {/* Edit PO Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Purchase Order</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Edit Purchase Order</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               Kemaskini maklumat supplier dan nota PO
             </DialogDescription>
           </DialogHeader>
@@ -861,62 +896,69 @@ export default function PurchaseOrders() {
           {selectedPO && (
             <div className="space-y-4">
               <div className="space-y-2 p-3 bg-muted rounded-md">
-                <p className="text-sm">
+                <p className="text-xs md:text-sm">
                   <strong>PO Number:</strong> {selectedPO.poNumber}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   Status: Draft
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-supplier-name">Nama Supplier *</Label>
+                <Label htmlFor="edit-supplier-name" className="text-xs md:text-sm">Nama Supplier *</Label>
                 <Input
                   id="edit-supplier-name"
                   type="text"
                   value={editForm.supplierName}
                   onChange={(e) => setEditForm({ ...editForm, supplierName: e.target.value })}
+                  className="text-sm"
                   data-testid="input-edit-supplier-name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-supplier-phone">Telefon Supplier (Pilihan)</Label>
+                <Label htmlFor="edit-supplier-phone" className="text-xs md:text-sm">Telefon Supplier (Pilihan)</Label>
                 <Input
                   id="edit-supplier-phone"
                   type="tel"
                   placeholder="0123456789"
                   value={editForm.supplierPhone}
                   onChange={(e) => setEditForm({ ...editForm, supplierPhone: e.target.value })}
+                  className="text-sm"
                   data-testid="input-edit-supplier-phone"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-notes">Nota (Pilihan)</Label>
+                <Label htmlFor="edit-notes" className="text-xs md:text-sm">Nota (Pilihan)</Label>
                 <Textarea
                   id="edit-notes"
                   placeholder="Nota tambahan..."
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                   rows={3}
+                  className="text-sm"
                   data-testid="input-edit-notes"
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
-              variant="outline" 
+              variant="outline"
+              size="sm"
               onClick={() => setEditDialogOpen(false)}
               disabled={updatePOMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
             >
               Batal
             </Button>
             <Button
+              size="sm"
               onClick={handleUpdatePO}
               disabled={updatePOMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-save-edit"
             >
               {updatePOMutation.isPending ? "Menyimpan..." : "Simpan"}
@@ -927,40 +969,46 @@ export default function PurchaseOrders() {
 
       {/* Receive Confirmation Dialog */}
       <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Sahkan Penerimaan Barang</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Sahkan Penerimaan Barang</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               Tindakan ini akan mengemas kini stok dan merekod perbelanjaan secara automatik.
             </DialogDescription>
           </DialogHeader>
 
           {selectedPO && (
             <div className="space-y-2">
-              <p className="text-sm">
+              <p className="text-xs md:text-sm">
                 <strong>PO Number:</strong> {selectedPO.poNumber}
               </p>
-              <p className="text-sm">
+              <p className="text-xs md:text-sm">
                 <strong>Supplier:</strong> {selectedPO.supplierName}
               </p>
-              <p className="text-sm">
+              <p className="text-xs md:text-sm">
                 <strong>Jumlah:</strong> RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
               </p>
-              <p className="text-sm text-muted-foreground mt-4">
+              <p className="text-xs md:text-sm text-muted-foreground mt-4">
                 Stok akan ditambah<br />
                 Perbelanjaan akan direkod
               </p>
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReceiveDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setReceiveDialogOpen(false)}
+              className="w-full sm:w-auto text-xs md:text-sm"
+            >
               Batal
             </Button>
             <Button
+              size="sm"
               onClick={() => selectedPO && markReceivedMutation.mutate(selectedPO.id)}
               disabled={markReceivedMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-confirm-receive"
             >
               {markReceivedMutation.isPending ? "Merekod..." : "Sahkan Terima"}
@@ -971,38 +1019,42 @@ export default function PurchaseOrders() {
       
       {/* Save Template Dialog */}
       <Dialog open={saveTemplateDialogOpen} onOpenChange={setSaveTemplateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Simpan sebagai Template</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Simpan sebagai Template</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               Template membolehkan anda cipta PO baharu dengan item yang sama
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="template-name">Nama Template *</Label>
+              <Label htmlFor="template-name" className="text-xs md:text-sm">Nama Template *</Label>
               <Input
                 id="template-name"
                 placeholder="Contoh: Pesanan Bulanan Supplier ABC"
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
+                className="text-sm"
                 data-testid="input-template-name"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
-              variant="outline" 
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setSaveTemplateDialogOpen(false);
                 setTemplateName("");
               }}
+              className="w-full sm:w-auto text-xs md:text-sm"
             >
               Batal
             </Button>
             <Button
+              size="sm"
               onClick={() => {
                 if (!templateName.trim()) {
                   toast({
@@ -1020,6 +1072,7 @@ export default function PurchaseOrders() {
                 }
               }}
               disabled={saveTemplateMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-confirm-save-template"
             >
               {saveTemplateMutation.isPending ? "Menyimpan..." : "Simpan Template"}
@@ -1032,8 +1085,8 @@ export default function PurchaseOrders() {
       <Dialog open={templatesDialogOpen} onOpenChange={setTemplatesDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>PO Templates</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">PO Templates</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               {templates.length > 0 
                 ? `${templates.length} template tersimpan` 
                 : "Tiada template tersimpan"}
@@ -1044,44 +1097,46 @@ export default function PurchaseOrders() {
             {templates.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Tiada template. Simpan PO sebagai template untuk kegunaan semula.</p>
+                <p className="text-xs md:text-sm">Tiada template. Simpan PO sebagai template untuk kegunaan semula.</p>
               </div>
             ) : (
               templates.map((template: any) => (
                 <Card key={template.id} className="hover-elevate">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <CardTitle className="text-base">{template.templateName}</CardTitle>
-                        <CardDescription className="mt-1">
+                  <CardHeader className="pb-2 md:pb-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm md:text-base truncate">{template.templateName}</CardTitle>
+                        <CardDescription className="mt-1 text-xs md:text-sm truncate">
                           {template.supplierName}
                           {template.supplierPhone && ` • ${template.supplierPhone}`}
                         </CardDescription>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <Button
                           size="sm"
                           onClick={() => createFromTemplateMutation.mutate(template.id)}
                           disabled={createFromTemplateMutation.isPending}
+                          className="flex-1 sm:flex-none text-xs md:text-sm"
                           data-testid={`button-use-template-${template.id}`}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Guna
+                          <FileText className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Guna</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteTemplateMutation.mutate(template.id)}
                           disabled={deleteTemplateMutation.isPending}
+                          className="flex-none"
                           data-testid={`button-delete-template-${template.id}`}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 md:h-4 w-3 md:w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs md:text-sm text-muted-foreground truncate">
                       {template.items?.length || 0} item
                       {template.notes && ` • ${template.notes}`}
                     </div>
@@ -1092,7 +1147,12 @@ export default function PurchaseOrders() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplatesDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setTemplatesDialogOpen(false)}
+              className="w-full sm:w-auto text-xs md:text-sm"
+            >
               Tutup
             </Button>
           </DialogFooter>
