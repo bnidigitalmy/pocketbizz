@@ -1,6 +1,9 @@
 [phases.setup]
 nixPkgs = ['nodejs_20', 'npm-10_x', 'openssl']
 
+[nix]
+channel = "nixos-24.05"
+
 [phases.install]
 cmds = ['npm ci']
 
