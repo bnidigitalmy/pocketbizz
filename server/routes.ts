@@ -3663,7 +3663,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create PO from cart items
   app.post("/api/purchase-orders/from-cart", requireAuth, async (req, res) => {
     try {
-      const { supplierId, supplierName, supplierPhone, notes, cartItemIds } = req.body;
+      const { 
+        supplierId, 
+        supplierName, 
+        supplierPhone, 
+        supplierEmail,
+        supplierAddress,
+        deliveryAddress,
+        notes, 
+        cartItemIds 
+      } = req.body;
       
       if (!supplierName || !Array.isArray(cartItemIds) || cartItemIds.length === 0) {
         return res.status(400).json({ error: "Supplier name and cart items are required" });
@@ -3674,6 +3683,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         supplierId || null,
         supplierName,
         supplierPhone || null,
+        supplierEmail || null,
+        supplierAddress || null,
+        deliveryAddress || null,
         notes || null,
         cartItemIds
       );

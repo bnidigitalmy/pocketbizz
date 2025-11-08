@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { downloadPOPDF } from "@/lib/po-pdf-generator";
+import type { BusinessProfile } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,9 @@ interface PurchaseOrder {
   supplierId: string | null;
   supplierName: string;
   supplierPhone: string | null;
+  supplierEmail: string | null;
+  supplierAddress: string | null;
+  deliveryAddress: string | null;
   totalAmount: string;
   status: string;
   notes: string | null;
@@ -84,6 +88,10 @@ export default function PurchaseOrders() {
   
   const { data: templates = [] } = useQuery<any[]>({
     queryKey: ["/api/po-templates"],
+  });
+  
+  const { data: businessProfile } = useQuery<BusinessProfile>({
+    queryKey: ["/api/business-profile"],
   });
 
   const updateStatusMutation = useMutation({
@@ -260,10 +268,33 @@ export default function PurchaseOrders() {
   };
 
   const handleShareWhatsApp = (po: PurchaseOrder) => {
+    const businessName = businessProfile?.businessName || "PocketBizz";
+    
     let message = `📋 *PURCHASE ORDER*\n`;
+    message += `${businessName}\n`;
+    if (businessProfile?.registrationNumber) {
+      message += `Reg No: ${businessProfile.registrationNumber}\n`;
+    }
+    if (businessProfile?.phone || businessProfile?.email) {
+      const contact = [businessProfile?.phone, businessProfile?.email].filter(Boolean).join(" | ");
+      message += `${contact}\n`;
+    }
+    message += `\n`;
     message += `PO Number: *${po.poNumber}*\n`;
-    message += `Supplier: *${po.supplierName}*\n`;
     message += `Tarikh: ${new Date(po.createdAt).toLocaleDateString('ms-MY')}\n\n`;
+    
+    message += `📤 *KEPADA:*\n`;
+    message += `${po.supplierName}\n`;
+    if (po.supplierPhone) message += `Tel: ${po.supplierPhone}\n`;
+    if (po.supplierEmail) message += `Email: ${po.supplierEmail}\n`;
+    if (po.supplierAddress) message += `${po.supplierAddress}\n`;
+    message += `\n`;
+    
+    if (po.deliveryAddress) {
+      message += `📍 *ALAMAT PENGHANTARAN:*\n`;
+      message += `${po.deliveryAddress}\n\n`;
+    }
+    
     message += `📦 *SENARAI ITEM:*\n\n`;
 
     po.items.forEach((item, index) => {
@@ -285,10 +316,10 @@ export default function PurchaseOrders() {
     message += `💰 *JUMLAH: RM ${parseFloat(po.totalAmount).toFixed(2)}*\n\n`;
     
     if (po.notes) {
-      message += `📝 Nota: ${po.notes}\n`;
+      message += `📝 Nota: ${po.notes}\n\n`;
     }
 
-    message += `\nSila sahkan pesanan ini. Terima kasih! 🙏`;
+    message += `Sila sahkan pesanan ini. Terima kasih! 🙏`;
 
     const encodedMessage = encodeURIComponent(message);
     const phoneNumber = po.supplierPhone?.replace(/\D/g, '') || '';
@@ -306,10 +337,27 @@ export default function PurchaseOrders() {
 
   const handleDownloadPDF = (po: PurchaseOrder) => {
     try {
+      const businessInfo = businessProfile ? {
+        name: businessProfile.businessName,
+        registrationNumber: businessProfile.registrationNumber || '',
+        address: businessProfile.address || '',
+        phone: businessProfile.phone || '',
+        email: businessProfile.email || ''
+      } : {
+        name: "PocketBizz",
+        registrationNumber: '',
+        address: '',
+        phone: '',
+        email: ''
+      };
+
       downloadPOPDF({
         poNumber: po.poNumber,
         supplierName: po.supplierName,
         supplierPhone: po.supplierPhone,
+        supplierEmail: po.supplierEmail || '',
+        supplierAddress: po.supplierAddress || '',
+        deliveryAddress: po.deliveryAddress || '',
         totalAmount: po.totalAmount,
         notes: po.notes,
         createdAt: po.createdAt,
@@ -321,7 +369,7 @@ export default function PurchaseOrders() {
           estimatedPrice: item.estimatedPrice || "0",
           notes: item.notes
         }))
-      });
+      }, businessInfo);
 
       toast({
         title: "PDF dimuat turun",

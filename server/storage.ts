@@ -267,9 +267,27 @@ export interface IStorage {
   getPurchaseOrders(userId: string): Promise<any[]>; // Returns orders with items
   getPurchaseOrder(userId: string, id: string): Promise<any | undefined>; // Returns order with items
   updatePurchaseOrderStatus(userId: string, id: string, status: string, additionalData?: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder>;
-  updatePurchaseOrder(userId: string, id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any>;
+  updatePurchaseOrder(userId: string, id: string, data: { 
+    supplierName?: string; 
+    supplierPhone?: string | null; 
+    supplierEmail?: string | null;
+    supplierAddress?: string | null;
+    deliveryAddress?: string | null;
+    notes?: string | null; 
+    items?: any[] 
+  }): Promise<any>;
   deletePurchaseOrder(userId: string, id: string): Promise<void>;
-  createPurchaseOrderFromCart(userId: string, supplierId: string | null, supplierName: string, supplierPhone: string | null, notes: string | null, cartItemIds: string[]): Promise<PurchaseOrder>;
+  createPurchaseOrderFromCart(
+    userId: string, 
+    supplierId: string | null, 
+    supplierName: string, 
+    supplierPhone: string | null,
+    supplierEmail: string | null,
+    supplierAddress: string | null,
+    deliveryAddress: string | null,
+    notes: string | null, 
+    cartItemIds: string[]
+  ): Promise<PurchaseOrder>;
   markPurchaseOrderReceived(userId: string, id: string, actualPrices?: { itemId: string; price: number }[]): Promise<void>;
   
   // Users & Authentication
@@ -2445,12 +2463,23 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   
-  async updatePurchaseOrder(userId: string, id: string, data: { supplierName?: string; supplierPhone?: string | null; notes?: string | null; items?: any[] }): Promise<any> {
+  async updatePurchaseOrder(userId: string, id: string, data: { 
+    supplierName?: string; 
+    supplierPhone?: string | null; 
+    supplierEmail?: string | null;
+    supplierAddress?: string | null;
+    deliveryAddress?: string | null;
+    notes?: string | null; 
+    items?: any[] 
+  }): Promise<any> {
     return await db.transaction(async (tx) => {
       // Update PO basic info
       const updateData: any = { updatedAt: new Date() };
       if (data.supplierName !== undefined) updateData.supplierName = data.supplierName;
       if (data.supplierPhone !== undefined) updateData.supplierPhone = data.supplierPhone;
+      if (data.supplierEmail !== undefined) updateData.supplierEmail = data.supplierEmail;
+      if (data.supplierAddress !== undefined) updateData.supplierAddress = data.supplierAddress;
+      if (data.deliveryAddress !== undefined) updateData.deliveryAddress = data.deliveryAddress;
       if (data.notes !== undefined) updateData.notes = data.notes;
       
       await tx
@@ -2646,6 +2675,9 @@ export class DatabaseStorage implements IStorage {
     supplierId: string | null,
     supplierName: string,
     supplierPhone: string | null,
+    supplierEmail: string | null,
+    supplierAddress: string | null,
+    deliveryAddress: string | null,
     notes: string | null,
     cartItemIds: string[]
   ): Promise<PurchaseOrder> {
@@ -2711,6 +2743,9 @@ export class DatabaseStorage implements IStorage {
         supplierId: finalSupplierId,
         supplierName,
         supplierPhone,
+        supplierEmail,
+        supplierAddress,
+        deliveryAddress,
         totalAmount: total.toFixed(2),
         notes,
         status: 'draft',

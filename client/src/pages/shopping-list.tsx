@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
+import type { BusinessProfile } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -161,6 +162,7 @@ export default function ShoppingList() {
   const [editableCartItems, setEditableCartItems] = useState<Record<string, string>>({});
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedStockId, setSelectedStockId] = useState("");
   const [manualQty, setManualQty] = useState("");
   const [manualNotes, setManualNotes] = useState("");
@@ -169,7 +171,18 @@ export default function ShoppingList() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [customSupplierName, setCustomSupplierName] = useState("");
   const [customSupplierPhone, setCustomSupplierPhone] = useState("");
+  const [customSupplierEmail, setCustomSupplierEmail] = useState("");
+  const [customSupplierAddress, setCustomSupplierAddress] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [poNotes, setPoNotes] = useState("");
+  
+  // Preview state (editable)
+  const [previewSupplierName, setPreviewSupplierName] = useState("");
+  const [previewSupplierPhone, setPreviewSupplierPhone] = useState("");
+  const [previewSupplierEmail, setPreviewSupplierEmail] = useState("");
+  const [previewSupplierAddress, setPreviewSupplierAddress] = useState("");
+  const [previewDeliveryAddress, setPreviewDeliveryAddress] = useState("");
+  const [previewNotes, setPreviewNotes] = useState("");
 
   const { data: lowStockItems = [], isLoading } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/low"],
@@ -185,6 +198,10 @@ export default function ShoppingList() {
 
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
+  });
+  
+  const { data: businessProfile } = useQuery<BusinessProfile>({
+    queryKey: ["/api/business-profile"],
   });
 
   // Auto-open PO dialog if autoPO parameter is present
@@ -253,20 +270,11 @@ export default function ShoppingList() {
         throw new Error("Cart kosong");
       }
 
-      // Determine supplier name and phone
-      let supplierName = "Supplier Manual";
-      let supplierPhone: string | null = null;
-      
-      if (selectedSupplierId) {
-        const supplier = suppliers.find(s => s.id === selectedSupplierId);
-        if (supplier) {
-          supplierName = supplier.name;
-          supplierPhone = supplier.phone;
-        }
-      } else if (customSupplierName.trim()) {
-        supplierName = customSupplierName.trim();
-        supplierPhone = customSupplierPhone.trim() || null;
-      }
+      // Use preview values (already set from supplier dialog)
+      const supplierName = previewSupplierName.trim() || "Supplier Manual";
+      const supplierPhone = previewSupplierPhone.trim() || null;
+      const supplierEmail = previewSupplierEmail.trim() || null;
+      const supplierAddress = previewSupplierAddress.trim() || null;
 
       // Use editable quantities for cart items
       const updatedCartItemIds = cartItems.map(item => item.id);
@@ -300,7 +308,10 @@ export default function ShoppingList() {
         supplierId: selectedSupplierId,
         supplierName,
         supplierPhone,
-        notes: poNotes || null,
+        supplierEmail,
+        supplierAddress,
+        deliveryAddress: previewDeliveryAddress.trim() || null,
+        notes: previewNotes || null,
         cartItemIds: freshCartIds,
       });
 
@@ -314,9 +325,13 @@ export default function ShoppingList() {
       queryClient.invalidateQueries({ queryKey: ["/api/shopping-cart"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       setSupplierDialogOpen(false);
+      setPreviewDialogOpen(false);
       setSelectedSupplierId(null);
       setCustomSupplierName("");
       setCustomSupplierPhone("");
+      setCustomSupplierEmail("");
+      setCustomSupplierAddress("");
+      setDeliveryAddress("");
       setPoNotes("");
       setEditableCartItems({});
       
@@ -331,6 +346,39 @@ export default function ShoppingList() {
       });
     },
   });
+
+  const handleOpenPreview = () => {
+    // Populate preview state from supplier dialog values
+    let supplierName = "Supplier Manual";
+    let supplierPhone = "";
+    let supplierEmail = "";
+    let supplierAddress = "";
+    
+    if (selectedSupplierId) {
+      const supplier = suppliers.find(s => s.id === selectedSupplierId);
+      if (supplier) {
+        supplierName = supplier.name;
+        supplierPhone = supplier.phone || "";
+        supplierEmail = supplier.email || "";
+        supplierAddress = supplier.address || "";
+      }
+    } else if (customSupplierName.trim()) {
+      supplierName = customSupplierName.trim();
+      supplierPhone = customSupplierPhone.trim();
+      supplierEmail = customSupplierEmail.trim();
+      supplierAddress = customSupplierAddress.trim();
+    }
+    
+    setPreviewSupplierName(supplierName);
+    setPreviewSupplierPhone(supplierPhone);
+    setPreviewSupplierEmail(supplierEmail);
+    setPreviewSupplierAddress(supplierAddress);
+    setPreviewDeliveryAddress(deliveryAddress);
+    setPreviewNotes(poNotes);
+    
+    setSupplierDialogOpen(false);
+    setPreviewDialogOpen(true);
+  };
 
   const handleQtyChange = (itemId: string, newQty: string) => {
     setEditableCartItems(prev => ({
@@ -761,7 +809,7 @@ export default function ShoppingList() {
                       {!selectedSupplierId && (
                         <>
                           <div>
-                            <Label htmlFor="custom-supplier-name" className="text-xs sm:text-sm">Nama Supplier</Label>
+                            <Label htmlFor="custom-supplier-name" className="text-xs sm:text-sm">Nama Supplier *</Label>
                             <Input
                               id="custom-supplier-name"
                               value={customSupplierName}
@@ -772,7 +820,7 @@ export default function ShoppingList() {
                             />
                           </div>
                           <div>
-                            <Label htmlFor="custom-supplier-phone" className="text-xs sm:text-sm">Telefon (Opsional)</Label>
+                            <Label htmlFor="custom-supplier-phone" className="text-xs sm:text-sm">Telefon Supplier (Opsional)</Label>
                             <Input
                               id="custom-supplier-phone"
                               value={customSupplierPhone}
@@ -782,8 +830,48 @@ export default function ShoppingList() {
                               data-testid="input-custom-supplier-phone"
                             />
                           </div>
+                          <div>
+                            <Label htmlFor="custom-supplier-email" className="text-xs sm:text-sm">Email Supplier (Opsional)</Label>
+                            <Input
+                              id="custom-supplier-email"
+                              type="email"
+                              value={customSupplierEmail}
+                              onChange={(e) => setCustomSupplierEmail(e.target.value)}
+                              placeholder="supplier@example.com"
+                              className="text-xs sm:text-sm"
+                              data-testid="input-custom-supplier-email"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="custom-supplier-address" className="text-xs sm:text-sm">Alamat Supplier (Opsional)</Label>
+                            <Textarea
+                              id="custom-supplier-address"
+                              value={customSupplierAddress}
+                              onChange={(e) => setCustomSupplierAddress(e.target.value)}
+                              placeholder="Alamat lengkap supplier..."
+                              rows={2}
+                              className="text-xs sm:text-sm"
+                              data-testid="textarea-custom-supplier-address"
+                            />
+                          </div>
                         </>
                       )}
+
+                      <div>
+                        <Label htmlFor="delivery-address" className="text-xs sm:text-sm">Alamat Penghantaran (Opsional)</Label>
+                        <Textarea
+                          id="delivery-address"
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          placeholder="Alamat untuk penghantaran barang..."
+                          rows={2}
+                          className="text-xs sm:text-sm"
+                          data-testid="textarea-delivery-address"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Alamat dimana barang akan dihantar
+                        </p>
+                      </div>
 
                       <div>
                         <Label htmlFor="po-notes" className="text-xs sm:text-sm">Nota PO (Opsional)</Label>
@@ -792,6 +880,7 @@ export default function ShoppingList() {
                           value={poNotes}
                           onChange={(e) => setPoNotes(e.target.value)}
                           placeholder="Tambah nota untuk purchase order..."
+                          rows={2}
                           className="text-xs sm:text-sm"
                           data-testid="textarea-po-notes"
                         />
@@ -799,17 +888,194 @@ export default function ShoppingList() {
                     </div>
                     <DialogFooter>
                       <Button
-                        onClick={() => createPOMutation.mutate()}
+                        onClick={handleOpenPreview}
                         disabled={createPOMutation.isPending || (!selectedSupplierId && !customSupplierName.trim())}
                         className="text-xs sm:text-sm"
                         data-testid="button-confirm-create-po"
                       >
-                        {createPOMutation.isPending ? "Mencipta PO..." : "Buat PO"}
+                        Semak & Sahkan PO
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
               )}
+              
+              {/* Preview & Edit Dialog */}
+              <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+                <DialogContent className="w-[95vw] max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base sm:text-lg">Semak Purchase Order</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">
+                      Semak dan edit maklumat PO sebelum disahkan
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    {/* Business Info Section */}
+                    <div className="border rounded-lg p-3 bg-muted/30">
+                      <h3 className="font-semibold text-sm mb-2">📋 Maklumat Perniagaan</h3>
+                      <div className="text-xs space-y-1">
+                        <p className="font-medium">{businessProfile?.businessName || "PocketBizz"}</p>
+                        {businessProfile?.registrationNumber && (
+                          <p className="text-muted-foreground">No. Pendaftaran: {businessProfile.registrationNumber}</p>
+                        )}
+                        {businessProfile?.address && (
+                          <p className="text-muted-foreground">{businessProfile.address}</p>
+                        )}
+                        <div className="flex gap-3">
+                          {businessProfile?.phone && <span>{businessProfile.phone}</span>}
+                          {businessProfile?.email && <span>{businessProfile.email}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Supplier Info - Editable */}
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3">📤 Maklumat Supplier</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="preview-supplier-name" className="text-xs">Nama Supplier *</Label>
+                          <Input
+                            id="preview-supplier-name"
+                            value={previewSupplierName}
+                            onChange={(e) => setPreviewSupplierName(e.target.value)}
+                            className="text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="preview-supplier-phone" className="text-xs">No. Telefon</Label>
+                          <Input
+                            id="preview-supplier-phone"
+                            value={previewSupplierPhone}
+                            onChange={(e) => setPreviewSupplierPhone(e.target.value)}
+                            className="text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="preview-supplier-email" className="text-xs">Email</Label>
+                          <Input
+                            id="preview-supplier-email"
+                            value={previewSupplierEmail}
+                            onChange={(e) => setPreviewSupplierEmail(e.target.value)}
+                            className="text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="preview-supplier-address" className="text-xs">Alamat Supplier</Label>
+                          <Textarea
+                            id="preview-supplier-address"
+                            value={previewSupplierAddress}
+                            onChange={(e) => setPreviewSupplierAddress(e.target.value)}
+                            className="text-xs"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery Address - Editable */}
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3">📍 Alamat Penghantaran</h3>
+                      <Textarea
+                        value={previewDeliveryAddress}
+                        onChange={(e) => setPreviewDeliveryAddress(e.target.value)}
+                        placeholder="Alamat dimana barang akan dihantar..."
+                        className="text-xs"
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Items Table */}
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3">📦 Senarai Item</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="border-b">
+                            <tr className="text-left">
+                              <th className="pb-2 font-semibold">Item</th>
+                              <th className="pb-2 font-semibold text-right">Kuantiti</th>
+                              <th className="pb-2 font-semibold text-right">Anggaran</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cartItems.map((item) => {
+                              const stockItem = allStockItems.find(s => s.id === item.stockItemId);
+                              const qty = editableCartItems[item.id] || item.shortageQty;
+                              const estimatedCost = stockItem 
+                                ? parseFloat(qty) * parseFloat(stockItem.purchasePrice)
+                                : 0;
+
+                              return (
+                                <tr key={item.id} className="border-b last:border-0">
+                                  <td className="py-2">
+                                    <div className="font-medium">{item.stockItemName}</div>
+                                    {item.notes && (
+                                      <div className="text-muted-foreground text-[10px] mt-0.5">{item.notes}</div>
+                                    )}
+                                  </td>
+                                  <td className="py-2 text-right">
+                                    {parseFloat(qty).toFixed(1)} {item.unit}
+                                  </td>
+                                  <td className="py-2 text-right">
+                                    {estimatedCost > 0 ? `RM ${estimatedCost.toFixed(2)}` : "-"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot className="border-t font-semibold">
+                            <tr>
+                              <td colSpan={2} className="pt-2 text-right">Jumlah Anggaran:</td>
+                              <td className="pt-2 text-right">
+                                RM {cartItems.reduce((total, item) => {
+                                  const stockItem = allStockItems.find(s => s.id === item.stockItemId);
+                                  const qty = editableCartItems[item.id] || item.shortageQty;
+                                  const cost = stockItem 
+                                    ? parseFloat(qty) * parseFloat(stockItem.purchasePrice)
+                                    : 0;
+                                  return total + cost;
+                                }, 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Notes - Editable */}
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3">📝 Nota</h3>
+                      <Textarea
+                        value={previewNotes}
+                        onChange={(e) => setPreviewNotes(e.target.value)}
+                        placeholder="Nota tambahan untuk PO ini..."
+                        className="text-xs"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setPreviewDialogOpen(false);
+                        setSupplierDialogOpen(true);
+                      }}
+                      className="text-xs sm:text-sm"
+                    >
+                      Kembali
+                    </Button>
+                    <Button
+                      onClick={() => createPOMutation.mutate()}
+                      disabled={createPOMutation.isPending || !previewSupplierName.trim()}
+                      className="text-xs sm:text-sm"
+                    >
+                      {createPOMutation.isPending ? "Mencipta PO..." : "Sahkan & Buat PO"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
