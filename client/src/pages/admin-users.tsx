@@ -20,6 +20,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Search, UserCog, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Search, UserCog, CheckCircle, XCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { containerVariants, itemVariants } from "@/lib/motion";
@@ -52,6 +62,9 @@ export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showManageDialog, setShowManageDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [copiedPassword, setCopiedPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [durationMonths, setDurationMonths] = useState("1");
   const { toast } = useToast();
@@ -93,6 +106,30 @@ export default function AdminUsers() {
     },
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data: any) => {
+      setTempPassword(data.tempPassword);
+      toast({
+        title: "Password Reset Successful",
+        description: "Temporary password generated. Share with user securely.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+      setShowResetPasswordDialog(false);
+      setSelectedUser(null);
+    },
+  });
+
   const handleActivateSubscription = () => {
     if (!selectedUser || !selectedPlan) {
       toast({
@@ -118,6 +155,24 @@ export default function AdminUsers() {
       userId: selectedUser.id,
       action: 'cancel',
     });
+  };
+
+  const handleResetPassword = () => {
+    if (!selectedUser) return;
+    resetPasswordMutation.mutate(selectedUser.id);
+  };
+
+  const handleCopyPassword = async () => {
+    await navigator.clipboard.writeText(tempPassword);
+    setCopiedPassword(true);
+    setTimeout(() => setCopiedPassword(false), 2000);
+  };
+
+  const handleCloseResetDialog = () => {
+    setShowResetPasswordDialog(false);
+    setSelectedUser(null);
+    setTempPassword("");
+    setCopiedPassword(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -233,18 +288,32 @@ export default function AdminUsers() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setShowManageDialog(true);
-                            }}
-                            data-testid={`button-manage-${user.id}`}
-                          >
-                            <UserCog className="h-4 w-4 mr-2" />
-                            Urus
-                          </Button>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowManageDialog(true);
+                              }}
+                              data-testid={`button-manage-${user.id}`}
+                            >
+                              <UserCog className="h-4 w-4 mr-2" />
+                              Urus
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowResetPasswordDialog(true);
+                              }}
+                              data-testid={`button-reset-password-${user.id}`}
+                            >
+                              <KeyRound className="h-4 w-4 mr-2" />
+                              Reset Password
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -362,6 +431,92 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reset Password Dialog */}
+      <AlertDialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {tempPassword ? "Password Telah Direset" : "Reset Password Pengguna"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {tempPassword ? (
+                <div className="space-y-4 pt-4">
+                  <p>Password sementara untuk <strong>{selectedUser?.email}</strong>:</p>
+                  
+                  <div className="bg-muted p-4 rounded-md border-2 border-primary/20">
+                    <div className="flex items-center justify-between gap-4">
+                      <code className="text-2xl font-bold tracking-wider">{tempPassword}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyPassword}
+                        data-testid="button-copy-password"
+                      >
+                        {copiedPassword ? (
+                          <>
+                            <Check className="h-4 w-4 mr-2 text-green-600" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-800">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      ⚠️ <strong>Penting:</strong> Kongsi password ini dengan pengguna secara selamat (WhatsApp, SMS, atau secara langsung). 
+                      Password ini tidak akan dipaparkan lagi selepas ditutup.
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      💡 Pengguna digalakkan menukar password ini kepada password pilihan mereka selepas log masuk.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  Adakah anda pasti mahu mereset password untuk <strong>{selectedUser?.email}</strong>?
+                  <br /><br />
+                  Password sementara akan dijana dan dipaparkan kepada anda untuk dikongsi dengan pengguna.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {tempPassword ? (
+              <AlertDialogAction onClick={handleCloseResetDialog} data-testid="button-close-reset">
+                Tutup
+              </AlertDialogAction>
+            ) : (
+              <>
+                <AlertDialogCancel data-testid="button-cancel-reset">Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleResetPassword}
+                  disabled={resetPasswordMutation.isPending}
+                  data-testid="button-confirm-reset"
+                >
+                  {resetPasswordMutation.isPending ? (
+                    <>
+                      <Clock className="h-4 w-4 mr-2 animate-spin" />
+                      Mereset...
+                    </>
+                  ) : (
+                    'Reset Password'
+                  )}
+                </AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

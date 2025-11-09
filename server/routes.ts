@@ -4327,6 +4327,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin: Reset user password
+  app.post("/api/admin/users/:userId/reset-password", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Generate random temporary password (8 characters)
+      const crypto = await import('crypto');
+      const tempPassword = crypto.randomBytes(4).toString('hex'); // 8 char hex
+      
+      // Hash the temporary password
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      
+      // Update user password
+      await storage.updateUser(userId, { 
+        password: hashedPassword,
+        updatedAt: new Date()
+      });
+      
+      // Return the temporary password (only shown once to admin)
+      res.json({ 
+        success: true, 
+        tempPassword,
+        message: `Password reset successful. Temporary password: ${tempPassword}`,
+        userId: user.id,
+        userEmail: user.email
+      });
+    } catch (error) {
+      console.error("Admin password reset error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+  
   // Admin: Revenue analytics
   app.get("/api/admin/analytics/revenue", requireAdmin, async (req, res) => {
     try {
