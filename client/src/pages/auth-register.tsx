@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Package, Loader2, Check, Sparkles } from "lucide-react";
+import { Package, Loader2, Check, Sparkles, Eye, EyeOff } from "lucide-react";
 
 export default function AuthRegister() {
   const [, navigate] = useLocation();
@@ -17,6 +17,7 @@ export default function AuthRegister() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const registerMutation = useMutation({
     mutationFn: async (data: { name: string; email: string; password: string; phone?: string }) => {
@@ -101,16 +102,31 @@ export default function AuthRegister() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Minimum 6 aksara"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                data-testid="input-password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Minimum 6 aksara"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  data-testid="input-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="bg-muted p-4 rounded-lg space-y-2">
@@ -151,17 +167,26 @@ export default function AuthRegister() {
             <span className="text-muted-foreground">Sudah ada akaun? </span>
             <Button
               variant="ghost"
-              className="p-0 h-auto"
+              className="p-0 h-auto text-primary hover:text-primary/80 hover:bg-transparent"
               onClick={() => navigate("/auth/login")}
               data-testid="link-login"
             >
               Log Masuk
             </Button>
+            <span className="mx-2 text-muted-foreground">|</span>
+            <Button
+              variant="ghost"
+              className="p-0 h-auto text-primary hover:text-primary/80 hover:bg-transparent"
+              onClick={() => window.location.href = "https://www.pocketbizz.my"}
+              data-testid="link-forgot-password"
+            >
+              Lupa Password?
+            </Button>
           </div>
           <div className="mt-4 text-center">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => window.location.href = "https://www.pocketbizz.my"}
               data-testid="link-back-home"
             >
               Kembali ke Homepage
