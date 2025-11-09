@@ -3791,7 +3791,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get resend client
       const { getUncachableResendClient } = await import("./resend-client");
-      const { client, fromEmail } = await getUncachableResendClient();
+      
+      let client, fromEmail;
+      try {
+        const resendClient = await getUncachableResendClient();
+        client = resendClient.client;
+        fromEmail = resendClient.fromEmail;
+      } catch (emailError: any) {
+        console.error("Email service configuration error:", emailError.message);
+        return res.status(503).json({ 
+          error: "Email service not configured", 
+          message: "Please configure RESEND_API_KEY in environment variables to enable email features. Get your API key from https://resend.com/api-keys" 
+        });
+      }
       
       // Convert base64 to buffer
       const pdfBuffer = Buffer.from(pdfBase64, 'base64');

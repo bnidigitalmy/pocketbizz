@@ -3,6 +3,15 @@ import { Resend } from 'resend';
 let connectionSettings: any;
 
 async function getCredentials() {
+  // Check if running in standard environment (not Replit)
+  if (process.env.RESEND_API_KEY) {
+    return {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@pocketbizz.com'
+    };
+  }
+
+  // Fallback to Replit environment
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -11,7 +20,7 @@ async function getCredentials() {
     : null;
 
   if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+    throw new Error('Email service not configured. Please set RESEND_API_KEY environment variable or configure Replit connector.');
   }
 
   connectionSettings = await fetch(
@@ -37,6 +46,6 @@ export async function getUncachableResendClient() {
   const credentials = await getCredentials();
   return {
     client: new Resend(credentials.apiKey),
-    fromEmail: connectionSettings.settings.from_email
+    fromEmail: credentials.fromEmail || connectionSettings?.settings?.from_email || 'noreply@pocketbizz.com'
   };
 }
