@@ -422,8 +422,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/auth/reset-password?token=${resetToken}`;
         
-        await client.emails.send({
-          from: 'PocketBizz <noreply@pocketbizz.my>',
+        // Use Resend's test domain for development
+        const fromEmail = process.env.NODE_ENV === 'production' 
+          ? 'PocketBizz <noreply@pocketbizz.my>'
+          : 'PocketBizz <onboarding@resend.dev>';
+        
+        console.log('Sending reset email to:', email, 'from:', fromEmail);
+        
+        const result = await client.emails.send({
+          from: fromEmail,
           to: email,
           subject: 'Reset Password - PocketBizz',
           html: `
@@ -437,6 +444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <p>Best regards,<br />PocketBizz Team</p>
           `
         });
+        
+        console.log('Email sent successfully:', result);
       } catch (emailError: any) {
         console.error("Failed to send reset email:", emailError);
         return res.status(500).json({ message: "Failed to send reset email. Please try again later." });
