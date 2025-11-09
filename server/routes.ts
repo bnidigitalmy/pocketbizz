@@ -3815,6 +3815,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Determine sender strategy based on email domain
+      // Free email providers (Gmail, Yahoo, Outlook) cannot be used as sender in Resend
+      // Use reply-to for these, custom domains can be sender (if verified)
+      const freeEmailProviders = /@(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|icloud|me|aol)\./i;
+      const isCustomDomain = !freeEmailProviders.test(businessEmail);
+      
+      let emailFrom: string;
+      let emailReplyTo: string | undefined;
+      
+      if (isCustomDomain) {
+        // Custom domain - use as sender (requires domain verification in Resend)
+        emailFrom = businessEmail;
+      } else {
+        // Free email provider - use platform email with reply-to
+        emailFrom = `${businessName} <noreply@pocketbizz.my>`;
+        emailReplyTo = businessEmail;
+      }
+      
       // Convert base64 to buffer
       const pdfBuffer = Buffer.from(pdfBase64, 'base64');
       
@@ -3833,11 +3851,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <br />
         <p>Best regards,<br />${businessName}</p>
         ${businessProfile?.phone ? `<p style="color: #666; font-size: 0.9em;">Tel: ${businessProfile.phone}</p>` : ''}
+        ${emailReplyTo ? `<p style="color: #666; font-size: 0.9em;">Email: ${businessEmail}</p>` : ''}
       `;
       
-      // Send email with PDF attachment using business owner's email
-      await client.emails.send({
-        from: businessEmail,
+      // Send email with PDF attachment
+      const emailOptions: any = {
+        from: emailFrom,
         to: recipientEmail,
         subject: emailSubject,
         html: emailHtml,
@@ -3847,7 +3866,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             content: pdfBuffer,
           }
         ]
-      });
+      };
+      
+      // Add reply-to for free email providers
+      if (emailReplyTo) {
+        emailOptions.reply_to = emailReplyTo;
+      }
+      
+      await client.emails.send(emailOptions);
       
       res.json({ success: true, message: "Email sent successfully" });
     } catch (error: any) {
