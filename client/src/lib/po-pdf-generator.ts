@@ -265,14 +265,16 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
   let totalBoxY = yPos;
   const totalBoxWidth = 56;
 
-  // Calculate amounts
+  // Calculate amounts - handle null/undefined values
   const subtotal = poData.items.reduce((sum, item) => {
-    return sum + (parseFloat(item.quantity) * parseFloat(item.estimatedPrice || "0"));
+    const qty = parseFloat(item.quantity) || 0;
+    const price = parseFloat(item.estimatedPrice || "0") || 0;
+    return sum + (qty * price);
   }, 0);
   
-  const discount = parseFloat(poData.discount || "0");
-  const shipping = parseFloat(poData.shippingCharges || "0");
-  const tax = parseFloat(poData.tax || "0");
+  const discount = parseFloat(poData.discount || "0") || 0;
+  const shipping = parseFloat(poData.shippingCharges || "0") || 0;
+  const tax = parseFloat(poData.tax || "0") || 0;
   const total = subtotal - discount + shipping + tax;
 
   // Subtotal
