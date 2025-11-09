@@ -126,7 +126,7 @@ export default function AuthLogin() {
           <div className="mt-4 text-center">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => window.location.href = "https://www.pocketbizz.my"}
               data-testid="link-back-home"
             >
               Kembali ke Homepage
