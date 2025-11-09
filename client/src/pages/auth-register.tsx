@@ -173,15 +173,6 @@ export default function AuthRegister() {
             >
               Log Masuk
             </Button>
-            <span className="mx-2 text-muted-foreground">|</span>
-            <Button
-              variant="ghost"
-              className="p-0 h-auto text-primary hover:text-primary/80 hover:bg-transparent"
-              onClick={() => navigate("/auth/forgot-password")}
-              data-testid="link-forgot-password"
-            >
-              Lupa Password?
-            </Button>
           </div>
           <div className="mt-4 text-center">
             <Button
