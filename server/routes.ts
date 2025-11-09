@@ -3788,15 +3788,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
+
+      // Get business profile for sender info
+      const businessProfile = await storage.getBusinessProfile(req.user!.id);
+      const businessName = businessProfile?.businessName || "PocketBizz";
+      const businessEmail = businessProfile?.email;
+      
+      if (!businessEmail) {
+        return res.status(400).json({ 
+          error: "Business email not configured", 
+          message: "Please add your business email in Settings > Business Profile to send emails." 
+        });
+      }
       
       // Get resend client
       const { getUncachableResendClient } = await import("./resend-client");
       
-      let client, fromEmail;
+      let client;
       try {
-        const resendClient = await getUncachableResendClient();
-        client = resendClient.client;
-        fromEmail = resendClient.fromEmail;
+        client = await getUncachableResendClient();
       } catch (emailError: any) {
         console.error("Email service configuration error:", emailError.message);
         return res.status(503).json({ 
@@ -3808,10 +3818,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert base64 to buffer
       const pdfBuffer = Buffer.from(pdfBase64, 'base64');
       
-      // Prepare email content
-      const emailSubject = `Purchase Order: ${order.poNumber}`;
+      // Prepare email content with business branding
+      const emailSubject = `Purchase Order: ${order.poNumber} - ${businessName}`;
       const emailHtml = `
-        <h2>Purchase Order dari PocketBizz</h2>
+        <h2>Purchase Order</h2>
         <p>Dear ${recipientName || order.supplierName},</p>
         ${message ? `<p>${message}</p>` : ''}
         <p>Sila semak Purchase Order yang dilampirkan. Terima kasih!</p>
@@ -3821,12 +3831,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <p><strong>Jumlah:</strong> RM ${parseFloat(order.totalAmount).toFixed(2)}</p>
         <p><strong>Bilangan Item:</strong> ${order.items.length}</p>
         <br />
-        <p>Best regards,<br />PocketBizz Team</p>
+        <p>Best regards,<br />${businessName}</p>
+        ${businessProfile?.phone ? `<p style="color: #666; font-size: 0.9em;">Tel: ${businessProfile.phone}</p>` : ''}
       `;
       
-      // Send email with PDF attachment
+      // Send email with PDF attachment using business owner's email
       await client.emails.send({
-        from: fromEmail,
+        from: businessEmail,
         to: recipientEmail,
         subject: emailSubject,
         html: emailHtml,

@@ -6,8 +6,7 @@ async function getCredentials() {
   // Check if running in standard environment (not Replit)
   if (process.env.RESEND_API_KEY) {
     return {
-      apiKey: process.env.RESEND_API_KEY,
-      fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@pocketbizz.com'
+      apiKey: process.env.RESEND_API_KEY
     };
   }
 
@@ -36,16 +35,14 @@ async function getCredentials() {
   if (!connectionSettings || (!connectionSettings.settings.api_key)) {
     throw new Error('Resend not connected');
   }
-  return {apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email};
+  return {apiKey: connectionSettings.settings.api_key};
 }
 
 // WARNING: Never cache this client.
 // Access tokens expire, so a new client must be created each time.
 // Always call this function again to get a fresh client.
+// NOTE: Email sender (from) should be specified per-email based on business profile
 export async function getUncachableResendClient() {
   const credentials = await getCredentials();
-  return {
-    client: new Resend(credentials.apiKey),
-    fromEmail: credentials.fromEmail || connectionSettings?.settings?.from_email || 'noreply@pocketbizz.com'
-  };
+  return new Resend(credentials.apiKey);
 }
