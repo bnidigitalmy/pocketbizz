@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { db } from "./db";
 import { cache } from "./cache";
-import { deliveryItems, earlyBirdTracking, billingHistory, customers } from "@shared/schema";
+import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
@@ -386,6 +386,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ message: "Logged out successfully" });
     });
+  });
+
+  // Forgot Password - Send reset email
+  app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists - security best practice
+        return res.json({ message: "If that email exists, we've sent a reset link" });
+      }
+
+      // Generate reset token (crypto random)
+      const crypto = await import('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = await bcrypt.hash(resetToken, 10);
+      
+      // Save token to database (expires in 1 hour)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1);
+      
+      await db.insert(passwordResetTokens).values({
+        userId: user.id,
+        token: hashedToken,
+        expiresAt,
+      });
+
+      // Send email with reset link
+      try {
+        const { getUncachableResendClient } = await import("./resend-client");
+        const client = await getUncachableResendClient();
+        
+        const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/auth/reset-password?token=${resetToken}`;
+        
+        await client.emails.send({
+          from: 'PocketBizz <noreply@pocketbizz.my>',
+          to: email,
+          subject: 'Reset Password - PocketBizz',
+          html: `
+            <h2>Reset Password</h2>
+            <p>Hi ${user.name},</p>
+            <p>Anda telah request untuk reset password. Klik link di bawah untuk reset:</p>
+            <p><a href="${resetUrl}" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a></p>
+            <p>Link ini akan expire dalam 1 jam.</p>
+            <p>Kalau anda tidak request reset ni, abaikan email ini.</p>
+            <br />
+            <p>Best regards,<br />PocketBizz Team</p>
+          `
+        });
+      } catch (emailError: any) {
+        console.error("Failed to send reset email:", emailError);
+        return res.status(500).json({ message: "Failed to send reset email. Please try again later." });
+      }
+
+      res.json({ message: "If that email exists, we've sent a reset link" });
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      res.status(400).json({ message: error.message || "Failed to process request" });
+    }
+  });
+
+  // Reset Password - Update password with token
+  app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
+    try {
+      const { token, password } = z.object({
+        token: z.string(),
+        password: z.string().min(6),
+      }).parse(req.body);
+
+      // Find all reset tokens and check which one matches
+      const allTokens = await db.select().from(passwordResetTokens)
+        .where(sql`${passwordResetTokens.expiresAt} > NOW()`);
+      
+      let validToken: any = null;
+      for (const dbToken of allTokens) {
+        const isValid = await bcrypt.compare(token, dbToken.token);
+        if (isValid) {
+          validToken = dbToken;
+          break;
+        }
+      }
+
+      if (!validToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Update user password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, validToken.userId));
+
+      // Delete used token
+      await db.delete(passwordResetTokens)
+        .where(eq(passwordResetTokens.id, validToken.id));
+
+      // Delete all other tokens for this user (security)
+      await db.delete(passwordResetTokens)
+        .where(eq(passwordResetTokens.userId, validToken.userId));
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      res.status(400).json({ message: error.message || "Failed to reset password" });
+    }
   });
   
   // Get current user

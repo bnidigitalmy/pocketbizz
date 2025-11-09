@@ -177,7 +177,7 @@ export default function AuthRegister() {
             <Button
               variant="ghost"
               className="p-0 h-auto text-primary hover:text-primary/80 hover:bg-transparent"
-              onClick={() => window.location.href = "https://www.pocketbizz.my"}
+              onClick={() => navigate("/auth/forgot-password")}
               data-testid="link-forgot-password"
             >
               Lupa Password?

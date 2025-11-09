@@ -871,6 +871,15 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Password Reset Tokens Table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(), // Hashed token
+  expiresAt: timestamp("expires_at").notNull(), // Token expiry (1 hour from creation)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Subscription Plans Table (Duration-based pricing for ToyyibPay)
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

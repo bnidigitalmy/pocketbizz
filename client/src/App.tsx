@@ -21,6 +21,8 @@ import { ArrowLeft, ShoppingCart } from "lucide-react";
 import Landing from "@/pages/landing";
 import AuthLogin from "@/pages/auth-login";
 import AuthRegister from "@/pages/auth-register";
+import AuthForgotPassword from "@/pages/auth-forgot-password";
+import AuthResetPassword from "@/pages/auth-reset-password";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Production from "@/pages/production";
@@ -64,6 +66,8 @@ function PublicRouter() {
         <Route path="/" component={Landing} />
         <Route path="/auth/login" component={AuthLogin} />
         <Route path="/auth/register" component={AuthRegister} />
+        <Route path="/auth/forgot-password" component={AuthForgotPassword} />
+        <Route path="/auth/reset-password" component={AuthResetPassword} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/payment/callback" component={PaymentCallback} />
@@ -196,7 +200,7 @@ function AppContent() {
   const [location] = useLocation();
   
   // Public pages don't need sidebar
-  const publicPaths = ["/", "/auth/login", "/auth/register", "/pricing", "/checkout", "/payment/callback"];
+  const publicPaths = ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/pricing", "/checkout", "/payment/callback"];
   const isPublicPage = publicPaths.includes(location) || location.startsWith("/store/");
 
   const sidebarStyle = {
