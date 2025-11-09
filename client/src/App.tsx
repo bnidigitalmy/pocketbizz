@@ -38,6 +38,7 @@ import Expenses from "@/pages/expenses";
 import Claims from "@/pages/claims";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import StoreCatalog from "@/pages/store-catalog";
 import DriveSync from "@/pages/drive-sync";
 import Pricing from "@/pages/pricing";
 import Checkout from "@/pages/checkout";
@@ -53,6 +54,7 @@ import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
 import Bookings from "@/pages/bookings";
 import VendorClaims from "@/pages/vendor-claims";
+import PublicStore from "@/pages/public-store";
 import NotFound from "@/pages/not-found";
 
 function PublicRouter() {
@@ -65,6 +67,7 @@ function PublicRouter() {
         <Route path="/pricing" component={Pricing} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/payment/callback" component={PaymentCallback} />
+        <Route path="/store/:slug" component={PublicStore} />
         <Route component={NotFound} />
       </Switch>
     </MotionWrapper>
@@ -100,6 +103,7 @@ function AppRouter() {
           <Route path="/vendor-claims" component={VendorClaims} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
+          <Route path="/store-catalog" component={StoreCatalog} />
           <Route path="/drive-sync" component={DriveSync} />
           <Route path="/pricing-tiers" component={PricingTiers} />
           <Route path="/resellers" component={Resellers} />

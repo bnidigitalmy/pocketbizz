@@ -75,6 +75,7 @@ export const bookingStatusEnum = pgEnum("booking_status", ["pending", "confirmed
 export const bookingDeliveryTypeEnum = pgEnum("booking_delivery_type", ["pickup", "delivery"]);
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "received", "cancelled"]);
 export const claimStatusEnum = pgEnum("claim_status", ["pending", "approved", "rejected"]);
+export const storeThemeEnum = pgEnum("store_theme", ["light", "dark", "custom"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -1447,3 +1448,76 @@ export type InsertBooking = z.infer<typeof insertBookingSchema>;
 
 export type BookingItem = typeof bookingItems.$inferSelect;
 export type InsertBookingItem = z.infer<typeof insertBookingItemSchema>;
+
+// Online Store Settings - Simple catalog for customers
+export const storeSettings = pgTable("store_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }), // One store per user
+  
+  // Store Identity
+  slug: text("slug").notNull().unique(), // Unique URL: pocketbizz.app/store/fiq-sweet-bakery
+  businessName: text("business_name").notNull(), // Display name
+  description: text("description"), // Short description of the business
+  logoUrl: text("logo_url"), // Business logo
+  coverImageUrl: text("cover_image_url"), // Cover/banner image
+  
+  // Contact & Social
+  whatsappNumber: text("whatsapp_number").notNull(), // For "Order via WhatsApp" button
+  instagramHandle: text("instagram_handle"), // Optional
+  facebookUrl: text("facebook_url"), // Optional
+  
+  // Business Info
+  businessHours: text("business_hours"), // e.g., "Mon-Sat: 9AM-6PM"
+  address: text("address"), // Business location
+  deliveryInfo: text("delivery_info"), // Delivery terms, areas served, etc.
+  pickupInfo: text("pickup_info"), // Pickup instructions
+  
+  // Customization
+  theme: storeThemeEnum("theme").default("light").notNull(),
+  accentColor: text("accent_color").default("#f97316"), // Primary brand color (default: orange)
+  
+  // Settings
+  isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  showOutOfStock: integer("show_out_of_stock").notNull().default(0), // Show/hide out-of-stock items
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Store Analytics - Track views and engagement
+export const storeAnalytics = pgTable("store_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id").notNull().references(() => storeSettings.id, { onDelete: "cascade" }),
+  
+  // Event tracking
+  eventType: text("event_type").notNull(), // "view", "product_click", "whatsapp_click"
+  productId: varchar("product_id"), // If product-related event
+  
+  // Session info
+  visitorId: text("visitor_id"), // Anonymous visitor identifier
+  referrer: text("referrer"), // Where they came from
+  userAgent: text("user_agent"), // Device/browser info
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert Schemas for Store
+export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStoreAnalyticsSchema = createInsertSchema(storeAnalytics).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type Exports for Store
+export type StoreSettings = typeof storeSettings.$inferSelect;
+export type InsertStoreSettings = z.infer<typeof insertStoreSettingsSchema>;
+
+export type StoreAnalytics = typeof storeAnalytics.$inferSelect;
+export type InsertStoreAnalytics = z.infer<typeof insertStoreAnalyticsSchema>;

@@ -27,6 +27,7 @@ import {
   CalendarCheck,
   Building2,
   AlertTriangle,
+  Globe,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -187,6 +188,11 @@ const resellerItems = [
 
 // Sistem
 const systemItems = [
+  {
+    title: "Katalog Kedai",
+    url: "/store-catalog",
+    icon: Globe,
+  },
   {
     title: "Google Drive",
     url: "/drive-sync",

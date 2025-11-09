@@ -136,6 +136,12 @@ import {
   type InsertClaimItem,
   type ClaimPhoto,
   type InsertClaimPhoto,
+  storeSettings,
+  storeAnalytics,
+  type StoreSettings,
+  type InsertStoreSettings,
+  type StoreAnalytics,
+  type InsertStoreAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
@@ -298,6 +304,14 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
   updateUserProfile(id: string, data: { name?: string; email?: string }): Promise<User>;
   updateUserPassword(id: string, hashedPassword: string): Promise<void>;
+  
+  // Online Store Catalog
+  getStoreSettings(userId: string): Promise<StoreSettings | undefined>;
+  getStoreSettingsBySlug(slug: string): Promise<StoreSettings | undefined>;
+  createStoreSettings(userId: string, data: InsertStoreSettings): Promise<StoreSettings>;
+  updateStoreSettings(userId: string, data: Partial<InsertStoreSettings>): Promise<StoreSettings>;
+  deleteStoreSettings(userId: string): Promise<void>;
+  trackStoreAnalytics(storeId: string, eventType: string, data?: { productId?: string; visitorId?: string; referrer?: string; userAgent?: string }): Promise<void>;
   
   // Subscription Plans
   getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
@@ -4303,6 +4317,110 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updated;
+  }
+  
+  // ===================================================================
+  // ONLINE STORE CATALOG
+  // ===================================================================
+  
+  async getStoreSettings(userId: string): Promise<StoreSettings | undefined> {
+    const [settings] = await db.select()
+      .from(storeSettings)
+      .where(eq(storeSettings.userId, userId));
+    
+    return settings;
+  }
+  
+  async getStoreSettingsBySlug(slug: string): Promise<StoreSettings | undefined> {
+    const [settings] = await db.select()
+      .from(storeSettings)
+      .where(and(
+        eq(storeSettings.slug, slug),
+        eq(storeSettings.isActive, 1)
+      ));
+    
+    return settings;
+  }
+  
+  async createStoreSettings(userId: string, data: InsertStoreSettings): Promise<StoreSettings> {
+    // Check if user already has store settings
+    const existing = await this.getStoreSettings(userId);
+    if (existing) {
+      throw new Error("Store settings already exist for this user");
+    }
+    
+    // Check if slug is already taken
+    const slugExists = await db.select()
+      .from(storeSettings)
+      .where(eq(storeSettings.slug, data.slug))
+      .limit(1);
+    
+    if (slugExists.length > 0) {
+      throw new Error("This store URL is already taken. Please choose a different one.");
+    }
+    
+    const [settings] = await db.insert(storeSettings)
+      .values({
+        ...data,
+        userId,
+      })
+      .returning();
+    
+    return settings;
+  }
+  
+  async updateStoreSettings(userId: string, data: Partial<InsertStoreSettings>): Promise<StoreSettings> {
+    const existing = await this.getStoreSettings(userId);
+    if (!existing) {
+      throw new Error("Store settings not found");
+    }
+    
+    // If updating slug, check if it's available
+    if (data.slug && data.slug !== existing.slug) {
+      const slugExists = await db.select()
+        .from(storeSettings)
+        .where(eq(storeSettings.slug, data.slug))
+        .limit(1);
+      
+      if (slugExists.length > 0) {
+        throw new Error("This store URL is already taken. Please choose a different one.");
+      }
+    }
+    
+    const [updated] = await db.update(storeSettings)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(storeSettings.userId, userId))
+      .returning();
+    
+    return updated;
+  }
+  
+  async deleteStoreSettings(userId: string): Promise<void> {
+    await db.delete(storeSettings)
+      .where(eq(storeSettings.userId, userId));
+  }
+  
+  async trackStoreAnalytics(
+    storeId: string, 
+    eventType: string, 
+    data?: { 
+      productId?: string; 
+      visitorId?: string; 
+      referrer?: string; 
+      userAgent?: string;
+    }
+  ): Promise<void> {
+    await db.insert(storeAnalytics).values({
+      storeId,
+      eventType,
+      productId: data?.productId || null,
+      visitorId: data?.visitorId || null,
+      referrer: data?.referrer || null,
+      userAgent: data?.userAgent || null,
+    });
   }
 }
 

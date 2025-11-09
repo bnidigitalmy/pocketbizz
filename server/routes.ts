@@ -4851,6 +4851,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===================================================================
+  // ONLINE STORE CATALOG ROUTES
+  // ===================================================================
+  
+  // Get store settings for current user
+  app.get("/api/store-settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getStoreSettings(req.user!.id);
+      res.json(settings || null);
+    } catch (error) {
+      console.error("Get store settings error:", error);
+      res.status(500).json({ error: "Failed to get store settings" });
+    }
+  });
+  
+  // Create store settings
+  app.post("/api/store-settings", requireAuth, async (req, res) => {
+    try {
+      const { insertStoreSettingsSchema } = await import("@shared/schema");
+      const validatedData = insertStoreSettingsSchema.parse(req.body);
+      
+      const settings = await storage.createStoreSettings(req.user!.id, validatedData);
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Create store settings error:", error);
+      
+      if (error.message?.includes("already exist")) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.message?.includes("already taken")) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      res.status(500).json({ error: "Failed to create store settings" });
+    }
+  });
+  
+  // Update store settings
+  app.put("/api/store-settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.updateStoreSettings(req.user!.id, req.body);
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Update store settings error:", error);
+      
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message?.includes("already taken")) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      res.status(500).json({ error: "Failed to update store settings" });
+    }
+  });
+  
+  // Delete store settings
+  app.delete("/api/store-settings", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteStoreSettings(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete store settings error:", error);
+      res.status(500).json({ error: "Failed to delete store settings" });
+    }
+  });
+  
+  // PUBLIC ROUTES (no auth required)
+  
+  // Get public store by slug
+  app.get("/api/public/store/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      
+      // Get store settings
+      const store = await storage.getStoreSettingsBySlug(slug);
+      if (!store) {
+        return res.status(404).json({ error: "Store not found or inactive" });
+      }
+      
+      // Get products for this store (user's products)
+      const allProducts = await storage.getProducts(store.userId);
+      
+      // Filter based on store settings
+      let products = allProducts;
+      if (!store.showOutOfStock) {
+        // Hide out of stock products (products with 0 selling price or marked as unavailable)
+        products = products.filter(p => parseFloat(p.sellingPrice) > 0);
+      }
+      
+      // Get categories
+      const categories = await storage.getCategories(store.userId);
+      
+      // Track view analytics
+      const visitorId = req.headers['x-visitor-id'] as string;
+      const referrer = req.headers.referer || req.headers.referrer;
+      const userAgent = req.headers['user-agent'];
+      
+      await storage.trackStoreAnalytics(store.id, 'view', {
+        visitorId,
+        referrer: referrer as string,
+        userAgent: userAgent as string,
+      });
+      
+      res.json({
+        store: {
+          slug: store.slug,
+          businessName: store.businessName,
+          description: store.description,
+          logoUrl: store.logoUrl,
+          coverImageUrl: store.coverImageUrl,
+          whatsappNumber: store.whatsappNumber,
+          instagramHandle: store.instagramHandle,
+          facebookUrl: store.facebookUrl,
+          businessHours: store.businessHours,
+          address: store.address,
+          deliveryInfo: store.deliveryInfo,
+          pickupInfo: store.pickupInfo,
+          theme: store.theme,
+          accentColor: store.accentColor,
+        },
+        products,
+        categories,
+      });
+    } catch (error) {
+      console.error("Get public store error:", error);
+      res.status(500).json({ error: "Failed to load store" });
+    }
+  });
+  
+  // Track product click
+  app.post("/api/public/store/:slug/track", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { eventType, productId } = req.body;
+      
+      const store = await storage.getStoreSettingsBySlug(slug);
+      if (!store) {
+        return res.status(404).json({ error: "Store not found" });
+      }
+      
+      const visitorId = req.headers['x-visitor-id'] as string;
+      const referrer = req.headers.referer || req.headers.referrer;
+      const userAgent = req.headers['user-agent'];
+      
+      await storage.trackStoreAnalytics(store.id, eventType, {
+        productId,
+        visitorId,
+        referrer: referrer as string,
+        userAgent: userAgent as string,
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Track store analytics error:", error);
+      res.status(500).json({ error: "Failed to track event" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
