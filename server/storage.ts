@@ -279,9 +279,17 @@ export interface IStorage {
     supplierEmail?: string | null;
     supplierAddress?: string | null;
     deliveryAddress?: string | null;
-    notes?: string | null; 
+    notes?: string | null;
+    expectedDeliveryDate?: string | null;
+    paymentTerms?: string | null;
+    paymentMethod?: string | null;
+    requestedBy?: string | null;
+    discount?: string | null;
+    tax?: string | null;
+    shippingCharges?: string | null;
     items?: any[] 
   }): Promise<any>;
+  duplicatePurchaseOrder(userId: string, id: string): Promise<any>;
   deletePurchaseOrder(userId: string, id: string): Promise<void>;
   createPurchaseOrderFromCart(
     userId: string, 
@@ -2483,7 +2491,14 @@ export class DatabaseStorage implements IStorage {
     supplierEmail?: string | null;
     supplierAddress?: string | null;
     deliveryAddress?: string | null;
-    notes?: string | null; 
+    notes?: string | null;
+    expectedDeliveryDate?: string | null;
+    paymentTerms?: string | null;
+    paymentMethod?: string | null;
+    requestedBy?: string | null;
+    discount?: string | null;
+    tax?: string | null;
+    shippingCharges?: string | null;
     items?: any[] 
   }): Promise<any> {
     return await db.transaction(async (tx) => {
@@ -2495,6 +2510,13 @@ export class DatabaseStorage implements IStorage {
       if (data.supplierAddress !== undefined) updateData.supplierAddress = data.supplierAddress;
       if (data.deliveryAddress !== undefined) updateData.deliveryAddress = data.deliveryAddress;
       if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.expectedDeliveryDate !== undefined) updateData.expectedDeliveryDate = data.expectedDeliveryDate;
+      if (data.paymentTerms !== undefined) updateData.paymentTerms = data.paymentTerms;
+      if (data.paymentMethod !== undefined) updateData.paymentMethod = data.paymentMethod;
+      if (data.requestedBy !== undefined) updateData.requestedBy = data.requestedBy;
+      if (data.discount !== undefined) updateData.discount = data.discount;
+      if (data.tax !== undefined) updateData.tax = data.tax;
+      if (data.shippingCharges !== undefined) updateData.shippingCharges = data.shippingCharges;
       
       await tx
         .update(purchaseOrders)
@@ -2523,12 +2545,17 @@ export class DatabaseStorage implements IStorage {
           );
         }
         
-        // Recalculate total
-        const totalAmount = data.items.reduce((sum: number, item: any) => {
+        // Recalculate total with discount, shipping, and tax
+        const subtotal = data.items.reduce((sum: number, item: any) => {
           const price = parseFloat(item.estimatedPrice || "0");
           const qty = parseFloat(item.quantity || "0");
           return sum + (price * qty);
         }, 0);
+        
+        const discount = parseFloat(data.discount || "0");
+        const shipping = parseFloat(data.shippingCharges || "0");
+        const tax = parseFloat(data.tax || "0");
+        const totalAmount = subtotal - discount + shipping + tax;
         
         await tx
           .update(purchaseOrders)
@@ -2550,6 +2577,67 @@ export class DatabaseStorage implements IStorage {
   async deletePurchaseOrder(userId: string, id: string): Promise<void> {
     await db.delete(purchaseOrders)
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.userId, userId)));
+  }
+
+  async duplicatePurchaseOrder(userId: string, id: string): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Get original PO
+      const [originalPO] = await tx.select().from(purchaseOrders)
+        .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.userId, userId)));
+      
+      if (!originalPO) {
+        throw new Error("Purchase order not found");
+      }
+
+      // Get original items
+      const originalItems = await tx.select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.poId, id));
+
+      // Generate new PO number
+      const count = await tx.select({ count: sql<number>`count(*)` })
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.userId, userId));
+      const poNumber = `PO-${String(Number(count[0]?.count || 0) + 1).padStart(5, '0')}`;
+
+      // Create new PO as draft
+      const [newPO] = await tx.insert(purchaseOrders).values({
+        userId,
+        poNumber,
+        supplierId: originalPO.supplierId,
+        supplierName: originalPO.supplierName,
+        supplierPhone: originalPO.supplierPhone,
+        supplierEmail: originalPO.supplierEmail,
+        supplierAddress: originalPO.supplierAddress,
+        deliveryAddress: originalPO.deliveryAddress,
+        totalAmount: originalPO.totalAmount,
+        status: 'draft', // Always create as draft
+        notes: originalPO.notes,
+      }).returning();
+
+      // Copy items
+      if (originalItems.length > 0) {
+        await tx.insert(purchaseOrderItems).values(
+          originalItems.map(item => ({
+            poId: newPO.id,
+            stockItemId: item.stockItemId,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedPrice: item.estimatedPrice,
+            notes: item.notes,
+            userId,
+          }))
+        );
+      }
+
+      // Return new PO with items
+      const items = await tx.select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.poId, newPO.id));
+
+      return { ...newPO, items };
+    });
   }
   
   // PO Template Management

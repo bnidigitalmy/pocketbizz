@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from "express-rate-limit";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { db } from "./db";
 import { cache } from "./cache";
@@ -3773,10 +3774,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/purchase-orders/:id/send-email", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { recipientEmail, recipientName, message } = req.body;
+      const { recipientEmail, recipientName, message, pdfBase64 } = req.body;
       
       if (!recipientEmail) {
         return res.status(400).json({ error: "Recipient email is required" });
+      }
+
+      if (!pdfBase64) {
+        return res.status(400).json({ error: "PDF data is required" });
       }
       
       const order = await storage.getPurchaseOrder(req.user!.id, id);
@@ -3784,33 +3789,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Purchase order not found" });
       }
       
-      // Import resend client and PDF generator
-      const { getUncachableResendClient } = await import("./resend-client");
-      const { getPOPDFBlob } = await import("../client/src/lib/po-pdf-generator");
-      
-      // Generate PDF as buffer
-      const pdfBlob = getPOPDFBlob({
-        poNumber: order.poNumber,
-        supplierName: order.supplierName,
-        supplierPhone: order.supplierPhone,
-        totalAmount: order.totalAmount,
-        notes: order.notes,
-        createdAt: order.createdAt,
-        status: order.status,
-        items: order.items.map((item: any) => ({
-          itemName: item.itemName,
-          quantity: item.quantity,
-          unit: item.unit,
-          estimatedPrice: item.estimatedPrice || "0",
-          notes: item.notes
-        }))
-      });
-      
-      // Convert blob to buffer
-      const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
-      
       // Get resend client
+      const { getUncachableResendClient } = await import("./resend-client");
       const { client, fromEmail } = await getUncachableResendClient();
+      
+      // Convert base64 to buffer
+      const pdfBuffer = Buffer.from(pdfBase64, 'base64');
       
       // Prepare email content
       const emailSubject = `Purchase Order: ${order.poNumber}`;
@@ -3858,8 +3842,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatePOSchema = z.object({
         supplierName: z.string().optional(),
         supplierPhone: z.string().nullable().optional(),
+        supplierEmail: z.string().nullable().optional(),
+        supplierAddress: z.string().nullable().optional(),
+        deliveryAddress: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
+        expectedDeliveryDate: z.string().nullable().optional(),
+        paymentTerms: z.string().nullable().optional(),
+        paymentMethod: z.string().nullable().optional(),
+        requestedBy: z.string().nullable().optional(),
+        discount: z.string().nullable().optional(),
+        tax: z.string().nullable().optional(),
+        shippingCharges: z.string().nullable().optional(),
         items: z.array(z.object({
+          id: z.string().optional(),
           stockItemId: z.string().nullable().optional(),
           itemName: z.string(),
           quantity: z.string(),
@@ -3888,6 +3883,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Update PO error:", error);
       res.status(500).json({ error: "Failed to update purchase order", message: error.message });
+    }
+  });
+
+  // Duplicate PO (create new draft from existing PO)
+  app.post("/api/purchase-orders/:id/duplicate", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const originalPO = await storage.getPurchaseOrder(req.user!.id, id);
+      if (!originalPO) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      
+      // Create new PO with same supplier and items but as draft
+      const duplicatedPO = await storage.duplicatePurchaseOrder(req.user!.id, id);
+      
+      res.json(duplicatedPO);
+    } catch (error: any) {
+      console.error("Duplicate PO error:", error);
+      res.status(500).json({ error: "Failed to duplicate purchase order", message: error.message });
     }
   });
   

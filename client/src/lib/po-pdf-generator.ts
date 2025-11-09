@@ -21,6 +21,14 @@ export interface POData {
   createdAt: string;
   status: string;
   items: POItem[];
+  // New optional fields for better PO
+  expectedDeliveryDate?: string | null;
+  paymentTerms?: string | null;
+  paymentMethod?: string | null;
+  requestedBy?: string | null;
+  discount?: string | null;
+  tax?: string | null;
+  shippingCharges?: string | null;
 }
 
 export interface BusinessInfo {
@@ -121,6 +129,30 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
     cancelled: "Dibatal"
   };
   doc.text(statusMap[poData.status] || poData.status, leftColX + 25, yPos);
+  yPos += 5;
+
+  // Expected Delivery Date (NEW)
+  if (poData.expectedDeliveryDate) {
+    const deliveryDate = new Date(poData.expectedDeliveryDate).toLocaleDateString('ms-MY', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+    doc.setFont("helvetica", "bold");
+    doc.text("Tarikh Jangka:", leftColX, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(deliveryDate, leftColX + 30, yPos);
+    yPos += 5;
+  }
+
+  // Payment Terms (NEW)
+  if (poData.paymentTerms) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Terma Bayaran:", leftColX, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(poData.paymentTerms, leftColX + 30, yPos);
+    yPos += 5;
+  }
 
   // Right column - Supplier Info
   const supplierStartY = yPos - 15;
@@ -228,21 +260,62 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
 
   yPos += 10;
 
-  // ============ TOTAL SECTION ============
+  // ============ TOTAL SECTION WITH BREAKDOWN ============
   const totalBoxX = pageWidth - 70;
-  const totalBoxY = yPos;
+  let totalBoxY = yPos;
   const totalBoxWidth = 56;
 
-  doc.setFillColor(245, 245, 245);
-  doc.rect(totalBoxX, totalBoxY, totalBoxWidth, 12, 'F');
+  // Calculate amounts
+  const subtotal = poData.items.reduce((sum, item) => {
+    return sum + (parseFloat(item.quantity) * parseFloat(item.estimatedPrice || "0"));
+  }, 0);
   
+  const discount = parseFloat(poData.discount || "0");
+  const shipping = parseFloat(poData.shippingCharges || "0");
+  const tax = parseFloat(poData.tax || "0");
+  const total = subtotal - discount + shipping + tax;
+
+  // Subtotal
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text("Subtotal:", totalBoxX + 2, totalBoxY);
+  doc.text(`RM ${subtotal.toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY, { align: "right" });
+  totalBoxY += 5;
+
+  // Discount (if any)
+  if (discount > 0) {
+    doc.text("Diskaun:", totalBoxX + 2, totalBoxY);
+    doc.text(`- RM ${discount.toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY, { align: "right" });
+    totalBoxY += 5;
+  }
+
+  // Shipping (if any)
+  if (shipping > 0) {
+    doc.text("Kos Penghantaran:", totalBoxX + 2, totalBoxY);
+    doc.text(`RM ${shipping.toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY, { align: "right" });
+    totalBoxY += 5;
+  }
+
+  // Tax (if any)
+  if (tax > 0) {
+    doc.text("Cukai/SST:", totalBoxX + 2, totalBoxY);
+    doc.text(`RM ${tax.toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY, { align: "right" });
+    totalBoxY += 5;
+  }
+
+  // Total with background
+  doc.setFillColor(51, 102, 255);
+  doc.rect(totalBoxX, totalBoxY, totalBoxWidth, 10, 'F');
+  
+  doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("JUMLAH KESELURUHAN:", totalBoxX + 2, totalBoxY + 8);
+  doc.text("JUMLAH KESELURUHAN:", totalBoxX + 2, totalBoxY + 7);
   doc.setFontSize(12);
-  doc.text(`RM ${parseFloat(poData.totalAmount).toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY + 8, { align: "right" });
+  doc.text(`RM ${total.toFixed(2)}`, totalBoxX + totalBoxWidth - 2, totalBoxY + 7, { align: "right" });
+  doc.setTextColor(0, 0, 0); // Reset color
 
-  yPos = totalBoxY + 20;
+  yPos = totalBoxY + 18;
 
   // ============ NOTES SECTION ============
   if (poData.notes) {
@@ -258,8 +331,18 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
     yPos += notesLines.length * 4 + 5;
   }
 
+  // ============ PAYMENT METHOD ============
+  if (poData.paymentMethod) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Cara Bayaran:", 14, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(poData.paymentMethod, 40, yPos);
+    yPos += 6;
+  }
+
   // ============ TERMS & CONDITIONS ============
-  yPos += 5;
+  yPos += 3;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("Terma & Syarat:", 14, yPos);
@@ -267,22 +350,64 @@ export function generatePOPDF(poData: POData, businessInfo?: BusinessInfo) {
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("• Pembayaran dalam masa 30 hari selepas penghantaran", 14, yPos);
-  yPos += 4;
-  doc.text("• Sila sahkan penerimaan PO ini dalam masa 2 hari bekerja", 14, yPos);
-  yPos += 4;
-  doc.text("• Barang yang rosak atau tidak seperti yang dipesan boleh dikembalikan", 14, yPos);
+  const terms = [
+    `• Pembayaran: ${poData.paymentTerms || '30 hari selepas penghantaran'}`,
+    "• Sila sahkan penerimaan PO ini dalam masa 2 hari bekerja",
+    "• Barang yang rosak atau tidak seperti yang dipesan boleh dikembalikan",
+    "• Harga adalah tetap dan tidak boleh diubah tanpa persetujuan bertulis",
+    "• Penghantaran hendaklah mengikut jadual yang ditetapkan"
+  ];
+  
+  terms.forEach(term => {
+    doc.text(term, 14, yPos);
+    yPos += 4;
+  });
+
+  // ============ SIGNATURE SECTION ============
+  yPos += 8;
+  
+  const sigWidth = 60;
+  const leftSigX = 14;
+  const rightSigX = pageWidth - sigWidth - 14;
+  
+  // Buyer/Requested By signature
+  doc.setDrawColor(100, 100, 100);
+  doc.line(leftSigX, yPos, leftSigX + sigWidth, yPos);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Disediakan Oleh:", leftSigX, yPos + 5);
+  if (poData.requestedBy) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(poData.requestedBy, leftSigX, yPos + 10);
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Tarikh: ${poDate}`, leftSigX, yPos + 14);
+  
+  // Supplier Acknowledgment signature
+  doc.line(rightSigX, yPos, rightSigX + sigWidth, yPos);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Disahkan Oleh (Supplier):", rightSigX, yPos + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text("Nama: _________________", rightSigX, yPos + 10);
+  doc.text("Tarikh: ________________", rightSigX, yPos + 14);
 
   // ============ FOOTER ============
-  const footerY = doc.internal.pageSize.height - 20;
+  const footerY = doc.internal.pageSize.height - 15;
   doc.setDrawColor(200, 200, 200);
   doc.line(14, footerY, pageWidth - 14, footerY);
   
-  doc.setFontSize(8);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Dokumen ini dijana secara automatik. Untuk pertanyaan, sila hubungi ${business.phone || business.email || 'kami'}.`, pageWidth / 2, footerY + 4, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.text(`PO Number: ${poData.poNumber}`, 14, footerY + 5);
-  doc.text(`Page 1`, pageWidth - 14, footerY + 5, { align: "right" });
-  doc.text("Generated by PocketBizz", pageWidth / 2, footerY + 5, { align: "center" });
+  doc.text(`PO: ${poData.poNumber}`, 14, footerY + 8);
+  doc.text(`Halaman 1`, pageWidth - 14, footerY + 8, { align: "right" });
+  doc.setTextColor(0, 0, 0); // Reset color
 
   return doc;
 }

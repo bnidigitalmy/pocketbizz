@@ -70,17 +70,37 @@ export default function PurchaseOrders() {
   const [emailForm, setEmailForm] = useState({
     recipientEmail: "",
     recipientName: "",
-    message: ""
+    message: "",
+    pdfBase64: ""
   });
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     supplierName: "",
     supplierPhone: "",
-    notes: ""
+    supplierEmail: "",
+    supplierAddress: "",
+    deliveryAddress: "",
+    notes: "",
+    expectedDeliveryDate: "",
+    paymentTerms: "30 hari selepas penghantaran",
+    paymentMethod: "Bank Transfer",
+    requestedBy: "",
+    discount: "0",
+    tax: "0",
+    shippingCharges: "0",
+    items: [] as Array<{
+      id?: string;
+      itemName: string;
+      quantity: string;
+      unit: string;
+      estimatedPrice: string;
+      notes: string;
+    }>
   });
   const [saveTemplateDialogOpen, setSaveTemplateDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
 
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/purchase-orders"],
@@ -151,10 +171,14 @@ export default function PurchaseOrders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       setEmailDialogOpen(false);
-      setEmailForm({ recipientEmail: "", recipientName: "", message: "" });
+      setEmailForm({ recipientEmail: "", recipientName: "", message: "", pdfBase64: "" });
+      // Auto update status to 'sent' after sending email
+      if (selectedPO && selectedPO.status === 'draft') {
+        updateStatusMutation.mutate({ id: selectedPO.id, status: 'sent' });
+      }
       toast({
-        title: "Email dihantar",
-        description: "PO telah berjaya dihantar ke supplier",
+        title: "Email dihantar ✅",
+        description: "PO telah berjaya dihantar ke supplier dengan lampiran PDF",
       });
     },
     onError: (error: any) => {
@@ -173,7 +197,22 @@ export default function PurchaseOrders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       setEditDialogOpen(false);
-      setEditForm({ supplierName: "", supplierPhone: "", notes: "" });
+      setEditForm({ 
+        supplierName: "", 
+        supplierPhone: "", 
+        supplierEmail: "",
+        supplierAddress: "",
+        deliveryAddress: "",
+        notes: "",
+        expectedDeliveryDate: "",
+        paymentTerms: "30 hari selepas penghantaran",
+        paymentMethod: "Bank Transfer",
+        requestedBy: "",
+        discount: "0",
+        tax: "0",
+        shippingCharges: "0",
+        items: []
+      });
       toast({
         title: "PO dikemaskini",
         description: "Purchase order telah dikemaskini",
@@ -247,6 +286,28 @@ export default function PurchaseOrders() {
       toast({
         title: "Ralat",
         description: error.message || "Gagal padam template",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const duplicatePOMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/purchase-orders/${id}/duplicate`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      setDuplicateDialogOpen(false);
+      setSelectedPO(null);
+      toast({
+        title: "PO diduplikasi ✅",
+        description: "Purchase order baharu telah dicipta sebagai draft",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal duplikasi PO",
         variant: "destructive",
       });
     },
@@ -387,14 +448,15 @@ export default function PurchaseOrders() {
   const handleOpenEmailDialog = (po: PurchaseOrder) => {
     setSelectedPO(po);
     setEmailForm({
-      recipientEmail: "",
+      recipientEmail: po.supplierEmail || "",
       recipientName: po.supplierName,
-      message: ""
+      message: "",
+      pdfBase64: ""
     });
     setEmailDialogOpen(true);
   };
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!selectedPO) return;
     
     if (!emailForm.recipientEmail) {
@@ -406,10 +468,68 @@ export default function PurchaseOrders() {
       return;
     }
 
-    sendEmailMutation.mutate({ 
-      id: selectedPO.id, 
-      data: emailForm 
-    });
+    try {
+      // Generate PDF first
+      const { generatePOPDF } = await import("@/lib/po-pdf-generator");
+      
+      const businessInfo = businessProfile ? {
+        name: businessProfile.businessName,
+        registrationNumber: businessProfile.registrationNumber || '',
+        address: businessProfile.address || '',
+        phone: businessProfile.phone || '',
+        email: businessProfile.email || ''
+      } : {
+        name: "PocketBizz",
+        registrationNumber: '',
+        address: '',
+        phone: '',
+        email: ''
+      };
+
+      const doc = generatePOPDF({
+        poNumber: selectedPO.poNumber,
+        supplierName: selectedPO.supplierName,
+        supplierPhone: selectedPO.supplierPhone,
+        supplierEmail: selectedPO.supplierEmail || '',
+        supplierAddress: selectedPO.supplierAddress || '',
+        deliveryAddress: selectedPO.deliveryAddress || '',
+        totalAmount: selectedPO.totalAmount,
+        notes: selectedPO.notes,
+        createdAt: selectedPO.createdAt,
+        status: selectedPO.status,
+        expectedDeliveryDate: (selectedPO as any).expectedDeliveryDate,
+        paymentTerms: (selectedPO as any).paymentTerms,
+        paymentMethod: (selectedPO as any).paymentMethod,
+        requestedBy: (selectedPO as any).requestedBy,
+        discount: (selectedPO as any).discount,
+        tax: (selectedPO as any).tax,
+        shippingCharges: (selectedPO as any).shippingCharges,
+        items: selectedPO.items.map(item => ({
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          estimatedPrice: item.estimatedPrice || "0",
+          notes: item.notes
+        }))
+      }, businessInfo);
+
+      // Convert PDF to base64
+      const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+      sendEmailMutation.mutate({ 
+        id: selectedPO.id, 
+        data: {
+          ...emailForm,
+          pdfBase64
+        }
+      });
+    } catch (error: any) {
+      toast({
+        title: "Ralat",
+        description: error.message || "Gagal menjana PDF",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleOpenEditDialog = (po: PurchaseOrder) => {
@@ -417,7 +537,25 @@ export default function PurchaseOrders() {
     setEditForm({
       supplierName: po.supplierName,
       supplierPhone: po.supplierPhone || "",
-      notes: po.notes || ""
+      supplierEmail: po.supplierEmail || "",
+      supplierAddress: po.supplierAddress || "",
+      deliveryAddress: po.deliveryAddress || "",
+      notes: po.notes || "",
+      expectedDeliveryDate: (po as any).expectedDeliveryDate || "",
+      paymentTerms: (po as any).paymentTerms || "30 hari selepas penghantaran",
+      paymentMethod: (po as any).paymentMethod || "Bank Transfer",
+      requestedBy: (po as any).requestedBy || "",
+      discount: (po as any).discount || "0",
+      tax: (po as any).tax || "0",
+      shippingCharges: (po as any).shippingCharges || "0",
+      items: po.items.map(item => ({
+        id: item.id,
+        itemName: item.itemName,
+        quantity: item.quantity,
+        unit: item.unit,
+        estimatedPrice: item.estimatedPrice || "0",
+        notes: item.notes || ""
+      }))
     });
     setEditDialogOpen(true);
   };
@@ -429,6 +567,29 @@ export default function PurchaseOrders() {
       toast({
         title: "Nama supplier diperlukan",
         description: "Sila masukkan nama supplier",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editForm.items.length === 0) {
+      toast({
+        title: "Item diperlukan",
+        description: "Sila tambah sekurang-kurangnya satu item",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate all items have required fields
+    const invalidItems = editForm.items.filter(item => 
+      !item.itemName.trim() || !item.quantity || parseFloat(item.quantity) <= 0
+    );
+
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Maklumat item tidak lengkap",
+        description: "Pastikan semua item mempunyai nama dan kuantiti yang sah",
         variant: "destructive",
       });
       return;
@@ -604,6 +765,7 @@ export default function PurchaseOrders() {
                   </div>
 
                   <div className="flex gap-1.5 md:gap-2 flex-wrap sm:flex-nowrap">
+                    {/* Common Actions - Always visible */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -621,21 +783,35 @@ export default function PurchaseOrders() {
                       onClick={() => handleDownloadPDF(po)}
                       className="flex-none"
                       data-testid={`button-pdf-${po.id}`}
+                      title="Muat turun PDF"
                     >
                       <Download className="h-3 md:h-4 w-3 md:w-4" />
                     </Button>
 
+                    {/* DRAFT Status Actions */}
                     {po.status === 'draft' && (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenEditDialog(po)}
-                          className="flex-none hidden sm:flex"
+                          className="flex-none"
                           data-testid={`button-edit-${po.id}`}
+                          title="Edit PO"
                         >
                           <FileText className="h-3 md:h-4 w-3 md:w-4" />
                         </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEmailDialog(po)}
+                          className="flex-none hidden md:flex"
+                          title="Hantar via Email"
+                        >
+                          <Mail className="h-3 md:h-4 w-3 md:w-4" />
+                        </Button>
+                        
                         <Button
                           variant="default"
                           size="sm"
@@ -647,44 +823,73 @@ export default function PurchaseOrders() {
                           data-testid={`button-send-${po.id}`}
                         >
                           <Send className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Hantar</span>
+                          <span className="hidden sm:inline">WhatsApp</span>
+                        </Button>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deletePOMutation.mutate(po.id)}
+                          disabled={deletePOMutation.isPending}
+                          className="flex-none"
+                          data-testid={`button-delete-${po.id}`}
+                          title="Padam"
+                        >
+                          <X className="h-3 md:h-4 w-3 md:w-4" />
                         </Button>
                       </>
                     )}
 
+                    {/* SENT Status Actions */}
                     {po.status === 'sent' && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedPO(po);
-                          setReceiveDialogOpen(true);
-                        }}
-                        className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none text-xs md:text-sm"
-                        data-testid={`button-receive-${po.id}`}
-                      >
-                        <Check className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Terima</span>
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShareWhatsApp(po)}
+                          className="flex-none hidden md:flex"
+                          title="Hantar semula"
+                        >
+                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
+                        </Button>
+                        
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPO(po);
+                            setReceiveDialogOpen(true);
+                          }}
+                          className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none text-xs md:text-sm"
+                          data-testid={`button-receive-${po.id}`}
+                        >
+                          <Check className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Terima</span>
+                        </Button>
+                      </>
                     )}
 
+                    {/* RECEIVED Status Actions */}
                     {po.status === 'received' && (
-                      <Badge variant="outline" className="px-2 md:px-3 py-1 text-xs">
-                        ✅ Selesai
-                      </Badge>
-                    )}
-
-                    {po.status === 'draft' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deletePOMutation.mutate(po.id)}
-                        disabled={deletePOMutation.isPending}
-                        className="flex-none"
-                        data-testid={`button-delete-${po.id}`}
-                      >
-                        <X className="h-3 md:h-4 w-3 md:w-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPO(po);
+                            setDuplicateDialogOpen(true);
+                          }}
+                          className="flex-1 sm:flex-none text-xs md:text-sm"
+                          title="Duplikasi untuk order semula"
+                        >
+                          <Package className="h-3 md:h-4 w-3 md:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Order Semula</span>
+                        </Button>
+                        
+                        <Badge variant="outline" className="px-2 md:px-3 py-1 text-xs">
+                          ✅ Selesai
+                        </Badge>
+                      </>
                     )}
                   </div>
                 </div>
@@ -933,11 +1138,11 @@ export default function PurchaseOrders() {
 
       {/* Edit PO Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base md:text-lg">Edit Purchase Order</DialogTitle>
             <DialogDescription className="text-xs md:text-sm">
-              Kemaskini maklumat supplier dan nota PO
+              Kemaskini maklumat supplier, items, dan nota PO (Status: Draft)
             </DialogDescription>
           </DialogHeader>
 
@@ -948,40 +1153,332 @@ export default function PurchaseOrders() {
                   <strong>PO Number:</strong> {selectedPO.poNumber}
                 </p>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Status: Draft
+                  Status: Draft - Boleh dikemaskini
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-supplier-name" className="text-xs md:text-sm">Nama Supplier *</Label>
-                <Input
-                  id="edit-supplier-name"
-                  type="text"
-                  value={editForm.supplierName}
-                  onChange={(e) => setEditForm({ ...editForm, supplierName: e.target.value })}
-                  className="text-sm"
-                  data-testid="input-edit-supplier-name"
-                />
+              {/* Supplier Info */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Maklumat Supplier</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-supplier-name" className="text-xs md:text-sm">Nama Supplier *</Label>
+                    <Input
+                      id="edit-supplier-name"
+                      type="text"
+                      value={editForm.supplierName}
+                      onChange={(e) => setEditForm({ ...editForm, supplierName: e.target.value })}
+                      className="text-sm"
+                      data-testid="input-edit-supplier-name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-supplier-phone" className="text-xs md:text-sm">Telefon</Label>
+                    <Input
+                      id="edit-supplier-phone"
+                      type="tel"
+                      placeholder="0123456789"
+                      value={editForm.supplierPhone}
+                      onChange={(e) => setEditForm({ ...editForm, supplierPhone: e.target.value })}
+                      className="text-sm"
+                      data-testid="input-edit-supplier-phone"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-supplier-email" className="text-xs md:text-sm">Email</Label>
+                    <Input
+                      id="edit-supplier-email"
+                      type="email"
+                      placeholder="supplier@example.com"
+                      value={editForm.supplierEmail}
+                      onChange={(e) => setEditForm({ ...editForm, supplierEmail: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-supplier-address" className="text-xs md:text-sm">Alamat Supplier</Label>
+                    <Input
+                      id="edit-supplier-address"
+                      type="text"
+                      placeholder="Alamat penuh"
+                      value={editForm.supplierAddress}
+                      onChange={(e) => setEditForm({ ...editForm, supplierAddress: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-delivery-address" className="text-xs md:text-sm">Alamat Penghantaran</Label>
+                  <Textarea
+                    id="edit-delivery-address"
+                    placeholder="Alamat untuk penghantaran (jika berbeza)"
+                    value={editForm.deliveryAddress}
+                    onChange={(e) => setEditForm({ ...editForm, deliveryAddress: e.target.value })}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-supplier-phone" className="text-xs md:text-sm">Telefon Supplier (Pilihan)</Label>
-                <Input
-                  id="edit-supplier-phone"
-                  type="tel"
-                  placeholder="0123456789"
-                  value={editForm.supplierPhone}
-                  onChange={(e) => setEditForm({ ...editForm, supplierPhone: e.target.value })}
-                  className="text-sm"
-                  data-testid="input-edit-supplier-phone"
-                />
+              {/* Payment & Delivery Details */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Maklumat Pembayaran & Penghantaran</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-expected-delivery" className="text-xs md:text-sm">Tarikh Jangka Penghantaran</Label>
+                    <Input
+                      id="edit-expected-delivery"
+                      type="date"
+                      value={editForm.expectedDeliveryDate}
+                      onChange={(e) => setEditForm({ ...editForm, expectedDeliveryDate: e.target.value })}
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Bila nak terima barang?</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-payment-terms" className="text-xs md:text-sm">Terma Bayaran</Label>
+                    <select
+                      id="edit-payment-terms"
+                      value={editForm.paymentTerms}
+                      onChange={(e) => setEditForm({ ...editForm, paymentTerms: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="Cash on Delivery (COD)">Cash on Delivery (COD)</option>
+                      <option value="7 hari selepas penghantaran">7 hari selepas penghantaran</option>
+                      <option value="14 hari selepas penghantaran">14 hari selepas penghantaran</option>
+                      <option value="30 hari selepas penghantaran">30 hari selepas penghantaran</option>
+                      <option value="60 hari selepas penghantaran">60 hari selepas penghantaran</option>
+                      <option value="Bayaran Pendahuluan 50%">Bayaran Pendahuluan 50%</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-payment-method" className="text-xs md:text-sm">Cara Bayaran</Label>
+                    <select
+                      id="edit-payment-method"
+                      value={editForm.paymentMethod}
+                      onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Tunai">Tunai</option>
+                      <option value="Cek">Cek</option>
+                      <option value="Online Banking">Online Banking</option>
+                      <option value="E-Wallet">E-Wallet</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-requested-by" className="text-xs md:text-sm">Diminta Oleh</Label>
+                    <Input
+                      id="edit-requested-by"
+                      type="text"
+                      placeholder="Nama orang yang minta PO"
+                      value={editForm.requestedBy}
+                      onChange={(e) => setEditForm({ ...editForm, requestedBy: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* Financial Details */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Maklumat Kewangan Tambahan</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-discount" className="text-xs md:text-sm">Diskaun (RM)</Label>
+                    <Input
+                      id="edit-discount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editForm.discount}
+                      onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-shipping" className="text-xs md:text-sm">Kos Penghantaran (RM)</Label>
+                    <Input
+                      id="edit-shipping"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editForm.shippingCharges}
+                      onChange={(e) => setEditForm({ ...editForm, shippingCharges: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-tax" className="text-xs md:text-sm">Cukai/SST (RM)</Label>
+                    <Input
+                      id="edit-tax"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editForm.tax}
+                      onChange={(e) => setEditForm({ ...editForm, tax: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t bg-muted/30 -mx-4 -mb-3 px-4 py-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-semibold">Jumlah Anggaran (dengan semua charges):</span>
+                    <span className="text-lg font-bold text-primary">
+                      RM {(() => {
+                        const subtotal = editForm.items.reduce((sum, item) => 
+                          sum + (parseFloat(item.estimatedPrice || "0") * parseFloat(item.quantity || "0")), 0
+                        );
+                        const discount = parseFloat(editForm.discount || "0");
+                        const shipping = parseFloat(editForm.shippingCharges || "0");
+                        const tax = parseFloat(editForm.tax || "0");
+                        return (subtotal - discount + shipping + tax).toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold text-sm">Item Pesanan</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditForm({
+                        ...editForm,
+                        items: [
+                          ...editForm.items,
+                          { itemName: "", quantity: "1", unit: "unit", estimatedPrice: "0", notes: "" }
+                        ]
+                      });
+                    }}
+                    className="text-xs"
+                  >
+                    + Tambah Item
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {editForm.items.map((item, index) => (
+                    <div key={index} className="border rounded p-3 space-y-2 bg-background">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div className="md:col-span-2">
+                          <Label className="text-xs">Nama Item *</Label>
+                          <Input
+                            value={item.itemName}
+                            onChange={(e) => {
+                              const newItems = [...editForm.items];
+                              newItems[index].itemName = e.target.value;
+                              setEditForm({ ...editForm, items: newItems });
+                            }}
+                            placeholder="Nama item"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Kuantiti *</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const newItems = [...editForm.items];
+                              newItems[index].quantity = e.target.value;
+                              setEditForm({ ...editForm, items: newItems });
+                            }}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Unit</Label>
+                          <Input
+                            value={item.unit}
+                            onChange={(e) => {
+                              const newItems = [...editForm.items];
+                              newItems[index].unit = e.target.value;
+                              setEditForm({ ...editForm, items: newItems });
+                            }}
+                            placeholder="kg/unit"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Harga (RM)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.estimatedPrice}
+                            onChange={(e) => {
+                              const newItems = [...editForm.items];
+                              newItems[index].estimatedPrice = e.target.value;
+                              setEditForm({ ...editForm, items: newItems });
+                            }}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Nota</Label>
+                          <div className="flex gap-1">
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => {
+                                const newItems = [...editForm.items];
+                                newItems[index].notes = e.target.value;
+                                setEditForm({ ...editForm, items: newItems });
+                              }}
+                              placeholder="Nota tambahan"
+                              className="text-sm"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                const newItems = editForm.items.filter((_, i) => i !== index);
+                                setEditForm({ ...editForm, items: newItems });
+                              }}
+                              className="flex-shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {editForm.items.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Tiada item. Klik "Tambah Item" untuk tambah.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="edit-notes" className="text-xs md:text-sm">Nota (Pilihan)</Label>
+                <Label htmlFor="edit-notes" className="text-xs md:text-sm">Nota Tambahan</Label>
                 <Textarea
                   id="edit-notes"
-                  placeholder="Nota tambahan..."
+                  placeholder="Nota tambahan untuk PO ini..."
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                   rows={3}
@@ -1009,7 +1506,7 @@ export default function PurchaseOrders() {
               className="w-full sm:w-auto text-xs md:text-sm"
               data-testid="button-save-edit"
             >
-              {updatePOMutation.isPending ? "Menyimpan..." : "Simpan"}
+              {updatePOMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1202,6 +1699,68 @@ export default function PurchaseOrders() {
               className="w-full sm:w-auto text-xs md:text-sm"
             >
               Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate PO Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Duplikasi Purchase Order</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              Cipta PO baharu berdasarkan PO yang telah diterima ini
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPO && (
+            <div className="space-y-3">
+              <div className="p-3 bg-muted rounded-md space-y-1">
+                <p className="text-xs md:text-sm">
+                  <strong>PO Asal:</strong> {selectedPO.poNumber}
+                </p>
+                <p className="text-xs md:text-sm">
+                  <strong>Supplier:</strong> {selectedPO.supplierName}
+                </p>
+                <p className="text-xs md:text-sm">
+                  <strong>Jumlah:</strong> RM {parseFloat(selectedPO.totalAmount).toFixed(2)}
+                </p>
+                <p className="text-xs md:text-sm">
+                  <strong>Items:</strong> {selectedPO.items.length} item
+                </p>
+              </div>
+
+              <div className="p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20">
+                <p className="text-xs md:text-sm">
+                  ℹ️ PO baharu akan dicipta sebagai <strong>Draft</strong> dengan maklumat supplier dan items yang sama. 
+                  Anda boleh edit sebelum menghantar.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDuplicateDialogOpen(false);
+                setSelectedPO(null);
+              }}
+              disabled={duplicatePOMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => selectedPO && duplicatePOMutation.mutate(selectedPO.id)}
+              disabled={duplicatePOMutation.isPending}
+              className="w-full sm:w-auto text-xs md:text-sm"
+              data-testid="button-confirm-duplicate"
+            >
+              {duplicatePOMutation.isPending ? "Menduplikasi..." : "Duplikasi PO"}
             </Button>
           </DialogFooter>
         </DialogContent>
