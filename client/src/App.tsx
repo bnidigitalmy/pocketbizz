@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { InstallPWA } from "@/components/install-pwa";
@@ -56,6 +57,7 @@ import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
 import Bookings from "@/pages/bookings";
 import VendorClaims from "@/pages/vendor-claims";
+import Notifications from "@/pages/notifications";
 import PublicStore from "@/pages/public-store";
 import NotFound from "@/pages/not-found";
 
@@ -105,6 +107,7 @@ function AppRouter() {
           <Route path="/expenses" component={Expenses} />
           <Route path="/claims" component={Claims} />
           <Route path="/vendor-claims" component={VendorClaims} />
+          <Route path="/notifications" component={Notifications} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
           <Route path="/store-catalog" component={StoreCatalog} />
@@ -215,12 +218,19 @@ function AppContent() {
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
       <div className="flex h-screen w-full">
-        <AppSidebar />
+        {/* Sidebar - Desktop Only */}
+        <div className="hidden lg:block">
+          <AppSidebar />
+        </div>
+        
         <div className="flex flex-col flex-1 overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 lg:pb-6">
             <AppRouter />
           </main>
+          
+          {/* Bottom Nav - Mobile Only */}
+          <MobileBottomNav />
         </div>
       </div>
     </SidebarProvider>
