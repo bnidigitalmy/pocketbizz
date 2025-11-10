@@ -5,6 +5,15 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { db } from "./db";
 import { cache } from "./cache";
+import {
+  enforceProductLimit,
+  enforceVendorLimit,
+  enforceResellerLimit,
+  enforceStockLimit,
+  requireVendorClaims,
+  requireResellerNetwork,
+  requireAdvancedAnalytics,
+} from "./feature-gating";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
@@ -1249,6 +1258,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).send('OK'); // Acknowledge even on error to prevent retries
     }
   });
+
+  // Get subscription usage stats (for frontend progress bars)
+  app.get("/api/subscription/usage", requireAuth, async (req, res) => {
+    try {
+      const { checkLimit } = await import('./feature-gating');
+      const userId = req.user!.id;
+      
+      // Check all resource limits in parallel
+      const [products, vendors, resellers, stockItems] = await Promise.all([
+        checkLimit(userId, 'products'),
+        checkLimit(userId, 'vendors'),
+        checkLimit(userId, 'resellers'),
+        checkLimit(userId, 'stock_items'),
+      ]);
+      
+      res.json({
+        plan: products.plan, // All will have the same plan
+        usage: {
+          products: {
+            current: products.current,
+            limit: products.limit,
+            percentage: Math.round((products.current / products.limit) * 100),
+            canAdd: products.allowed,
+          },
+          vendors: {
+            current: vendors.current,
+            limit: vendors.limit,
+            percentage: Math.round((vendors.current / vendors.limit) * 100),
+            canAdd: vendors.allowed,
+          },
+          resellers: {
+            current: resellers.current,
+            limit: resellers.limit,
+            percentage: Math.round((resellers.current / resellers.limit) * 100),
+            canAdd: resellers.allowed,
+          },
+          stockItems: {
+            current: stockItems.current,
+            limit: stockItems.limit,
+            percentage: Math.round((stockItems.current / stockItems.limit) * 100),
+            canAdd: stockItems.allowed,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to fetch usage stats:', error);
+      res.status(500).json({ error: "Failed to fetch usage stats" });
+    }
+  });
   
   // Global Search - Search across all entities
   app.get("/api/search", async (req, res) => {
@@ -1377,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/products", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/products", requireAuth, blockExpiredTrial, enforceProductLimit, async (req, res) => {
     try {
       // Check product limit for trial users
       if (req.user) {
@@ -1947,7 +2005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendors", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/vendors", requireAuth, blockExpiredTrial, enforceVendorLimit, async (req, res) => {
     try {
       const data = insertVendorSchema.parse(req.body);
       const vendor = await storage.createVendor(req.user!.id, data);
@@ -2111,7 +2169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/stock", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/stock", requireAuth, blockExpiredTrial, enforceStockLimit, async (req, res) => {
     try {
       console.log("📦 POST /api/stock - Request body:", JSON.stringify(req.body, null, 2));
       const data = insertStockItemSchema.parse(req.body);
@@ -3016,7 +3074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Advanced Analytics Endpoints
-  app.get("/api/analytics/product-performance", requireAuth, async (req, res) => {
+  app.get("/api/analytics/product-performance", requireAuth, requireAdvancedAnalytics, async (req, res) => {
     try {
       const analytics = await storage.getProductPerformanceAnalytics(req.user!.id);
       // Return empty structure if no data
@@ -3028,7 +3086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/vendor-leaderboard", requireAuth, async (req, res) => {
+  app.get("/api/analytics/vendor-leaderboard", requireAuth, requireAdvancedAnalytics, async (req, res) => {
     try {
       const leaderboard = await storage.getVendorPerformanceLeaderboard(req.user!.id);
       res.json(leaderboard);
@@ -3038,7 +3096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/agent-leaderboard", requireAuth, async (req, res) => {
+  app.get("/api/analytics/agent-leaderboard", requireAuth, requireAdvancedAnalytics, async (req, res) => {
     try {
       const leaderboard = await storage.getAgentPerformanceLeaderboard(req.user!.id);
       res.json(leaderboard);
@@ -3048,7 +3106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/sales-trend", requireAuth, async (req, res) => {
+  app.get("/api/analytics/sales-trend", requireAuth, requireAdvancedAnalytics, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const trendData = await storage.getSalesTrendData(req.user!.id, days);
@@ -3398,7 +3456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== Resellers Routes ==========
   
   // Get all resellers for current user
-  app.get("/api/resellers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/resellers", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const userResellers = await storage.getResellers(req.user!.id);
       res.json(userResellers);
@@ -3409,7 +3467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create new reseller
-  app.post("/api/resellers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/resellers", requireAuth, blockExpiredTrial, requireResellerNetwork, enforceResellerLimit, async (req, res) => {
     try {
       const validatedData = insertResellerSchema.parse(req.body);
       
@@ -4995,7 +5053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get vendor claims (with filters)
-  app.get("/api/vendor-claims", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/vendor-claims", requireAuth, blockExpiredTrial, requireVendorClaims, async (req, res) => {
     try {
       const { vendorId, status, startDate, endDate } = req.query;
       const filters: any = {};

@@ -883,17 +883,44 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 // Subscription Plans Table (Duration-based pricing for ToyyibPay)
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(), // "basic", "pro", "premium"
+  name: text("name").notNull(), // "trial", "basic", "pro", "premium"
   displayName: text("display_name").notNull(), // Display name for UI
   description: text("description"), // Plan description
   monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(), // Base price per month in MYR
+  annualPrice: decimal("annual_price", { precision: 10, scale: 2 }), // Annual price (save 17%)
   currency: text("currency").notNull().default("MYR"),
   features: text("features"), // JSON string of features array
-  maxUsers: integer("max_users").default(1), // Max users for this plan
+  
+  // Feature Limits
+  maxUsers: integer("max_users").default(1), // Max users/staff accounts
   maxProducts: integer("max_products").default(100), // Max products allowed
+  maxCustomers: integer("max_customers").default(200), // Max customers allowed
+  maxStockItems: integer("max_stock_items").default(100), // Max stock items
+  maxVendors: integer("max_vendors").default(5), // Max vendors
+  maxResellers: integer("max_resellers").default(0), // Max resellers/agents
+  maxDeliveriesPerMonth: integer("max_deliveries_per_month").default(50), // Max deliveries per month
+  storageQuotaMB: integer("storage_quota_mb").default(500), // Storage quota in MB
+  whatsappMessagesPerMonth: integer("whatsapp_messages_per_month").default(0), // WhatsApp broadcast limit
+  smsPerMonth: integer("sms_per_month").default(0), // SMS limit
+  
+  // Feature Access Flags
+  hasVendorClaims: integer("has_vendor_claims").default(0), // 1 = enabled, 0 = disabled
+  hasResellerNetwork: integer("has_reseller_network").default(0),
+  hasAdvancedAnalytics: integer("has_advanced_analytics").default(0),
+  hasLoyaltyPoints: integer("has_loyalty_points").default(0),
+  hasBookings: integer("has_bookings").default(0),
+  hasWhatsappBroadcast: integer("has_whatsapp_broadcast").default(0),
+  hasSmsBroadcast: integer("has_sms_broadcast").default(0),
+  hasPublicStore: integer("has_public_store").default(0),
+  hasApiAccess: integer("has_api_access").default(0),
+  hasCustomDomain: integer("has_custom_domain").default(0),
+  hasPrioritySupport: integer("has_priority_support").default(0),
+  hasAccountManager: integer("has_account_manager").default(0),
+  
   // Duration Discounts
-  discount6Months: decimal("discount_6_months", { precision: 5, scale: 2 }).default("10.00"), // 10% discount for 6 months
-  discount12Months: decimal("discount_12_months", { precision: 5, scale: 2 }).default("20.00"), // 20% discount for 12 months
+  discount6Months: decimal("discount_6_months", { precision: 5, scale: 2 }).default("0.00"),
+  discount12Months: decimal("discount_12_months", { precision: 5, scale: 2 }).default("17.00"), // 17% discount for annual
+  
   isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
   sortOrder: integer("sort_order").default(0), // For display ordering
   createdAt: timestamp("created_at").defaultNow().notNull(),
