@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -36,9 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Search, UserCog, CheckCircle, XCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, UserCog, CheckCircle, XCircle, Clock, KeyRound, Copy, Check, Trash2, Ban, ShieldAlert, DollarSign, Download, Mail, MoreHorizontal, CheckCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { containerVariants, itemVariants } from "@/lib/motion";
@@ -52,6 +62,7 @@ interface User {
   businessName?: string;
   phone?: string;
   isAdmin: number;
+  suspended?: boolean;
   currentPlan: string;
   subscriptionStatus: string;
   createdAt: string;
@@ -63,10 +74,18 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showManageDialog, setShowManageDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [showChangePlanDialog, setShowChangePlanDialog] = useState(false);
+  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState("");
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [durationMonths, setDurationMonths] = useState("1");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("manual");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const { toast } = useToast();
 
   const { data: usersData, isLoading } = useQuery({ 
@@ -79,14 +98,15 @@ export default function AdminUsers() {
 
   const manageMutation = useMutation({
     mutationFn: async ({ userId, action, planId, duration }: any) => {
-      return await apiRequest(`/api/admin/users/${userId}/subscription`, {
-        method: 'PATCH',
-        body: JSON.stringify({
+      return await apiRequest(
+        'PATCH',
+        `/api/admin/users/${userId}/subscription`,
+        {
           action,
           planId,
           durationMonths: duration,
-        }),
-      });
+        }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -108,9 +128,7 @@ export default function AdminUsers() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest(`/api/admin/users/${userId}/reset-password`, {
-        method: 'POST',
-      });
+      return await apiRequest('POST', `/api/admin/users/${userId}/reset-password`);
     },
     onSuccess: (data: any) => {
       setTempPassword(data.tempPassword);
@@ -127,6 +145,111 @@ export default function AdminUsers() {
       });
       setShowResetPasswordDialog(false);
       setSelectedUser(null);
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('DELETE', `/api/admin/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "User Deleted",
+        description: "User account has been permanently deleted.",
+      });
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleSuspendMutation = useMutation({
+    mutationFn: async ({ userId, suspended }: { userId: string; suspended: boolean }) => {
+      return await apiRequest(
+        'POST',
+        `/api/admin/users/${userId}/toggle-status`,
+        { suspended }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "User Status Updated",
+        description: "User status has been changed successfully.",
+      });
+      setShowSuspendDialog(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const changePlanMutation = useMutation({
+    mutationFn: async ({ userId, planId, durationMonths }: any) => {
+      return await apiRequest(
+        'POST',
+        `/api/admin/users/${userId}/change-plan`,
+        { planId, durationMonths }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Plan Changed",
+        description: "User subscription plan has been updated.",
+      });
+      setShowChangePlanDialog(false);
+      setSelectedUser(null);
+      setSelectedPlan("");
+      setDurationMonths("1");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addPaymentMutation = useMutation({
+    mutationFn: async ({ userId, amount, method, notes }: any) => {
+      return await apiRequest(
+        'POST',
+        `/api/admin/users/${userId}/add-payment`,
+        { amount, method, notes }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Payment Added",
+        description: "Manual payment record has been added.",
+      });
+      setShowAddPaymentDialog(false);
+      setSelectedUser(null);
+      setPaymentAmount("");
+      setPaymentMethod("manual");
+      setPaymentNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add payment",
+        variant: "destructive",
+      });
     },
   });
 
@@ -288,32 +411,63 @@ export default function AdminUsers() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => {
                                 setSelectedUser(user);
                                 setShowManageDialog(true);
-                              }}
-                              data-testid={`button-manage-${user.id}`}
-                            >
-                              <UserCog className="h-4 w-4 mr-2" />
-                              Urus
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
+                              }}>
+                                <UserCog className="h-4 w-4 mr-2" />
+                                Urus Subscription
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
                                 setSelectedUser(user);
                                 setShowResetPasswordDialog(true);
-                              }}
-                              data-testid={`button-reset-password-${user.id}`}
-                            >
-                              <KeyRound className="h-4 w-4 mr-2" />
-                              Reset Password
-                            </Button>
-                          </div>
+                              }}>
+                                <KeyRound className="h-4 w-4 mr-2" />
+                                Reset Password
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedUser(user);
+                                setShowChangePlanDialog(true);
+                              }}>
+                                <ShieldAlert className="h-4 w-4 mr-2" />
+                                Tukar Plan
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedUser(user);
+                                setShowAddPaymentDialog(true);
+                              }}>
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                Tambah Bayaran
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedUser(user);
+                                setShowSuspendDialog(true);
+                              }}>
+                                <Ban className="h-4 w-4 mr-2" />
+                                {user.suspended ? 'Aktifkan' : 'Suspend'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setShowDeleteDialog(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Hapus Pengguna
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -517,6 +671,249 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete User Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pengguna</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adakah anda pasti mahu menghapus pengguna <strong>{selectedUser?.email}</strong>?
+              <br /><br />
+              <span className="text-destructive font-semibold">⚠️ Amaran: Tindakan ini tidak boleh dibatalkan!</span>
+              <br /><br />
+              Semua data pengguna termasuk produk, stok, pesanan, dan rekod lain akan dihapus sepenuhnya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedUser && deleteUserMutation.mutate(selectedUser.id)}
+              disabled={deleteUserMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Hapus Pengguna
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Suspend/Activate User Dialog */}
+      <AlertDialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedUser?.suspended ? 'Aktifkan Pengguna' : 'Suspend Pengguna'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedUser?.suspended ? (
+                <>
+                  Adakah anda pasti mahu mengaktifkan semula pengguna <strong>{selectedUser?.email}</strong>?
+                  <br /><br />
+                  Pengguna akan dapat log masuk dan menggunakan sistem seperti biasa.
+                </>
+              ) : (
+                <>
+                  Adakah anda pasti mahu menyuspend pengguna <strong>{selectedUser?.email}</strong>?
+                  <br /><br />
+                  Pengguna tidak akan dapat log masuk sehingga akaun diaktifkan semula.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedUser && toggleSuspendMutation.mutate({ 
+                userId: selectedUser.id, 
+                suspended: !selectedUser.suspended 
+              })}
+              disabled={toggleSuspendMutation.isPending}
+            >
+              {toggleSuspendMutation.isPending ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  {selectedUser?.suspended ? (
+                    <>
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      Aktifkan
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="h-4 w-4 mr-2" />
+                      Suspend
+                    </>
+                  )}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Plan Dialog */}
+      <Dialog open={showChangePlanDialog} onOpenChange={setShowChangePlanDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tukar Subscription Plan</DialogTitle>
+            <DialogDescription>
+              Tukar plan untuk {selectedUser?.email}. Current plan: <strong>{selectedUser?.currentPlan}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Plan Baru</Label>
+              <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="trial">Trial (7 hari percuma)</SelectItem>
+                  <SelectItem value="basic">Basic (RM29/bulan)</SelectItem>
+                  <SelectItem value="pro">Pro (RM59/bulan)</SelectItem>
+                  <SelectItem value="premium">Premium (RM99/bulan)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tempoh (bulan)</Label>
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                value={durationMonths}
+                onChange={(e) => setDurationMonths(e.target.value)}
+                placeholder="1"
+              />
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                💡 Plan akan bertukar dengan serta-merta dan subscription akan dilanjutkan mengikut tempoh yang dipilih.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChangePlanDialog(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => selectedUser && changePlanMutation.mutate({
+                userId: selectedUser.id,
+                planId: selectedPlan,
+                durationMonths: parseInt(durationMonths)
+              })}
+              disabled={changePlanMutation.isPending || !selectedPlan}
+            >
+              {changePlanMutation.isPending ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Menukar...
+                </>
+              ) : (
+                <>
+                  <ShieldAlert className="h-4 w-4 mr-2" />
+                  Tukar Plan
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Manual Payment Dialog */}
+      <Dialog open={showAddPaymentDialog} onOpenChange={setShowAddPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Bayaran Manual</DialogTitle>
+            <DialogDescription>
+              Rekod bayaran manual untuk {selectedUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amaun (RM)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="29.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Kaedah Bayaran</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual/Cash</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="fpx">FPX</SelectItem>
+                  <SelectItem value="credit_card">Credit Card</SelectItem>
+                  <SelectItem value="other">Lain-lain</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nota (optional)</Label>
+              <Textarea
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                placeholder="Contoh: Bayaran melalui bank transfer, rujukan #TXN123"
+                rows={3}
+              />
+            </div>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ Bayaran manual tidak akan mengaktifkan subscription secara automatik. 
+                Gunakan "Tukar Plan" untuk mengaktifkan subscription pengguna.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPaymentDialog(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => selectedUser && addPaymentMutation.mutate({
+                userId: selectedUser.id,
+                amount: parseFloat(paymentAmount),
+                method: paymentMethod,
+                notes: paymentNotes
+              })}
+              disabled={addPaymentMutation.isPending || !paymentAmount || parseFloat(paymentAmount) <= 0}
+            >
+              {addPaymentMutation.isPending ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Menambah...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Tambah Bayaran
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

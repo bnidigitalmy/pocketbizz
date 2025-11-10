@@ -862,6 +862,7 @@ export const users = pgTable("users", {
   businessName: text("business_name"), // Optional business name
   phone: text("phone"), // Optional phone number
   isAdmin: integer("is_admin").notNull().default(0), // 1 for admin, 0 for regular user
+  suspended: integer("suspended").notNull().default(0), // 1 = suspended, 0 = active
   // Free Trial Fields
   isOnTrial: integer("is_on_trial").notNull().default(1), // 1 = on trial, 0 = paid/expired
   trialEndsAt: timestamp("trial_ends_at"), // When 7-day trial ends
@@ -1521,6 +1522,18 @@ export const storeSettings = pgTable("store_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Admin Activity Logs - Audit trail for all admin actions
+export const adminActivityLogs = pgTable("admin_activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().references(() => users.id, { onDelete: "cascade" }), // Who performed the action
+  targetUserId: varchar("target_user_id"), // User affected by the action (nullable for system-wide actions)
+  action: text("action").notNull(), // "delete_user", "suspend_user", "activate_user", "reset_password", "change_plan", "add_payment", "bulk_action"
+  details: text("details"), // JSON string with action details (e.g., old/new plan, payment amount)
+  ipAddress: text("ip_address"), // Admin's IP address
+  userAgent: text("user_agent"), // Admin's browser/device
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Store Analytics - Track views and engagement
 export const storeAnalytics = pgTable("store_analytics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1551,9 +1564,17 @@ export const insertStoreAnalyticsSchema = createInsertSchema(storeAnalytics).omi
   createdAt: true,
 });
 
+export const insertAdminActivityLogSchema = createInsertSchema(adminActivityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Type Exports for Store
 export type StoreSettings = typeof storeSettings.$inferSelect;
 export type InsertStoreSettings = z.infer<typeof insertStoreSettingsSchema>;
 
 export type StoreAnalytics = typeof storeAnalytics.$inferSelect;
 export type InsertStoreAnalytics = z.infer<typeof insertStoreAnalyticsSchema>;
+
+export type AdminActivityLog = typeof adminActivityLogs.$inferSelect;
+export type InsertAdminActivityLog = z.infer<typeof insertAdminActivityLogSchema>;

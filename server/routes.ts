@@ -4409,6 +4409,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date()
       });
       
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'reset_password',
+        targetUserId: userId,
+        details: `Reset password for ${user.email}`,
+        createdAt: new Date(),
+      });
+      
       // Return the temporary password (only shown once to admin)
       res.json({ 
         success: true, 
@@ -4420,6 +4429,297 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin password reset error:", error);
       res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Admin: Delete user
+  app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Prevent deleting yourself
+      if (userId === req.user!.id) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      
+      // Get user for logging
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Delete user (cascade deletes will handle related records)
+      await db.delete(users).where(eq(users.id, userId));
+      
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'delete_user',
+        targetUserId: userId,
+        details: `Deleted user ${user.email}`,
+        createdAt: new Date(),
+      });
+      
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Admin delete user error:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Admin: Suspend/Activate user
+  app.post("/api/admin/users/:userId/toggle-status", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { suspended } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update user suspended status
+      await storage.updateUser(userId, { 
+        suspended: suspended ? 1 : 0,
+        updatedAt: new Date()
+      });
+      
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: suspended ? 'suspend_user' : 'activate_user',
+        targetUserId: userId,
+        details: `${suspended ? 'Suspended' : 'Activated'} user ${user.email}`,
+        createdAt: new Date(),
+      });
+      
+      res.json({ success: true, message: `User ${suspended ? 'suspended' : 'activated'} successfully` });
+    } catch (error) {
+      console.error("Admin toggle user status error:", error);
+      res.status(500).json({ error: "Failed to update user status" });
+    }
+  });
+
+  // Admin: Direct subscription change
+  app.post("/api/admin/users/:userId/change-plan", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { planId, durationMonths } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const plan = await db.query.subscriptionPlans.findFirst({
+        where: eq(subscriptionPlans.id, planId)
+      });
+      
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      // Check existing subscription
+      const existingSub = await db.query.userSubscriptions.findFirst({
+        where: and(
+          eq(userSubscriptions.userId, userId),
+          eq(userSubscriptions.status, 'active')
+        )
+      });
+      
+      const now = new Date();
+      const endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + parseInt(durationMonths));
+      
+      if (existingSub) {
+        // Update existing subscription
+        await db.update(userSubscriptions)
+          .set({
+            planId,
+            status: 'active',
+            startDate: now,
+            endDate,
+            updatedAt: now,
+          })
+          .where(eq(userSubscriptions.id, existingSub.id));
+      } else {
+        // Create new subscription
+        await db.insert(userSubscriptions).values({
+          userId,
+          planId,
+          status: 'active',
+          startDate: now,
+          endDate,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'change_subscription',
+        targetUserId: userId,
+        details: `Changed ${user.email} to ${plan.name} for ${durationMonths} months`,
+        createdAt: new Date(),
+      });
+      
+      res.json({ success: true, message: "Subscription changed successfully" });
+    } catch (error) {
+      console.error("Admin change plan error:", error);
+      res.status(500).json({ error: "Failed to change plan" });
+    }
+  });
+
+  // Admin: Add manual payment record
+  app.post("/api/admin/users/:userId/add-payment", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { amount, method, notes } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Create billing record
+      await db.insert(billingHistory).values({
+        userId,
+        amount: amount.toString(),
+        currency: 'MYR',
+        paymentMethod: method || 'manual',
+        status: 'completed',
+        description: notes || 'Manual payment added by admin',
+        createdAt: new Date(),
+      });
+      
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'add_payment',
+        targetUserId: userId,
+        details: `Added manual payment RM ${amount} for ${user.email}`,
+        createdAt: new Date(),
+      });
+      
+      res.json({ success: true, message: "Payment record added successfully" });
+    } catch (error) {
+      console.error("Admin add payment error:", error);
+      res.status(500).json({ error: "Failed to add payment record" });
+    }
+  });
+
+  // Admin: Get user activity logs
+  app.get("/api/admin/users/:userId/activity", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get recent activity (last 50 actions)
+      const activity = await db.select()
+        .from(adminActivityLogs)
+        .where(eq(adminActivityLogs.targetUserId, userId))
+        .orderBy(desc(adminActivityLogs.createdAt))
+        .limit(50);
+      
+      res.json(activity);
+    } catch (error) {
+      console.error("Admin get activity error:", error);
+      res.status(500).json({ error: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Admin: Get all admin actions (audit trail)
+  app.get("/api/admin/activity-logs", requireAdmin, async (req, res) => {
+    try {
+      const { page = 1, limit = 50 } = req.query;
+      const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+      
+      const logs = await db.select({
+        id: adminActivityLogs.id,
+        adminId: adminActivityLogs.adminId,
+        adminEmail: users.email,
+        action: adminActivityLogs.action,
+        targetUserId: adminActivityLogs.targetUserId,
+        details: adminActivityLogs.details,
+        createdAt: adminActivityLogs.createdAt,
+      })
+        .from(adminActivityLogs)
+        .leftJoin(users, eq(adminActivityLogs.adminId, users.id))
+        .orderBy(desc(adminActivityLogs.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(offset);
+      
+      const total = await db.select({ count: sql<number>`count(*)` })
+        .from(adminActivityLogs);
+      
+      res.json({
+        logs,
+        pagination: {
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          total: total[0]?.count || 0,
+          totalPages: Math.ceil((total[0]?.count || 0) / parseInt(limit as string)),
+        }
+      });
+    } catch (error) {
+      console.error("Admin get logs error:", error);
+      res.status(500).json({ error: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Admin: Bulk actions
+  app.post("/api/admin/users/bulk-action", requireAdmin, async (req, res) => {
+    try {
+      const { userIds, action, data } = req.body;
+      
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: "No users selected" });
+      }
+      
+      let successCount = 0;
+      const errors = [];
+      
+      for (const userId of userIds) {
+        try {
+          switch (action) {
+            case 'suspend':
+              await storage.updateUser(userId, { suspended: 1, updatedAt: new Date() });
+              break;
+            case 'activate':
+              await storage.updateUser(userId, { suspended: 0, updatedAt: new Date() });
+              break;
+            case 'delete':
+              if (userId !== req.user!.id) {
+                await db.delete(users).where(eq(users.id, userId));
+              }
+              break;
+            case 'change_plan':
+              // Implement bulk plan change if needed
+              break;
+          }
+          successCount++;
+        } catch (err: any) {
+          errors.push({ userId, error: err.message });
+        }
+      }
+      
+      // Log bulk action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: `bulk_${action}`,
+        details: `Bulk ${action} on ${successCount} users`,
+        createdAt: new Date(),
+      });
+      
+      res.json({ 
+        success: true, 
+        successCount, 
+        failedCount: errors.length,
+        errors 
+      });
+    } catch (error) {
+      console.error("Admin bulk action error:", error);
+      res.status(500).json({ error: "Failed to perform bulk action" });
     }
   });
   
