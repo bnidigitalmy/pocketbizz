@@ -195,7 +195,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
         </div>
       </nav>
 
-      {/* Quick Add Sheet - Will implement in next component */}
+      {/* Quick Add Sheet */}
       {showQuickAdd && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 lg:hidden"
@@ -208,7 +208,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
             <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6" />
             <h3 className="text-lg font-semibold mb-4">Tambah Cepat</h3>
             <div className="space-y-3">
-              <Link href="/bookings/new">
+              <Link href="/bookings">
                 <button 
                   className="w-full p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors"
                   onClick={() => setShowQuickAdd(false)}
@@ -217,7 +217,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <div className="text-sm text-gray-600">Customer tempah kek/desert</div>
                 </button>
               </Link>
-              <Link href="/stock/add">
+              <Link href="/stock">
                 <button 
                   className="w-full p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors"
                   onClick={() => setShowQuickAdd(false)}
