@@ -3,7 +3,8 @@ import {
   ShoppingBag, 
   PlusCircle, 
   Bell, 
-  Menu 
+  Menu,
+  X
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -80,6 +81,9 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
           "bg-white border-t border-gray-200",
           "safe-area-inset-bottom",
           "lg:hidden", // Hide on desktop
+          "transition-transform duration-200",
+          // Hide bottom nav when Quick Add or More Menu is open
+          (showQuickAdd || showMoreMenu) && "translate-y-full",
           className
         )}
       >
@@ -198,14 +202,24 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       {/* Quick Add Sheet */}
       {showQuickAdd && (
         <div 
-          className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[60] lg:hidden animate-in fade-in duration-200"
           onClick={() => setShowQuickAdd(false)}
         >
           <div 
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6"
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6 animate-in slide-in-from-bottom duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6" />
+            {/* Drag handle + Close button */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-1 bg-gray-300 rounded-full" />
+              <button 
+                onClick={() => setShowQuickAdd(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Tutup"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
             <h3 className="text-lg font-semibold mb-4">Tambah Cepat</h3>
             <div className="space-y-3">
               <Link href="/bookings">
@@ -243,14 +257,24 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       {/* More Menu Drawer - Complete feature list from sidebar */}
       {showMoreMenu && (
         <div 
-          className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[60] lg:hidden animate-in fade-in duration-200"
           onClick={() => setShowMoreMenu(false)}
         >
           <div 
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6 max-h-[85vh] overflow-y-auto"
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            {/* Drag handle + Close button */}
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 -mt-2">
+              <div className="w-12 h-1 bg-gray-300 rounded-full" />
+              <button 
+                onClick={() => setShowMoreMenu(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Tutup"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
             <h3 className="text-lg font-semibold mb-4">Semua Menu</h3>
             
             {/* Search bar for quick find */}
