@@ -240,93 +240,158 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
         </div>
       )}
 
-      {/* More Menu Drawer - Will implement in next component */}
+      {/* More Menu Drawer - Complete feature list from sidebar */}
       {showMoreMenu && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 lg:hidden"
           onClick={() => setShowMoreMenu(false)}
         >
           <div 
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6 max-h-[80vh] overflow-y-auto"
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-6 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6" />
-            <h3 className="text-lg font-semibold mb-4">Menu Lagi</h3>
-            <div className="space-y-2">
-              <div className="font-medium text-sm text-gray-500 px-3 py-2">PENGURUSAN HARIAN</div>
+            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-4">Semua Menu</h3>
+            
+            {/* Search bar for quick find */}
+            <div className="mb-4">
+              <input 
+                type="text" 
+                placeholder="🔍 Cari menu..."
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
+            </div>
+
+            <div className="space-y-1">
+              {/* Pengurusan Stok */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-2">PENGURUSAN STOK</div>
               <Link href="/products">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   🎂 <span>Produk & Resepi</span>
                 </button>
               </Link>
               <Link href="/production">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   👨‍🍳 <span>Produksi</span>
                 </button>
               </Link>
+              <Link href="/finished-products">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  📦 <span>Stok Siap</span>
+                </button>
+              </Link>
               <Link href="/stock">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   📦 <span>Stok Gudang</span>
                 </button>
               </Link>
-              <Link href="/vendors">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
-                  🏪 <span>Vendor</span>
+              <Link href="/shopping-list">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🛒 <span>Senarai Belian</span>
                 </button>
               </Link>
-              <Link href="/resellers">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
-                  👥 <span>Ejen Reseller</span>
+              <Link href="/purchase-orders">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  📄 <span>Purchase Order</span>
+                </button>
+              </Link>
+              <Link href="/suppliers">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🏢 <span>Suppliers</span>
                 </button>
               </Link>
               
-              <div className="font-medium text-sm text-gray-500 px-3 py-2 mt-4">KEWANGAN</div>
+              {/* Vendor (Konsainan) */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">VENDOR (KONSAINAN)</div>
+              <Link href="/vendors">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🏪 <span>Senarai Vendor</span>
+                </button>
+              </Link>
+              <Link href="/deliveries">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🚚 <span>Hantar ke Kedai</span>
+                </button>
+              </Link>
+              <Link href="/claims">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  � <span>Bayaran & Invoice</span>
+                </button>
+              </Link>
+              
+              {/* Direct Sales */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">JUALAN TERUS</div>
+              <Link href="/customers">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  👤 <span>Pelanggan Setia</span>
+                </button>
+              </Link>
+              <Link href="/broadcast">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  📢 <span>Broadcast</span>
+                </button>
+              </Link>
+              <Link href="/vouchers">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🎟️ <span>Voucher</span>
+                </button>
+              </Link>
+              
+              {/* Ejen Reseller */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">EJEN RESELLER</div>
+              <Link href="/resellers">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  👥 <span>Senarai Ejen</span>
+                </button>
+              </Link>
+              <Link href="/reseller-transfer">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🔄 <span>Transfer Stok</span>
+                </button>
+              </Link>
+              <Link href="/reseller-performance">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  📈 <span>Prestasi Ejen</span>
+                </button>
+              </Link>
+              <Link href="/pricing-tiers">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🏷️ <span>Tetapan Tier</span>
+                </button>
+              </Link>
+              
+              {/* Kewangan */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">KEWANGAN</div>
               <Link href="/sales">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   💰 <span>Jualan</span>
                 </button>
               </Link>
               <Link href="/expenses">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   💵 <span>Perbelanjaan</span>
                 </button>
               </Link>
               <Link href="/reports">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   📊 <span>Laporan</span>
                 </button>
               </Link>
               
-              <div className="font-medium text-sm text-gray-500 px-3 py-2 mt-4">SISTEM</div>
+              {/* Sistem */}
+              <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">SISTEM & TETAPAN</div>
+              <Link href="/store-catalog">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  🌐 <span>Katalog Kedai</span>
+                </button>
+              </Link>
+              <Link href="/drive-sync">
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
+                  ☁️ <span>Google Drive</span>
+                </button>
+              </Link>
               <Link href="/settings">
-                <button 
-                  className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3"
-                  onClick={() => setShowMoreMenu(false)}
-                >
+                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
                   ⚙️ <span>Tetapan</span>
                 </button>
               </Link>
