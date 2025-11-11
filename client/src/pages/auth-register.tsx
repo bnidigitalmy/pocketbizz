@@ -19,6 +19,12 @@ export default function AuthRegister() {
   const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // Get URL params for plan selection
+  const urlParams = new URLSearchParams(window.location.search);
+  const selectedPlan = urlParams.get('plan');
+  const selectedDuration = urlParams.get('duration');
+  const returnTo = urlParams.get('returnTo');
+
   const registerMutation = useMutation({
     mutationFn: async (data: { name: string; email: string; password: string; phone?: string }) => {
       const response = await apiRequest("POST", "/api/auth/register", data);
@@ -29,7 +35,13 @@ export default function AuthRegister() {
         title: "Pendaftaran berjaya!",
         description: "Trial percuma 7 hari anda bermula sekarang.",
       });
-      navigate("/dashboard");
+      
+      // Redirect back to pricing page if came from there
+      if (returnTo === '/pricing') {
+        navigate("/pricing");
+      } else {
+        navigate("/dashboard");
+      }
     },
     onError: (error: any) => {
       toast({
@@ -62,6 +74,18 @@ export default function AuthRegister() {
           <CardDescription>
             Tiada credit card diperlukan. Setup dalam 5 minit.
           </CardDescription>
+          
+          {/* Show plan selection info if came from pricing page */}
+          {selectedPlan && selectedDuration && (
+            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-muted-foreground">
+                Pakej dipilih: <span className="font-semibold text-foreground capitalize">{selectedPlan}</span> ({selectedDuration} bulan)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Daftar sekarang untuk cuba trial 7 hari, kemudian boleh upgrade ke pakej pilihan anda
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

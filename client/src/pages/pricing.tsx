@@ -86,12 +86,16 @@ export default function Pricing() {
     }
     
     if (!isLoggedIn) {
-      console.log('User not logged in, redirecting to login page');
-      // Save intended checkout URL to redirect after login
-      const returnUrl = bclFormUrl;
+      console.log('User not logged in, redirecting to register page');
+      // Redirect to register page with plan info
+      // User will get FREE TRIAL first, then can come back to upgrade
+      const params = new URLSearchParams({
+        plan: plan.name,
+        duration: selectedDuration.toString(),
+        returnTo: '/pricing',
+      });
       
-      // Redirect to login with return URL
-      window.location.href = `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/auth/register?${params.toString()}`;
       return;
     }
     
