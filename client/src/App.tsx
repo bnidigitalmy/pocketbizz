@@ -13,6 +13,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { RenewalReminder } from "@/components/renewal-reminder";
+import { TrialBanner } from "@/components/trial-banner";
 import { MotionWrapper } from "@/components/motion-wrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
@@ -228,6 +229,7 @@ function AppContent() {
         
         <div className="flex flex-col flex-1 overflow-hidden">
           <Header />
+          <TrialBanner />
           {/* Mobile needs extra padding for bottom nav (h-16) + FAB elevation (~24px) = ~100px total */}
           <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 lg:pb-6">
             <AppRouter />

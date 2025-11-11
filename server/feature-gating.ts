@@ -12,6 +12,38 @@ import { storage } from "./storage";
  * Get user's active subscription plan with limits
  */
 export async function getUserPlan(userId: string) {
+  // First check if user is on active trial
+  const user = await storage.getUserById(userId);
+  if (user && user.isOnTrial && user.trialEndsAt && new Date(user.trialEndsAt) > new Date()) {
+    // User on active trial - return "premium trial" plan
+    return {
+      id: 'trial',
+      displayName: '🎁 Free Trial (Full Access)',
+      // All premium features unlocked during trial!
+      hasVendorClaims: 1,
+      hasResellerNetwork: 1,
+      hasAdvancedAnalytics: 1,
+      hasLoyaltyPoints: 1,
+      hasBookings: 1,
+      hasWhatsappBroadcast: 1,
+      hasSmsBroadcast: 1,
+      hasPublicStore: 1,
+      hasApiAccess: 1,
+      hasCustomDomain: 1,
+      hasPrioritySupport: 0,
+      hasAccountManager: 0,
+      // Generous limits for trial
+      maxProducts: 100,
+      maxCustomers: 500,
+      maxStockItems: 200,
+      maxVendors: 20,
+      maxResellers: 20,
+      maxDeliveriesPerMonth: 200,
+      maxUsers: 3,
+      storageLimit: 2147483648, // 2GB
+    };
+  }
+  
   const subscriptions = await storage.getUserSubscriptions(userId);
   const now = new Date();
   
@@ -41,7 +73,7 @@ export async function hasFeatureAccess(
   const plan = await getUserPlan(userId);
   
   if (!plan) {
-    // No active subscription = trial limits
+    // No active subscription AND not on trial = no access
     return false;
   }
   

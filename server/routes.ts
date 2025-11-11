@@ -283,16 +283,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password with strong cost factor
       const hashedPassword = await bcrypt.hash(body.password, 12);
       
-      // Calculate trial end date (7 days from now)
+      // Calculate trial end date (14 days from now - Full Access Trial)
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
       
       // Create user with auto-activated free trial
       const user = await storage.createUser({
         ...body,
         password: hashedPassword,
         isAdmin: 0, // Explicitly prevent privilege escalation
-        isOnTrial: 1, // Auto-activate 7-day trial
+        isOnTrial: 1, // Auto-activate 14-day FULL ACCESS trial
         trialEndsAt,
         toyyibpayUserCode: null,
       });

@@ -93,33 +93,66 @@ export function UpgradePrompt() {
           <AlertDialogDescription className="space-y-3 text-base">
             {isTrialExpired ? (
               <>
-                <p>
-                  Tempoh percubaan 7 hari anda telah tamat. 
+                <p className="font-medium text-base">
+                  Tempoh percubaan 14 hari anda telah tamat. 
                 </p>
-                <p>
-                  Langgani sekarang untuk terus menggunakan PocketBizz dan nikmati kesemua ciri premium tanpa had!
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                  <p className="font-medium text-sm">Features yang anda dah guna:</p>
+                  <ul className="space-y-1 text-sm">
+                    <li>✨ Advanced Analytics & Reports</li>
+                    <li>📊 Vendor Claims System</li>
+                    <li>👥 Reseller Network Management</li>
+                    <li>🎯 Bookings & Pre-orders</li>
+                    <li>💎 Loyalty Points & Vouchers</li>
+                  </ul>
+                </div>
+                <p className="text-sm font-medium text-destructive">
+                  Subscribe sekarang untuk terus guna semua features premium ini!
                 </p>
               </>
             ) : user.isOnTrial ? (
               <>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    <Badge variant="outline" className="mr-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    <Badge variant="default" className="mr-2 bg-primary">
                       {daysLeft} hari lagi
                     </Badge>
-                    dalam tempoh percubaan
+                    Full Access Premium Trial
                   </span>
                 </div>
-                <p>
-                  Upgrade sekarang dan dapatkan:
+                <div className="bg-primary/5 p-4 rounded-lg space-y-2 border border-primary/20">
+                  <p className="font-medium text-sm">Anda sedang guna FULL ACCESS:</p>
+                  <ul className="space-y-1.5 text-sm">
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>Advanced Analytics & Sales Trends</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>Vendor Claims & Commission Tracking</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>Reseller Network (up to 20 agents)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>Bookings & Pre-orders System</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>Loyalty Points & Vouchers</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">✓</span>
+                      <span>WhatsApp Broadcast</span>
+                    </li>
+                  </ul>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Cuba semua features sekarang, subscribe bila anda dah rasa manfaatnya! 🚀
                 </p>
-                <ul className="space-y-2 text-sm text-muted-foreground ml-4">
-                  <li>✓ Produk tanpa had</li>
-                  <li>✓ Google Drive auto-sync</li>
-                  <li>✓ Laporan lanjutan</li>
-                  <li>✓ Sokongan keutamaan</li>
-                </ul>
               </>
             ) : (
               <p>
