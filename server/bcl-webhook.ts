@@ -194,10 +194,24 @@ export async function processBCLWebhook(req: Request, res: Response) {
       recordId: payload.data?.record_id,
     });
 
-    // Only process form-submit events
-    if (payload.event !== "form-submit") {
-      console.log("[BCL] Ignoring non-form-submit event:", payload.event);
+    // Process both form-submit and payment-success events
+    if (payload.event !== "form-submit" && payload.event !== "payment-success") {
+      console.log("[BCL] Ignoring event:", payload.event);
       return res.json({ success: true, message: "Event ignored" });
+    }
+
+    // For payment-success events, verify payment status
+    if (payload.event === "payment-success") {
+      const paymentStatus = payload.data?.payment_info?.payment_status;
+      if (paymentStatus !== "paid") {
+        console.warn("[BCL] Payment not completed:", paymentStatus);
+        return res.status(400).json({ 
+          success: false, 
+          error: "Payment not completed",
+          paymentStatus 
+        });
+      }
+      console.log("[BCL] Payment confirmed as successful");
     }
 
     // Extract data

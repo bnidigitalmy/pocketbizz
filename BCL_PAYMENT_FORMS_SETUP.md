@@ -100,7 +100,13 @@ https://pocketbizz-production-f02a.up.railway.app/api/webhooks/bcl
 ```
 
 **Events to subscribe**:
-- ✅ `form-submit` (when payment success)
+- ✅ `payment-success` (RECOMMENDED - only triggers after payment confirmed)
+- ⚠️ `form-submit` (alternative - triggers before payment, less reliable)
+
+**Why Payment Success is better:**
+- Only fires when payment actually completes
+- Prevents subscription activation for unpaid forms
+- More accurate transaction tracking
 
 **Webhook Secret**: 
 ```
