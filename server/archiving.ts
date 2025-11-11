@@ -13,7 +13,7 @@ import {
   customers, 
   stockItems 
 } from "@shared/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, lt, isNotNull } from "drizzle-orm";
 import { getUserPlan } from "./feature-gating";
 
 interface ArchiveResult {
@@ -383,7 +383,8 @@ export async function enforceGracePeriod() {
     .from(users)
     .where(
       and(
-        sql`${users.graceEndsAt} < NOW()`,
+        isNotNull(users.graceEndsAt),
+        lt(users.graceEndsAt, new Date()),
         eq(users.subscriptionTier, "free")
       )
     );
