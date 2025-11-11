@@ -15,7 +15,7 @@ import { eq } from 'drizzle-orm';
 const pricingPlans = [
   {
     name: 'trial',
-    displayName: '🎁 Free Trial',
+    displayName: 'Free Trial',
     description: '14 days to test all features - no credit card required',
     monthlyPrice: '0.00',
     annualPrice: '0.00',
@@ -49,8 +49,8 @@ const pricingPlans = [
     
     discount6Months: '0.00',
     discount12Months: '0.00',
-    isActive: 1,
-    sortOrder: 1,
+    isActive: 0, // Hidden from pricing page - auto-assigned on registration
+    sortOrder: 0,
     
     features: JSON.stringify([
       'Basic inventory management',
