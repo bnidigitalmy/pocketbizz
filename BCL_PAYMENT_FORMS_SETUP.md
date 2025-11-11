@@ -100,13 +100,27 @@ https://pocketbizz-production-f02a.up.railway.app/api/webhooks/bcl
 ```
 
 **Events to subscribe**:
-- ✅ `payment-success` (RECOMMENDED - only triggers after payment confirmed)
-- ⚠️ `form-submit` (alternative - triggers before payment, less reliable)
+- ✅ `payment-success` (WAJIB - triggers subscription activation)
+- ✅ `payment-failed` (RECOMMENDED - for tracking & notifications)
+- ❌ `direct-debit` (NOT NEEDED - untuk auto-recurring only)
+- ❌ `form-submit` (NOT NEEDED - redundant dengan payment-success)
 
-**Why Payment Success is better:**
-- Only fires when payment actually completes
-- Prevents subscription activation for unpaid forms
-- More accurate transaction tracking
+**Event Details:**
+
+1. **Payment Success**: 
+   - Only fires when payment actually completes
+   - Creates subscription and activates user plan
+   - Verifies payment_status = "paid"
+
+2. **Payment Failed**:
+   - Logs failed payment attempts
+   - Future: Send email notifications to users
+   - Useful for conversion rate analytics
+   - Helps debug payment issues
+
+3. **Direct Debit** (Skip for now):
+   - Only needed if implementing auto-recurring payments
+   - Can enable later for subscription auto-renewal
 
 **Webhook Secret**: 
 ```

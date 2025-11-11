@@ -194,6 +194,25 @@ export async function processBCLWebhook(req: Request, res: Response) {
       recordId: payload.data?.record_id,
     });
 
+    // Handle payment-failed events (for logging and notifications)
+    if (payload.event === "payment-failed") {
+      console.warn("[BCL] Payment failed:", {
+        email: payload.data?.main_data?.email,
+        userId: payload.data?.main_data?.user_id,
+        formSlug: payload.data?.form_slug,
+        recordId: payload.data?.record_id,
+        reason: payload.data?.payment_info?.payment_status || "Unknown",
+      });
+      
+      // TODO: Send email notification to user about failed payment
+      // TODO: Log to analytics for tracking conversion rates
+      
+      return res.json({ 
+        success: true, 
+        message: "Payment failure logged" 
+      });
+    }
+
     // Process both form-submit and payment-success events
     if (payload.event !== "form-submit" && payload.event !== "payment-success") {
       console.log("[BCL] Ignoring event:", payload.event);
