@@ -161,14 +161,14 @@ Response: {"success":true,"processed":0,"results":[]}
 
 ## 🎓 What It Does
 
-1. Finds users where `graceEndsAt < NOW()` and `subscriptionTier = 'free'`
+1. Finds users where `graceEndsAt < NOW()` and they **have no active subscription or trial**
 2. Gets their plan limits (Free plan: 5 products, 3 vendors, etc.)
 3. Archives excess data (oldest first):
    - Products beyond limit → `isArchived = true`
    - Vendors beyond limit → `isArchived = true`
    - Resellers beyond limit → `isArchived = true`
    - Customers beyond limit → `isArchived = true`
-   - Orphaned stock items → `isArchived = true`
+  - Stock items beyond limit → `isArchived = true`
 4. Clears `graceEndsAt` and sets `isOnTrial = false`
 5. Logs results
 

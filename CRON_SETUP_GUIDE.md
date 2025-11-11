@@ -173,14 +173,14 @@ Response:
 ## What the Cron Job Does
 
 Every day at 2 AM:
-1. Finds users whose `graceEndsAt < NOW()` and `subscriptionTier = 'free'`
+1. Finds users whose `graceEndsAt < NOW()` with **no active subscription or trial**
 2. Gets their plan limits
 3. Archives excess data (oldest first):
    - Products beyond limit → `isArchived = true`
    - Vendors beyond limit → `isArchived = true`
    - Resellers beyond limit → `isArchived = true`
    - Customers beyond limit → `isArchived = true`
-   - Stock items (orphaned) → `isArchived = true`
+  - Stock items beyond limit → `isArchived = true`
 4. Clears `graceEndsAt` and sets `isOnTrial = false`
 5. Logs results to console
 

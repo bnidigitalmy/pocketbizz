@@ -218,24 +218,24 @@ Features:
 
 **Key Functions:**
 
-#### `archiveUserData(userId: number)`
+#### `archiveUserData(userId: string)`
 - Gets user's plan limits
 - Archives oldest records first (FIFO strategy)
 - Products: Keep newest X, archive rest
 - Vendors: Keep newest X, archive rest
 - Resellers: Keep newest X, archive rest
 - Customers: Keep newest X, archive rest
-- Stock items: Archive orphaned items (products deleted/archived)
+- Stock items: Archive oldest entries beyond plan limit
 - Returns counts of what was archived
 
-#### `restoreUserData(userId: number)`
+#### `restoreUserData(userId: string)`
 - Unarchives ALL data when user upgrades
 - Sets `isArchived = false` on all records
 - Returns counts of what was restored
 - Shows success message: "X items restored!"
 
 #### `enforceGracePeriod()`
-- Finds users where `graceEndsAt < NOW()` and `subscriptionTier = 'free'`
+- Finds users where `graceEndsAt < NOW()`, not on trial, and with **no active subscription**
 - Calls `archiveUserData()` for each
 - Clears `graceEndsAt` and sets `isOnTrial = false`
 - Logs results for monitoring
