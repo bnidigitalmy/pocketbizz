@@ -599,7 +599,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               <div className="mt-6 pt-4 border-t">
                 <button 
                   className="w-full p-3 text-left rounded-lg bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-3 text-sm text-red-700 font-medium"
-                  onClick={() => setShowLogoutDialog(true)}
+                  onClick={() => {
+                    setShowMoreMenu(false); // Close menu first
+                    setShowLogoutDialog(true);
+                  }}
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Log Keluar</span>
@@ -612,7 +615,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[70]">
           <AlertDialogHeader>
             <AlertDialogTitle>Anda pasti mahu log keluar?</AlertDialogTitle>
             <AlertDialogDescription>
