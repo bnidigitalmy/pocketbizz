@@ -371,7 +371,7 @@ export async function restoreUserData(userId: number): Promise<ArchiveResult> {
 export async function enforceGracePeriod() {
   try {
     // Find users whose grace period has expired and have no active subscription
-    const expiredUsers = await db
+    const expiredUsersQuery = db
       .select()
       .from(users)
       .where(
@@ -381,6 +381,11 @@ export async function enforceGracePeriod() {
           eq(users.subscriptionTier, "free")
         )
       );
+
+    const expiredUsersSql = expiredUsersQuery.toSQL();
+    console.log('[CRON] Expired users SQL:', expiredUsersSql.sql, expiredUsersSql.params);
+
+    const expiredUsers = await expiredUsersQuery;
 
     console.log(`[CRON] Found ${expiredUsers.length} users with expired grace periods`);
 
