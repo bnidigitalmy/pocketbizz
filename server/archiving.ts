@@ -382,9 +382,6 @@ export async function enforceGracePeriod() {
         )
       );
 
-    const expiredUsersSql = expiredUsersQuery.toSQL();
-    console.log('[CRON] Expired users SQL:', expiredUsersSql.sql, expiredUsersSql.params);
-
   const candidateUsers = await expiredUsersQuery;
   const now = new Date();
   const expiredUsers: typeof candidateUsers = [];
