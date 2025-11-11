@@ -13,6 +13,7 @@ import {
   requireVendorClaims,
   requireResellerNetwork,
   requireAdvancedAnalytics,
+  getUserPlan,
 } from "./feature-gating";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -287,6 +288,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
       
+      // Calculate grace period end date (7 days after trial ends)
+      const graceEndsAt = new Date(trialEndsAt);
+      graceEndsAt.setDate(graceEndsAt.getDate() + 7);
+      
       // Create user with auto-activated free trial
       const user = await storage.createUser({
         ...body,
@@ -294,6 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin: 0, // Explicitly prevent privilege escalation
         isOnTrial: 1, // Auto-activate 14-day FULL ACCESS trial
         trialEndsAt,
+        graceEndsAt, // 7 days grace period after trial
         toyyibpayUserCode: null,
       });
       
@@ -2826,6 +2832,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Get user's current usage stats (for plan recommendations)
+  app.get("/api/user/usage-stats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get counts of all resources
+      const [
+        productsCount,
+        customersCount,
+        vendorsCount,
+        resellersCount,
+        stockItemsCount,
+      ] = await Promise.all([
+        storage.getProductCount(userId),
+        storage.getCustomers(userId).then(c => c.filter(x => !x.isArchived).length),
+        storage.getVendors(userId).then(v => v.filter(x => !x.isArchived).length),
+        storage.getResellers(userId).then(r => r.filter(x => !x.isArchived).length),
+        storage.getStockItems(userId).then(s => s.filter(x => !x.isArchived).length),
+      ]);
+
+      // Get user's current plan
+      const currentPlan = await getUserPlan(userId);
+      
+      // Determine recommended plan based on usage
+      let recommendedPlan = 'basic';
+      if (resellersCount > 0 || vendorsCount > 5 || productsCount > 50) {
+        recommendedPlan = 'pro';
+      }
+      if (productsCount > 200 || vendorsCount > 20 || resellersCount > 10) {
+        recommendedPlan = 'premium';
+      }
+
+      res.json({
+        usage: {
+          products: productsCount,
+          customers: customersCount,
+          vendors: vendorsCount,
+          resellers: resellersCount,
+          stockItems: stockItemsCount,
+        },
+        currentPlan: currentPlan?.displayName || 'No active plan',
+        recommendedPlan,
+        limits: {
+          basic: { products: 50, customers: 200, vendors: 5, resellers: 0, stockItems: 100 },
+          pro: { products: 200, customers: 1000, vendors: 20, resellers: 10, stockItems: 500 },
+          premium: { products: 'Unlimited', customers: 'Unlimited', vendors: 'Unlimited', resellers: 'Unlimited', stockItems: 'Unlimited' },
+        },
+      });
+    } catch (error) {
+      console.error("Usage stats error:", error);
+      res.status(500).json({ error: "Failed to fetch usage stats" });
+    }
+  });
+
+  // Export products to CSV
+  app.get("/api/export/products", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const products = await storage.getProducts(userId);
+      
+      // Generate CSV
+      const headers = ['ID', 'Name', 'SKU', 'Category', 'Price', 'Cost', 'Stock', 'Unit', 'Status', 'Created At'];
+      const rows = products.map(p => [
+        p.id,
+        p.name,
+        p.sku || '',
+        p.category || '',
+        p.price,
+        p.cost || '',
+        p.stockQuantity || '',
+        p.unit || '',
+        p.isArchived ? 'Archived' : 'Active',
+        p.createdAt?.toISOString() || '',
+      ]);
+      
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="products-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Export products error:", error);
+      res.status(500).json({ error: "Failed to export products" });
+    }
+  });
+
+  // Export vendors to CSV
+  app.get("/api/export/vendors", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const vendors = await storage.getVendors(userId);
+      
+      const headers = ['ID', 'Name', 'Email', 'Phone', 'Company', 'Status', 'Created At'];
+      const rows = vendors.map(v => [
+        v.id,
+        v.name,
+        v.email || '',
+        v.phone || '',
+        v.company || '',
+        v.isArchived ? 'Archived' : 'Active',
+        v.createdAt?.toISOString() || '',
+      ]);
+      
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="vendors-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Export vendors error:", error);
+      res.status(500).json({ error: "Failed to export vendors" });
+    }
+  });
+
+  // Export customers to CSV
+  app.get("/api/export/customers", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const customers = await storage.getCustomers(userId);
+      
+      const headers = ['ID', 'Name', 'Email', 'Phone', 'Address', 'Loyalty Points', 'Status', 'Created At'];
+      const rows = customers.map(c => [
+        c.id,
+        c.name,
+        c.email || '',
+        c.phone || '',
+        c.address || '',
+        c.loyaltyPoints || 0,
+        c.isArchived ? 'Archived' : 'Active',
+        c.createdAt?.toISOString() || '',
+      ]);
+      
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="customers-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Export customers error:", error);
+      res.status(500).json({ error: "Failed to export customers" });
+    }
+  });
+
+  // Export resellers to CSV
+  app.get("/api/export/resellers", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const resellers = await storage.getResellers(userId);
+      
+      const headers = ['ID', 'Name', 'Email', 'Phone', 'Commission %', 'Status', 'Created At'];
+      const rows = resellers.map(r => [
+        r.id,
+        r.name,
+        r.email || '',
+        r.phone || '',
+        r.commissionPercentage || 0,
+        r.isArchived ? 'Archived' : 'Active',
+        r.createdAt?.toISOString() || '',
+      ]);
+      
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="resellers-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Export resellers error:", error);
+      res.status(500).json({ error: "Failed to export resellers" });
+    }
+  });
+
+  // Restore archived data (when user upgrades)
+  app.post("/api/user/restore-data", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { restoreUserData } = await import("./archiving");
+      
+      const result = await restoreUserData(userId);
+      
+      res.json({
+        success: true,
+        restored: result,
+        message: `Restored ${result.productsArchived} products, ${result.vendorsArchived} vendors, ${result.resellersArchived} resellers, ${result.customersArchived} customers, ${result.stockItemsArchived} stock items`,
+      });
+    } catch (error) {
+      console.error("Restore data error:", error);
+      res.status(500).json({ error: "Failed to restore data" });
     }
   });
 
@@ -5588,6 +5784,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to track event" });
     }
   });
+
+  // ===================================================================
+  // CRON JOB ENDPOINTS
+  // ===================================================================
+  
+  const { registerCronEndpoints } = await import("./cron");
+  registerCronEndpoints(app);
 
   const httpServer = createServer(app);
   return httpServer;

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Sparkles } from "lucide-react";
 import type { User } from "@shared/schema";
+import { PlanRecommendation } from "@/components/plan-recommendation";
 
 export function UpgradePrompt() {
   const [, navigate] = useLocation();
@@ -80,7 +81,7 @@ export function UpgradePrompt() {
 
   return (
     <AlertDialog open={showPrompt}>
-      <AlertDialogContent className="max-w-md" data-testid="dialog-upgrade-prompt">
+      <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-upgrade-prompt">
         <AlertDialogHeader>
           <div className="flex items-center gap-2 mb-2">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -88,79 +89,25 @@ export function UpgradePrompt() {
             </div>
           </div>
           <AlertDialogTitle className="text-2xl">
-            {isTrialExpired ? "Trial Tamat!" : "Upgrade ke Premium"}
+            {isTrialExpired ? "Trial Tamat - Pilih Plan Anda!" : "Pilih Plan yang Sesuai"}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-3 text-base">
             {isTrialExpired ? (
-              <>
-                <p className="font-medium text-base">
-                  Tempoh percubaan 14 hari anda telah tamat. 
-                </p>
-                <div className="bg-muted p-4 rounded-lg space-y-2">
-                  <p className="font-medium text-sm">Features yang anda dah guna:</p>
-                  <ul className="space-y-1 text-sm">
-                    <li>✨ Advanced Analytics & Reports</li>
-                    <li>📊 Vendor Claims System</li>
-                    <li>👥 Reseller Network Management</li>
-                    <li>🎯 Bookings & Pre-orders</li>
-                    <li>💎 Loyalty Points & Vouchers</li>
-                  </ul>
-                </div>
-                <p className="text-sm font-medium text-destructive">
-                  Subscribe sekarang untuk terus guna semua features premium ini!
-                </p>
-              </>
-            ) : user.isOnTrial ? (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    <Badge variant="default" className="mr-2 bg-primary">
-                      {daysLeft} hari lagi
-                    </Badge>
-                    Full Access Premium Trial
-                  </span>
-                </div>
-                <div className="bg-primary/5 p-4 rounded-lg space-y-2 border border-primary/20">
-                  <p className="font-medium text-sm">Anda sedang guna FULL ACCESS:</p>
-                  <ul className="space-y-1.5 text-sm">
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>Advanced Analytics & Sales Trends</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>Vendor Claims & Commission Tracking</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>Reseller Network (up to 20 agents)</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>Bookings & Pre-orders System</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>Loyalty Points & Vouchers</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
-                      <span>WhatsApp Broadcast</span>
-                    </li>
-                  </ul>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Cuba semua features sekarang, subscribe bila anda dah rasa manfaatnya! 🚀
-                </p>
-              </>
+              <p className="font-medium text-base">
+                Tempoh percubaan 14 hari anda telah tamat. Pilih plan berdasarkan data yang anda dah masukkan:
+              </p>
             ) : (
-              <p>
-                Buka kesemua ciri premium PocketBizz dengan berlangganan hari ini!
+              <p className="text-sm text-muted-foreground">
+                Lihat plan yang paling sesuai dengan penggunaan anda
               </p>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {/* Show Plan Recommendation Component */}
+        <div className="py-4">
+          <PlanRecommendation />
+        </div>
         <AlertDialogFooter className="flex-col sm:flex-row gap-2">
           {!isTrialExpired && (
             <Button

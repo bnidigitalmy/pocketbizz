@@ -89,6 +89,7 @@ export const stockItems = pgTable("stock_items", {
   lowStockThreshold: decimal("low_stock_threshold", { precision: 10, scale: 2 }).notNull().default("5"), // Alert when below this
   notes: text("notes"), // Optional notes
   version: integer("version").notNull().default(0), // Optimistic locking: increments on every update to prevent concurrent modification issues
+  isArchived: integer("is_archived").notNull().default(0), // 1 = archived (when user downgrades), 0 = active
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -146,6 +147,7 @@ export const products = pgTable("products", {
   suggestedMargin: decimal("suggested_margin", { precision: 5, scale: 2 }).notNull().default("30"), // Suggested profit margin %
   suggestedPrice: decimal("suggested_price", { precision: 10, scale: 2 }).notNull().default("0"), // Auto-calculated: costPerUnit * (1 + suggestedMargin/100)
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }).notNull().default("0"), // User-set selling price
+  isArchived: integer("is_archived").notNull().default(0), // 1 = archived (when user downgrades), 0 = active
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -193,6 +195,7 @@ export const vendors = pgTable("vendors", {
   name: text("name").notNull(),
   phone: text("phone"),
   address: text("address"),
+  isArchived: integer("is_archived").notNull().default(0), // 1 = archived (when user downgrades), 0 = active
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -865,7 +868,8 @@ export const users = pgTable("users", {
   suspended: integer("suspended").notNull().default(0), // 1 = suspended, 0 = active
   // Free Trial Fields
   isOnTrial: integer("is_on_trial").notNull().default(1), // 1 = on trial, 0 = paid/expired
-  trialEndsAt: timestamp("trial_ends_at"), // When 7-day trial ends
+  trialEndsAt: timestamp("trial_ends_at"), // When 14-day trial ends
+  graceEndsAt: timestamp("grace_ends_at"), // When 7-day grace period ends (trial + 7 days)
   // ToyyibPay Integration
   toyyibpayUserCode: text("toyyibpay_user_code"), // Optional ToyyibPay user reference
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1140,6 +1144,7 @@ export const resellers = pgTable("resellers", {
   pricingTierId: varchar("pricing_tier_id").references(() => pricingTiers.id, { onDelete: "set null" }),
   totalPurchases: decimal("total_purchases", { precision: 10, scale: 2 }).notNull().default("0"), // Cumulative purchases
   isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  isArchived: integer("is_archived").notNull().default(0), // 1 = archived (when user downgrades), 0 = active
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1215,6 +1220,7 @@ export const customers = pgTable("customers", {
   loyaltyPoints: integer("loyalty_points").notNull().default(0), // Current points balance
   totalSpent: decimal("total_spent", { precision: 10, scale: 2 }).notNull().default("0"), // Lifetime spending
   totalVisits: integer("total_visits").notNull().default(0), // Number of purchases
+  isArchived: integer("is_archived").notNull().default(0), // 1 = archived (when user downgrades), 0 = active
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

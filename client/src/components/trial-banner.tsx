@@ -20,35 +20,44 @@ export function TrialBanner() {
   // Check if user is on active trial
   const isOnActiveTrial = user.isOnTrial && user.trialEndsAt && new Date(user.trialEndsAt) > new Date();
   
-  if (!isOnActiveTrial) return null;
-
-  const daysLeft = Math.ceil((new Date(user.trialEndsAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  // Check if in grace period (trial expired but grace period still active)
+  const isInGracePeriod = !user.isOnTrial && user.graceEndsAt && new Date(user.graceEndsAt) > new Date();
   
-  // Show warning when 3 days or less
-  const isUrgent = daysLeft <= 3;
+  if (!isOnActiveTrial && !isInGracePeriod) return null;
+
+  const daysLeft = isOnActiveTrial 
+    ? Math.ceil((new Date(user.trialEndsAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : Math.ceil((new Date(user.graceEndsAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Show warning when 3 days or less OR in grace period
+  const isUrgent = daysLeft <= 3 || isInGracePeriod;
 
   return (
-    <div className={`${isUrgent ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'} border-b`}>
+    <div className={`${isUrgent ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'} border-b`}>
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
-            <div className={`h-10 w-10 rounded-full ${isUrgent ? 'bg-orange-100' : 'bg-blue-100'} flex items-center justify-center`}>
+            <div className={`h-10 w-10 rounded-full ${isUrgent ? 'bg-red-100' : 'bg-blue-100'} flex items-center justify-center`}>
               {isUrgent ? (
-                <Clock className={`h-5 w-5 ${isUrgent ? 'text-orange-600' : 'text-blue-600'}`} />
+                <Clock className={`h-5 w-5 ${isUrgent ? 'text-red-600' : 'text-blue-600'}`} />
               ) : (
                 <Sparkles className="h-5 w-5 text-blue-600" />
               )}
             </div>
             <div className="flex-1">
-              <p className={`font-medium ${isUrgent ? 'text-orange-900' : 'text-blue-900'}`}>
-                {isUrgent ? (
+              <p className={`font-medium ${isUrgent ? 'text-red-900' : 'text-blue-900'}`}>
+                {isInGracePeriod ? (
+                  <>🚨 <strong>GRACE PERIOD</strong> - {daysLeft} hari lagi sebelum data diarkib!</>
+                ) : isUrgent ? (
                   <>⚡ Trial anda tinggal <strong>{daysLeft} hari</strong> lagi!</>
                 ) : (
                   <>✨ Anda sedang guna <strong>FULL ACCESS</strong> - {daysLeft} hari lagi!</>
                 )}
               </p>
-              <p className={`text-sm ${isUrgent ? 'text-orange-700' : 'text-blue-700'}`}>
-                {isUrgent ? (
+              <p className={`text-sm ${isUrgent ? 'text-red-700' : 'text-blue-700'}`}>
+                {isInGracePeriod ? (
+                  <>Subscribe sekarang untuk selamatkan semua data anda. Selepas ini data akan diarkib.</>
+                ) : isUrgent ? (
                   <>Subscribe sekarang untuk terus guna semua features premium yang anda dah biasa</>
                 ) : (
                   <>Cuba semua features premium - Analytics, Vendor Claims, Bookings & lebih lagi!</>
@@ -60,18 +69,20 @@ export function TrialBanner() {
             <Link href="/pricing">
               <Button 
                 size="sm" 
-                className={isUrgent ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                className={isUrgent ? 'bg-red-600 hover:bg-red-700' : ''}
               >
-                {isUrgent ? 'Subscribe Sekarang' : 'Lihat Pakej'}
+                {isInGracePeriod || isUrgent ? 'Subscribe Sekarang' : 'Lihat Pakej'}
               </Button>
             </Link>
-            <button
-              onClick={() => setDismissed(true)}
-              className="p-2 hover:bg-black/5 rounded-full transition-colors"
-              aria-label="Tutup"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {!isInGracePeriod && (
+              <button
+                onClick={() => setDismissed(true)}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                aria-label="Tutup"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

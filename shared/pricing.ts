@@ -73,7 +73,7 @@ export function calculateProfit(costPerUnit: number, sellingPrice: number) {
     profit: parseFloat(profit.toFixed(2)),
     margin: parseFloat(margin.toFixed(2)),
     markup: parseFloat(markup.toFixed(2)),
-    isProfit able: profit > 0,
+    isProfitable: profit > 0,
   };
 }
 
