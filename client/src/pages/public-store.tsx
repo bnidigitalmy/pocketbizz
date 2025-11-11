@@ -508,7 +508,7 @@ export default function PublicStore() {
       {/* Floating WhatsApp Button (when cart is empty) */}
       {cart.length === 0 && (
         <Button
-          className="fixed bottom-6 right-6 rounded-full h-14 w-14 shadow-lg"
+          className="fixed right-6 rounded-full h-14 w-14 shadow-lg bottom-6 lg:bottom-6"
           style={{ backgroundColor: accentColor }}
           onClick={() => {
             trackEvent('whatsapp_click');

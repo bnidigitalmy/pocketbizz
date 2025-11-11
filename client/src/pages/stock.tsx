@@ -1522,7 +1522,7 @@ export default function Stock() {
 
       {/* Floating Action Button (appears when items selected) */}
       {selectedItems.size > 0 && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-6 z-50 lg:bottom-6 bottom-20">
           <Button
             size="lg"
             className="shadow-lg gap-2 px-6"

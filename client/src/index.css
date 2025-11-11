@@ -386,8 +386,22 @@
     @apply border-border;
   }
 
+  html {
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Mobile viewport fix */
+    height: -webkit-fill-available;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Mobile viewport fix */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 }
 
@@ -551,5 +565,20 @@
   /* Smooth opacity transitions */
   .transition-opacity {
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Safe area insets for mobile devices (notch/island support) */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Mobile viewport height fix (accounts for browser chrome) */
+  .min-h-screen-mobile {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 }
