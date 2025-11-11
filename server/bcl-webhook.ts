@@ -55,14 +55,14 @@ export const BCL_FORM_CONFIG = {
     package: "basic", 
     planName: "Basic Plan", 
     months: 6, 
-    price: 210.60,
+    price: 210,
     url: "https://bnidigital.bcl.my/form/basic-6-bulan"
   },
   "basic-12-bulan": { 
     package: "basic", 
     planName: "Basic Plan", 
     months: 12, 
-    price: 374.40,
+    price: 374,
     url: "https://bnidigital.bcl.my/form/basic-12-bulan"
   },
   
@@ -78,14 +78,14 @@ export const BCL_FORM_CONFIG = {
     package: "pro", 
     planName: "Pro Plan", 
     months: 6, 
-    price: 480.60,
+    price: 480,
     url: "https://bnidigital.bcl.my/form/pro-6-bulan"
   },
   "pro-12-bulan": { 
     package: "pro", 
     planName: "Pro Plan", 
     months: 12, 
-    price: 854.40,
+    price: 854,
     url: "https://bnidigital.bcl.my/form/pro-12-bulan"
   },
   
@@ -101,14 +101,14 @@ export const BCL_FORM_CONFIG = {
     package: "premium", 
     planName: "Premium Plan", 
     months: 6, 
-    price: 858.60,
+    price: 858,
     url: "https://bnidigital.bcl.my/form/premium-6-bulan"
   },
   "premium-12-bulan": { 
     package: "premium", 
     planName: "Premium Plan", 
     months: 12, 
-    price: 1526.40,
+    price: 1526,
     url: "https://bnidigital.bcl.my/form/premium-12-bulan"
   },
 } as Record<string, {

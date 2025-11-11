@@ -12,9 +12,9 @@ PocketBizz menggunakan BCL.my payment forms yang terintegrasi dengan Bayarcash u
 
 | Package | Monthly Price | 3 Bulan | 6 Bulan (10% OFF) | 12 Bulan (20% OFF) |
 |---------|---------------|---------|-------------------|-------------------|
-| **BASIC** | RM39/bulan | RM117 | RM210.60 | RM374.40 |
-| **PRO** | RM89/bulan | RM267 | RM480.60 | RM854.40 |
-| **PREMIUM** | RM159/bulan | RM477 | RM858.60 | RM1,526.40 |
+| **BASIC** | RM39/bulan | RM117 | RM210 | RM374 |
+| **PRO** | RM89/bulan | RM267 | RM480 | RM854 |
+| **PREMIUM** | RM159/bulan | RM477 | RM858 | RM1,526 |
 
 ### Calculation Details
 
@@ -23,15 +23,17 @@ PocketBizz menggunakan BCL.my payment forms yang terintegrasi dengan Bayarcash u
 - PRO: 89 × 3 = RM267
 - PREMIUM: 159 × 3 = RM477
 
-**6 Bulan** (10% OFF):
-- BASIC: (39 × 6) × 0.90 = RM210.60
-- PRO: (89 × 6) × 0.90 = RM480.60
-- PREMIUM: (159 × 6) × 0.90 = RM858.60
+**6 Bulan** (10% OFF - rounded):
+- BASIC: (39 × 6) × 0.90 = RM210.60 → **RM210**
+- PRO: (89 × 6) × 0.90 = RM480.60 → **RM480**
+- PREMIUM: (159 × 6) × 0.90 = RM858.60 → **RM858**
 
-**12 Bulan** (20% OFF):
-- BASIC: (39 × 12) × 0.80 = RM374.40
-- PRO: (89 × 12) × 0.80 = RM854.40
-- PREMIUM: (159 × 12) × 0.80 = RM1,526.40
+**12 Bulan** (20% OFF - rounded):
+- BASIC: (39 × 12) × 0.80 = RM374.40 → **RM374**
+- PRO: (89 × 12) × 0.80 = RM854.40 → **RM854**
+- PREMIUM: (159 × 12) × 0.80 = RM1,526.40 → **RM1,526**
+
+> **Note**: Prices are rounded to whole numbers for cleaner customer experience.
 
 ---
 

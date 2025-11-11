@@ -151,7 +151,8 @@ export default function Pricing() {
       totalPrice = totalPrice * (1 - earlyBirdDiscount / 100);
     }
     
-    return totalPrice.toFixed(2);
+    // Round to whole number for cleaner pricing
+    return Math.round(totalPrice).toFixed(2);
   };
   
   // Calculate savings vs monthly (accounts for early bird)
