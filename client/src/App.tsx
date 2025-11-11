@@ -161,7 +161,10 @@ function Header() {
   return (
     <header className="flex items-center gap-2 p-4 border-b bg-background sticky top-0 z-10">
       <div className="flex items-center gap-2">
-        <SidebarTrigger data-testid="button-sidebar-toggle" />
+        {/* Hide sidebar trigger on mobile - use bottom nav More menu instead */}
+        <div className="hidden lg:block">
+          <SidebarTrigger data-testid="button-sidebar-toggle" />
+        </div>
         {!isDashboard && (
           <Button
             variant="ghost"

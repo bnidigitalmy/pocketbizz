@@ -23,7 +23,14 @@ import {
   RefreshCw,
   TrendingUp,
   Cake,
-  DollarSign
+  DollarSign,
+  Tag,
+  Banknote,
+  BarChart3,
+  Globe,
+  Cloud,
+  Settings,
+  LogOut
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -472,46 +479,89 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 </button>
               </Link>
               <Link href="/pricing-tiers">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🏷️ <span>Tetapan Tier</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/pricing-tiers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Tag className="w-4 h-4" />
+                  <span>Tetapan Tier</span>
                 </button>
               </Link>
               
               {/* Kewangan */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">KEWANGAN</div>
               <Link href="/sales">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  💰 <span>Jualan</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/sales" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <DollarSign className="w-4 h-4" />
+                  <span>Jualan</span>
                 </button>
               </Link>
               <Link href="/expenses">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  💵 <span>Perbelanjaan</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/expenses" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Banknote className="w-4 h-4" />
+                  <span>Perbelanjaan</span>
                 </button>
               </Link>
               <Link href="/reports">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📊 <span>Laporan</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/reports" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Laporan</span>
                 </button>
               </Link>
               
               {/* Sistem */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">SISTEM & TETAPAN</div>
               <Link href="/store-catalog">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🌐 <span>Katalog Kedai</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/store-catalog" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Globe className="w-4 h-4" />
+                  <span>Katalog Kedai</span>
                 </button>
               </Link>
               <Link href="/drive-sync">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  ☁️ <span>Google Drive</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/drive-sync" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Cloud className="w-4 h-4" />
+                  <span>Google Drive</span>
                 </button>
               </Link>
               <Link href="/settings">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  ⚙️ <span>Tetapan</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/settings" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Settings className="w-4 h-4" />
+                  <span>Tetapan</span>
                 </button>
               </Link>
+
+              {/* Logout - Prominent button at bottom */}
+              <div className="mt-6 pt-4 border-t">
+                <button 
+                  className="w-full p-3 text-left rounded-lg bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-3 text-sm text-red-700 font-medium"
+                  onClick={() => {
+                    if (confirm('Anda pasti mahu log keluar?')) {
+                      window.location.href = '/api/logout';
+                    }
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Log Keluar</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
