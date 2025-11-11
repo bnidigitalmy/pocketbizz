@@ -190,35 +190,27 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
     }
   }
 
-  // Stock items - no hard limit, but archive if user has no products
-  // (orphaned stock items from deleted/archived products)
-  const activeProducts = await db
-    .select({ id: products.id })
-    .from(products)
+  // Stock items - archive old ones if user exceeds count
+  // Stock items are standalone (ingredients), not tied to products
+  // Just keep the most recent ones based on plan limit
+  const allStockItems = await db
+    .select({ id: stockItems.id })
+    .from(stockItems)
     .where(
       and(
-        eq(products.userId, userId),
-        eq(products.isArchived, 0)
+        eq(stockItems.userId, userId),
+        eq(stockItems.isArchived, 0)
       )
-    );
+    )
+    .orderBy(desc(stockItems.createdAt));
   
-  const activeProductIds = activeProducts.map(p => p.id);
-  
-  if (activeProductIds.length > 0) {
-    // Archive stock items that don't belong to any active product
-    const orphanedStock = await db
-      .select({ id: stockItems.id })
-      .from(stockItems)
-      .where(
-        and(
-          eq(stockItems.userId, userId),
-          eq(stockItems.isArchived, 0),
-          notInArray(stockItems.productId, activeProductIds)
-        )
-      );
-
-    if (orphanedStock.length > 0) {
-      const ids = orphanedStock.map(s => s.id);
+  // If there's a stock items limit in the plan, enforce it
+  const stockLimit = limits.stockItems || 0;
+  if (stockLimit > 0 && allStockItems.length > stockLimit) {
+    const toArchive = allStockItems.slice(stockLimit);
+    const ids = toArchive.map(s => s.id);
+    
+    if (ids.length > 0) {
       await db
         .update(stockItems)
         .set({ isArchived: 1 })
@@ -229,7 +221,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
           )
         );
       
-      result.stockItemsArchived = orphanedStock.length;
+      result.stockItemsArchived = ids.length;
     }
   }
 
@@ -377,43 +369,51 @@ export async function restoreUserData(userId: number): Promise<ArchiveResult> {
  * Should be run periodically (e.g., daily cron job)
  */
 export async function enforceGracePeriod() {
-  // Find users whose grace period has expired and have no active subscription
-  const expiredUsers = await db
-    .select()
-    .from(users)
-    .where(
-      and(
-        isNotNull(users.graceEndsAt),
-        lt(users.graceEndsAt, new Date()),
-        eq(users.subscriptionTier, "free")
-      )
-    );
+  try {
+    // Find users whose grace period has expired and have no active subscription
+    const expiredUsers = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          isNotNull(users.graceEndsAt),
+          lt(users.graceEndsAt, new Date()),
+          eq(users.subscriptionTier, "free")
+        )
+      );
 
-  const results = [];
-  for (const user of expiredUsers) {
-    try {
-      const archiveResult = await archiveUserData(user.id);
-      
-      // Clear grace period after archiving
-      await db
-        .update(users)
-        .set({ 
-          graceEndsAt: null,
-          isOnTrial: false 
-        })
-        .where(eq(users.id, user.id));
+    console.log(`[CRON] Found ${expiredUsers.length} users with expired grace periods`);
 
-      results.push({
-        userId: user.id,
-        email: user.email,
-        archived: archiveResult,
-      });
+    const results = [];
+    for (const user of expiredUsers) {
+      try {
+        console.log(`[CRON] Processing user ${user.id} (${user.email})`);
+        const archiveResult = await archiveUserData(user.id);
+        
+        // Clear grace period after archiving
+        await db
+          .update(users)
+          .set({ 
+            graceEndsAt: null,
+            isOnTrial: false 
+          })
+          .where(eq(users.id, user.id));
 
-      console.log(`Archived data for user ${user.id}:`, archiveResult);
-    } catch (error) {
-      console.error(`Failed to archive data for user ${user.id}:`, error);
+        results.push({
+          userId: user.id,
+          email: user.email,
+          archived: archiveResult,
+        });
+
+        console.log(`Archived data for user ${user.id}:`, archiveResult);
+      } catch (error) {
+        console.error(`Failed to archive data for user ${user.id}:`, error);
+      }
     }
-  }
 
-  return results;
+    return results;
+  } catch (error) {
+    console.error('[CRON] enforceGracePeriod failed:', error);
+    throw error;
+  }
 }
