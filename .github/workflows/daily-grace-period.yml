@@ -1,0 +1,46 @@
+name: Daily Grace Period Check
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC (9 AM Malaysia Time)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  enforce-grace-period:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check if CRON_SECRET is configured
+        run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "ERROR: CRON_SECRET is not configured in repository secrets"
+            exit 1
+          fi
+          echo "✅ CRON_SECRET is configured"
+      
+      - name: Trigger grace period enforcement
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            https://pocketbizz-production.up.railway.app/api/cron/enforce-grace-period \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Cron job failed with status $HTTP_CODE"
+            exit 1
+          fi
+          
+          echo "✅ Grace period check completed successfully"
+      
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "⚠️  Grace period cron job failed!"
+          echo "Check the logs above for details"
+          # TODO: Add Slack/Discord/Email notification here if needed
