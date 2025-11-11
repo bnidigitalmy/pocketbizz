@@ -5,16 +5,17 @@
  */
 
 import { db } from "./db";
-import { 
-  users, 
-  products, 
-  vendors, 
-  resellers, 
-  customers, 
-  stockItems 
+import {
+  users,
+  products,
+  vendors,
+  resellers,
+  customers,
+  stockItems
 } from "@shared/schema";
-import { eq, and, desc, sql, lt, isNotNull, inArray, notInArray } from "drizzle-orm";
+import { eq, and, desc, lt, isNotNull, inArray } from "drizzle-orm";
 import { getUserPlan } from "./feature-gating";
+import { storage } from "./storage";
 
 interface ArchiveResult {
   productsArchived: number;
@@ -28,7 +29,7 @@ interface ArchiveResult {
  * Archive excess data for a user based on their plan limits
  * Archives oldest records first (FIFO) while keeping most recent data
  */
-export async function archiveUserData(userId: number): Promise<ArchiveResult> {
+export async function archiveUserData(userId: string): Promise<ArchiveResult> {
   const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user || user.length === 0) {
     throw new Error("User not found");
@@ -232,7 +233,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
  * Restore all archived data for a user
  * Called when user upgrades to a higher plan
  */
-export async function restoreUserData(userId: number): Promise<ArchiveResult> {
+export async function restoreUserData(userId: string): Promise<ArchiveResult> {
   const result: ArchiveResult = {
     productsArchived: 0,
     vendorsArchived: 0,
@@ -377,17 +378,42 @@ export async function enforceGracePeriod() {
       .where(
         and(
           isNotNull(users.graceEndsAt),
-          lt(users.graceEndsAt, new Date()),
-          eq(users.subscriptionTier, "free")
+          lt(users.graceEndsAt, new Date())
         )
       );
 
     const expiredUsersSql = expiredUsersQuery.toSQL();
     console.log('[CRON] Expired users SQL:', expiredUsersSql.sql, expiredUsersSql.params);
 
-    const expiredUsers = await expiredUsersQuery;
+  const candidateUsers = await expiredUsersQuery;
+  const now = new Date();
+  const expiredUsers: typeof candidateUsers = [];
 
-    console.log(`[CRON] Found ${expiredUsers.length} users with expired grace periods`);
+    for (const user of candidateUsers) {
+      const trialActive = Boolean(user.isOnTrial) && user.trialEndsAt && new Date(user.trialEndsAt) > now;
+
+      if (trialActive) {
+        console.log(`[CRON] Skipping user ${user.id} - trial still active`);
+        continue;
+      }
+
+      const subscriptions = await storage.getUserSubscriptions(user.id);
+      const hasActiveSubscription = subscriptions.some(
+        (sub) =>
+          sub.status === 'active' &&
+          sub.subscriptionEndsAt &&
+          new Date(sub.subscriptionEndsAt) > now
+      );
+
+      if (hasActiveSubscription) {
+        console.log(`[CRON] Skipping user ${user.id} - active subscription detected`);
+        continue;
+      }
+
+      expiredUsers.push(user);
+    }
+
+    console.log(`[CRON] Found ${expiredUsers.length} users with expired grace periods and no active subscription`);
 
     const results = [];
     for (const user of expiredUsers) {
