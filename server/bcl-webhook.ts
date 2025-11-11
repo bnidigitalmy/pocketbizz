@@ -208,11 +208,21 @@ export async function processBCLWebhook(req: Request, res: Response) {
     const customPackage = payload.data.main_data.package;
     const customDuration = payload.data.main_data.duration;
 
-    if (!email) {
-      console.error("[BCL] Missing email in webhook payload");
+    console.log("[BCL] Webhook data received:", {
+      formId,
+      formSlug,
+      email,
+      userId,
+      customPackage,
+      customDuration,
+    });
+
+    // Email is required as fallback
+    if (!email && !userId) {
+      console.error("[BCL] Missing both email and userId in webhook payload");
       return res.status(400).json({ 
         success: false, 
-        error: "Email required" 
+        error: "Email or userId required" 
       });
     }
 
@@ -247,33 +257,51 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     console.log("[BCL] Processing payment for:", {
       email,
+      userId,
       package: packageConfig.package,
       months: packageConfig.months,
       price: packageConfig.price,
     });
 
-    // Find or create user by email
-    let user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
-
-    if (!user && userId) {
-      // Try finding by user ID if provided
+    // Find user - prioritize userId over email for exact matching
+    let user = null;
+    
+    if (userId) {
+      console.log("[BCL] Looking up user by ID:", userId);
       user = await db.query.users.findFirst({
         where: eq(users.id, userId),
       });
+      
+      if (user) {
+        console.log("[BCL] User found by ID:", user.id, user.email);
+      } else {
+        console.warn("[BCL] User ID provided but not found:", userId);
+      }
+    }
+    
+    // Fallback to email lookup if userId didn't work
+    if (!user && email) {
+      console.log("[BCL] Looking up user by email:", email);
+      user = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
+      
+      if (user) {
+        console.log("[BCL] User found by email:", user.id, user.email);
+      }
     }
 
     if (!user) {
-      console.log("[BCL] User not found, webhook will be retried or manual activation needed");
+      console.error("[BCL] User not found - userId:", userId, "email:", email);
       return res.status(404).json({ 
         success: false, 
         error: "User not found. Please register first.",
+        userId,
         email,
       });
     }
 
-    console.log("[BCL] Found user:", user.id, user.email);
+    console.log("[BCL] User matched successfully:", user.id, user.email);
 
     // Find subscription plan by name
     const plan = await db.query.subscriptionPlans.findFirst({

@@ -98,12 +98,26 @@ export default function Pricing() {
     // User is logged in, redirect to BCL.my payment form
     console.log('Redirecting to BCL.my form:', bclFormUrl);
     
-    // Pre-fill email in BCL.my form if possible (via URL params)
+    // Pre-fill email and userId in BCL.my form (via URL params)
     const userEmail = userData.user.email;
-    const formUrlWithEmail = `${bclFormUrl}?email=${encodeURIComponent(userEmail)}`;
+    const userId = userData.user.id;
+    const userName = userData.user.name || '';
+    
+    // Build URL with all user data
+    const urlParams = new URLSearchParams({
+      email: userEmail,
+      user_id: userId,
+      name: userName,
+      package: plan.name,
+      duration: selectedDuration.toString(),
+    });
+    
+    const formUrlWithParams = `${bclFormUrl}?${urlParams.toString()}`;
+    
+    console.log('Opening BCL.my form with params:', formUrlWithParams);
     
     // Open BCL.my form
-    window.location.href = formUrlWithEmail;
+    window.location.href = formUrlWithParams;
   };
 
   const planIcons = {

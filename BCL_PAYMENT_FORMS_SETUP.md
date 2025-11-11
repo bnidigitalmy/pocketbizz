@@ -64,19 +64,26 @@ Contoh:
 2. **Email** (email input)
    - Label: "Email"
    - Required: Yes
-   - **Important**: Ini email untuk match dengan user PocketBizz
+   - **Important**: This will be auto-filled from PocketBizz
    
 3. **Phone** (phone input)
    - Label: "No. Telefon"
    - Required: Yes
 
-4. **Hidden Field - Package** (hidden)
+4. **Hidden Field - User ID** (hidden) ⭐ **CRITICAL**
+   - Field name: `user_id`
+   - Value: Will be passed from PocketBizz URL
+   - **This ensures exact user matching**
+
+5. **Hidden Field - Package** (hidden)
    - Field name: `package`
    - Value: `basic` / `pro` / `premium`
    
-5. **Hidden Field - Duration** (hidden)
+6. **Hidden Field - Duration** (hidden)
    - Field name: `duration`
    - Value: `3` / `6` / `12`
+
+**⚠️ Important:** BCL.my forms should accept URL parameters to auto-fill these hidden fields.
 
 #### Payment Settings
 
@@ -184,18 +191,32 @@ Aku akan update:
 ## 🎯 Payment Flow
 
 ```
-User click "Pilih Pakej BASIC"
+User click "Bayar Sekarang BASIC 3 Bulan" in PocketBizz
     ↓
-Redirect to BCL.my form with pre-filled email
+PocketBizz passes user data via URL:
+  - email (pre-filled)
+  - user_id (hidden field) ⭐
+  - name (pre-filled)
+  - package (hidden)
+  - duration (hidden)
+    ↓
+Redirect to BCL.my form with pre-filled data
     ↓
 User bayar via Bayarcash (FPX/Card/E-wallet)
     ↓
-BCL.my trigger webhook → PocketBizz
+BCL.my trigger webhook → PocketBizz with user_id
     ↓
-PocketBizz auto-activate subscription
+PocketBizz matches user by ID (exact match!)
+    ↓
+Auto-activate subscription ✅
     ↓
 User dapat email confirmation + akaun active
 ```
+
+**Key Improvement:** Using `user_id` ensures 100% accurate user matching, even if:
+- User changes email
+- Email typo in payment form
+- Different email used for payment
 
 ---
 
