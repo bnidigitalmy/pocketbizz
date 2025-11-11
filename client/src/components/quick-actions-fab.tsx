@@ -32,7 +32,8 @@ export function QuickActionsFab({
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+    // Hide on mobile (lg:hidden) - mobile uses bottom nav Quick Add instead
+    <div className="hidden lg:block fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
       <AnimatePresence>
         {isOpen && (
           <motion.div

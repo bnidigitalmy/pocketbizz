@@ -272,6 +272,18 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <div className="text-sm text-gray-600 ml-7">Beli bahan mentah baru</div>
                 </button>
               </Link>
+              <Link href="/expenses">
+                <button 
+                  className="w-full p-4 text-left border rounded-lg hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
+                  onClick={() => setShowQuickAdd(false)}
+                >
+                  <div className="font-medium flex items-center gap-2">
+                    <Banknote className="w-5 h-5 text-orange-600" />
+                    <span>Perbelanjaan</span>
+                  </div>
+                  <div className="text-sm text-gray-600 ml-7">Catat kos & expenses</div>
+                </button>
+              </Link>
               <Link href="/pos">
                 <button 
                   className="w-full p-4 text-left border rounded-lg hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
