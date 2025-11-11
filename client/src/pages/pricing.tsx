@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles, Crown, Star, Zap, ExternalLink } from "lucide-react";
+import { Check, Crown, Star, Zap, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -181,40 +181,31 @@ export default function Pricing() {
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
       {/* Early Bird Banner */}
       {earlyBirdSlotsRemaining > 0 && (
-        <div className="bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-xl p-6 mb-8 border-2 border-accent" data-testid="banner-early-bird">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold text-primary">Tawaran Early Bird!</h2>
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-lg">
-              100 pengguna pertama dapat{" "}
-              <span className="font-bold text-primary text-2xl">{earlyBirdDiscount}% OFF</span>
-              {" "}untuk mana-mana pakej langganan pertama
-            </p>
+        <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 rounded-lg p-6 mb-8 border border-primary/20" data-testid="banner-early-bird">
+          <div className="text-center space-y-4">
+            <div>
+              <h2 className="text-2xl font-bold text-primary mb-2">Tawaran Istimewa: Early Bird Discount</h2>
+              <p className="text-lg text-muted-foreground">
+                100 pengguna pertama dapat diskaun{" "}
+                <span className="font-bold text-primary">{earlyBirdDiscount}%</span> untuk langganan pertama
+              </p>
+            </div>
             
             {/* Coupon Code Display */}
-            <div className="bg-background rounded-lg px-6 py-4 max-w-md mx-auto mt-4 border-2 border-primary">
-              <p className="text-sm text-muted-foreground mb-2">Gunakan kod kupon semasa pembayaran:</p>
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-2xl font-bold font-mono text-primary tracking-wider bg-primary/10 px-4 py-2 rounded">
-                  POCKETBIZZ100
-                </code>
-              </div>
+            <div className="bg-background rounded-lg px-6 py-3 max-w-md mx-auto border border-border">
+              <p className="text-sm text-muted-foreground mb-2">Kod kupon:</p>
+              <code className="text-xl font-bold font-mono text-primary tracking-wider bg-primary/10 px-4 py-2 rounded inline-block">
+                POCKETBIZZ100
+              </code>
+              <p className="text-xs text-muted-foreground mt-2">Masukkan kod ini semasa pembayaran</p>
             </div>
             
-            <div className="flex items-center justify-center gap-4 mt-4">
-              <div className="bg-background rounded-lg px-4 py-2">
-                <p className="text-sm text-muted-foreground">Slot Berbaki</p>
-                <p className="text-3xl font-bold font-mono text-primary" data-testid="text-slots-remaining">
-                  {earlyBirdSlotsRemaining}/100
-                </p>
-              </div>
+            <div className="inline-flex items-center gap-2 bg-background rounded-lg px-4 py-2 border border-border">
+              <span className="text-sm text-muted-foreground">Slot berbaki:</span>
+              <span className="text-2xl font-bold text-primary" data-testid="text-slots-remaining">
+                {earlyBirdSlotsRemaining}/100
+              </span>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Rebut diskaun early bird anda sekarang! Terhad untuk 100 pengguna pertama sahaja.
-            </p>
           </div>
         </div>
       )}
@@ -225,7 +216,7 @@ export default function Pricing() {
           Pilih Pakej Yang Sesuai
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Permudahkan operasi perniagaan kecil anda dengan PocketBizz. Harga berasaskan tempoh yang fleksibel untuk pertumbuhan anda.
+          Sistem pengurusan perniagaan yang mudah dan berkesan. Pilih tempoh langganan yang sesuai dengan keperluan anda.
         </p>
       </div>
       
@@ -294,10 +285,9 @@ export default function Pricing() {
                   
                   {/* Early Bird Reminder */}
                   {hasEarlyBird && (
-                    <div className="bg-primary/10 rounded-lg p-2">
-                      <p className="text-sm font-semibold text-primary flex items-center gap-1">
-                        <Sparkles className="h-4 w-4" />
-                        Gunakan kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 70% OFF!
+                    <div className="bg-primary/10 rounded-lg p-2 border border-primary/20">
+                      <p className="text-sm font-medium text-primary">
+                        Guna kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 70% OFF
                       </p>
                     </div>
                   )}
@@ -464,29 +454,29 @@ export default function Pricing() {
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-duration">
             <h3 className="font-semibold mb-2">Bagaimana harga berasaskan tempoh berfungsi?</h3>
             <p className="text-sm text-muted-foreground">
-              Bayar awal untuk 3, 6, atau 12 bulan dan jimat! Dapatkan diskaun 10% untuk pakej 6 bulan dan 20% untuk pakej 12 bulan. 
-              Tiada bayaran berulang - anda yang control bila nak renew.
+              Anda boleh memilih untuk membayar langganan selama 3, 6, atau 12 bulan. Semakin lama tempoh yang dipilih, semakin banyak anda jimat - 
+              diskaun 10% untuk 6 bulan dan 20% untuk 12 bulan. Tiada caj berulang automatik, anda yang tentukan bila mahu memperbaharui.
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-early-bird">
             <h3 className="font-semibold mb-2">Bagaimana cara guna tawaran early bird?</h3>
             <p className="text-sm text-muted-foreground">
-              100 pengguna pertama dapat 70% OFF dengan kod kupon <code className="font-mono font-bold bg-primary/10 px-2 py-1 rounded">POCKETBIZZ100</code>. 
-              Masukkan kod ini semasa pembayaran di BCL.my untuk redeem diskaun. Terhad untuk langganan pertama sahaja!
+              100 pengguna pertama layak mendapat diskaun 70% dengan kod kupon <code className="font-mono font-bold bg-primary/10 px-2 py-1 rounded">POCKETBIZZ100</code>. 
+              Masukkan kod ini semasa pembayaran untuk tebus diskaun. Tawaran ini terhad untuk langganan pertama sahaja.
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-renewal">
             <h3 className="font-semibold mb-2">Apa jadi bila langganan saya tamat?</h3>
             <p className="text-sm text-muted-foreground">
-              Anda akan terima reminder sebelum tamat. Cuma renew dengan pilih tempoh seterusnya - data anda selamat. 
-              Anda boleh upgrade, downgrade, atau tukar tempoh bila renew.
+              Anda akan menerima notifikasi sebelum langganan tamat. Untuk meneruskan, pilih tempoh langganan baharu dan data anda akan kekal selamat. 
+              Anda juga boleh menukar pakej atau tempoh langganan semasa memperbaharui.
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-data-safety">
             <h3 className="font-semibold mb-2">Adakah data saya selamat?</h3>
             <p className="text-sm text-muted-foreground">
-              Memang selamat! Kami guna enkripsi dan amalan keselamatan standard industri. Data anda di-backup 
-              secara berkala dan disimpan dengan selamat di cloud.
+              Ya, data anda dilindungi dengan enkripsi dan mengikut standard keselamatan industri. 
+              Sistem backup automatik memastikan data anda sentiasa selamat dan boleh dipulihkan bila-bila masa.
             </p>
           </div>
         </div>
