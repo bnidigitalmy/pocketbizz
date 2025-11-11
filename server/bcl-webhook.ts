@@ -1,7 +1,7 @@
 // BCL.my Webhook Integration for Payment Processing
 import type { Request, Response } from "express";
-import { db } from "../db";
-import { users, userSubscriptions, subscriptionPlans } from "../shared/schema";
+import { db } from "./db";
+import { users, userSubscriptions, subscriptionPlans } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -298,28 +298,17 @@ export async function processBCLWebhook(req: Request, res: Response) {
       userId: user.id,
       planId: plan.id,
       planName: plan.displayName,
-      status: "active",
       durationMonths: packageConfig.months,
       subscriptionStartsAt: now,
       subscriptionEndsAt: subscriptionEndsAt,
       totalPaid: packageConfig.price.toString(),
-      isEarlyBird: 0,
       paymentProvider: "bcl_bayarcash",
       externalTransactionId: payload.data.record_id,
-    }).returning();
+    } as any).returning();
 
     console.log("[BCL] Subscription created:", subscription.id);
 
-    // Update user's trial status if they were on trial
-    await db.update(users)
-      .set({ 
-        isOnTrial: 0,
-        trialEndsAt: null,
-        graceEndsAt: null, // Clear grace period
-      })
-      .where(eq(users.id, user.id));
-
-    console.log("[BCL] User trial/grace period cleared");
+    console.log("[BCL] User subscription activated successfully");
 
     // Return success
     return res.json({
