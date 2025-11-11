@@ -4,9 +4,28 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles, Crown, Star, Zap } from "lucide-react";
+import { Check, Sparkles, Crown, Star, Zap, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// BCL.my Payment Form URLs
+const BCL_FORM_URLS = {
+  basic: {
+    3: "https://bnidigital.bcl.my/form/basic-3-bulan",
+    6: "https://bnidigital.bcl.my/form/basic-6-bulan",
+    12: "https://bnidigital.bcl.my/form/basic-12-bulan",
+  },
+  pro: {
+    3: "https://bnidigital.bcl.my/form/pro-3-bulan",
+    6: "https://bnidigital.bcl.my/form/pro-6-bulan",
+    12: "https://bnidigital.bcl.my/form/pro-12-bulan",
+  },
+  premium: {
+    3: "https://bnidigital.bcl.my/form/premium-3-bulan",
+    6: "https://bnidigital.bcl.my/form/premium-6-bulan",
+    12: "https://bnidigital.bcl.my/form/premium-12-bulan",
+  },
+} as const;
 
 type SubscriptionPlan = {
   id: string;
@@ -53,41 +72,38 @@ export default function Pricing() {
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     console.log('handleSelectPlan called - userData:', userData, 'isAuthError:', isAuthError);
     
-    // Check if user is logged in - redirect to login if not authenticated
+    // Check if user is logged in
     const isLoggedIn = userData?.user && !isAuthError;
     console.log('isLoggedIn:', isLoggedIn);
+    
+    // Get BCL.my form URL
+    const planName = plan.name as 'basic' | 'pro' | 'premium';
+    const bclFormUrl = BCL_FORM_URLS[planName]?.[selectedDuration];
+    
+    if (!bclFormUrl) {
+      console.error('No BCL.my form URL found for:', planName, selectedDuration);
+      return;
+    }
     
     if (!isLoggedIn) {
       console.log('User not logged in, redirecting to login page');
       // Save intended checkout URL to redirect after login
-      const checkoutParams = new URLSearchParams({
-        planId: plan.id,
-        planName: plan.name,
-        duration: selectedDuration.toString(),
-      });
+      const returnUrl = bclFormUrl;
       
-      if (isRenewal) {
-        checkoutParams.set('renew', 'true');
-      }
-      
-      // Redirect to login with return URL - use window.location for hard redirect
-      const returnUrl = `/checkout?${checkoutParams.toString()}`;
+      // Redirect to login with return URL
       window.location.href = `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
       return;
     }
     
-    // User is logged in, proceed to checkout
-    const params = new URLSearchParams({
-      planId: plan.id,
-      planName: plan.name,
-      duration: selectedDuration.toString(),
-    });
+    // User is logged in, redirect to BCL.my payment form
+    console.log('Redirecting to BCL.my form:', bclFormUrl);
     
-    if (isRenewal) {
-      params.set('renew', 'true');
-    }
+    // Pre-fill email in BCL.my form if possible (via URL params)
+    const userEmail = userData.user.email;
+    const formUrlWithEmail = `${bclFormUrl}?email=${encodeURIComponent(userEmail)}`;
     
-    setLocation(`/checkout?${params.toString()}`);
+    // Open BCL.my form
+    window.location.href = formUrlWithEmail;
   };
 
   const planIcons = {
@@ -326,7 +342,8 @@ export default function Pricing() {
                     handleSelectPlan(plan);
                   }}
                 >
-                  🛒 Pilih Pakej {plan.displayName}
+                  � Bayar Sekarang {plan.displayName}
+                  <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>

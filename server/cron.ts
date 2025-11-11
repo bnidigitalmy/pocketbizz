@@ -10,6 +10,7 @@
  */
 
 import { enforceGracePeriod } from "./archiving";
+import { processBCLWebhook, testBCLWebhook } from "./bcl-webhook";
 
 /**
  * Daily task to check and enforce grace period expiration
@@ -87,6 +88,13 @@ export function registerCronEndpoints(app: any) {
       ]
     });
   });
+
+  // BCL.my Payment Webhook
+  // Receives payment notifications from BCL.my payment forms
+  app.post("/api/webhooks/bcl", processBCLWebhook);
+
+  // Test endpoint for BCL webhook (development only)
+  app.post("/api/webhooks/bcl/test", testBCLWebhook);
 }
 
 // For self-hosted deployments using node-cron

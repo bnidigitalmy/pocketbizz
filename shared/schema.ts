@@ -948,6 +948,8 @@ export const userSubscriptions = pgTable("user_subscriptions", {
   // ToyyibPay Integration
   toyyibpayBillCode: text("toyyibpay_bill_code"), // ToyyibPay bill reference
   paymentMethod: text("payment_method"), // FPX, card, e-wallet, etc.
+  paymentProvider: text("payment_provider"), // "toyyibpay", "bcl_bayarcash", "manual", etc.
+  externalTransactionId: text("external_transaction_id"), // Transaction ID from payment provider
   metadata: text("metadata"), // JSON for additional data
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
