@@ -15,6 +15,7 @@ import {
   Settings,
   Cloud,
   CreditCard,
+  Crown,
   Users,
   TrendingUp,
   Tag,
@@ -197,6 +198,11 @@ const systemItems = [
     title: "Google Drive",
     url: "/drive-sync",
     icon: Cloud,
+  },
+  {
+    title: "Subscription",
+    url: "/subscription",
+    icon: Crown,
   },
   {
     title: "Pricing Plans",

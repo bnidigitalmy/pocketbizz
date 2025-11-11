@@ -29,6 +29,7 @@ import {
   BarChart3,
   Globe,
   Cloud,
+  Crown,
   Settings,
   LogOut
 } from "lucide-react";
@@ -583,6 +584,15 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Cloud className="w-4 h-4" />
                   <span>Google Drive</span>
+                </button>
+              </Link>
+              <Link href="/subscription">
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/subscription" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Crown className="w-4 h-4" />
+                  <span>Subscription</span>
                 </button>
               </Link>
               <Link href="/settings">
