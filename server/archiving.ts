@@ -13,7 +13,7 @@ import {
   customers, 
   stockItems 
 } from "@shared/schema";
-import { eq, and, desc, sql, lt, isNotNull } from "drizzle-orm";
+import { eq, and, desc, sql, lt, isNotNull, inArray, notInArray } from "drizzle-orm";
 import { getUserPlan } from "./feature-gating";
 
 interface ArchiveResult {
@@ -82,7 +82,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
           .where(
             and(
               eq(products.userId, userId),
-              sql`${products.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+              inArray(products.id, ids)
             )
           );
         
@@ -115,7 +115,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
           .where(
             and(
               eq(vendors.userId, userId),
-              sql`${vendors.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+              inArray(vendors.id, ids)
             )
           );
         
@@ -148,7 +148,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
           .where(
             and(
               eq(resellers.userId, userId),
-              sql`${resellers.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+              inArray(resellers.id, ids)
             )
           );
         
@@ -181,7 +181,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
           .where(
             and(
               eq(customers.userId, userId),
-              sql`${customers.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+              inArray(customers.id, ids)
             )
           );
         
@@ -213,7 +213,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
         and(
           eq(stockItems.userId, userId),
           eq(stockItems.isArchived, 0),
-          sql`${stockItems.productId} NOT IN (${sql.join(activeProductIds.map(id => sql`${id}`), sql`, `)})`
+          notInArray(stockItems.productId, activeProductIds)
         )
       );
 
@@ -225,7 +225,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
         .where(
           and(
             eq(stockItems.userId, userId),
-            sql`${stockItems.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+            inArray(stockItems.id, ids)
           )
         );
       
