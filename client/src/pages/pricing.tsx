@@ -133,7 +133,7 @@ export default function Pricing() {
   };
   
   // Calculate price for a plan based on selected duration
-  const calculatePrice = (plan: SubscriptionPlan, isEarlyBird: boolean = false) => {
+  const calculatePrice = (plan: SubscriptionPlan) => {
     const monthlyPrice = parseFloat(plan.monthlyPrice);
     let totalPrice = monthlyPrice * selectedDuration;
     
@@ -146,20 +146,15 @@ export default function Pricing() {
       totalPrice = totalPrice * (1 - discount / 100);
     }
     
-    // Apply early bird discount if applicable
-    if (isEarlyBird && earlyBirdSlotsRemaining > 0) {
-      totalPrice = totalPrice * (1 - earlyBirdDiscount / 100);
-    }
-    
     // Round to whole number for cleaner pricing
     return Math.round(totalPrice).toFixed(2);
   };
   
-  // Calculate savings vs monthly (accounts for early bird)
-  const calculateSavings = (plan: SubscriptionPlan, isEarlyBird: boolean = false) => {
+  // Calculate savings vs monthly
+  const calculateSavings = (plan: SubscriptionPlan) => {
     const monthlyPrice = parseFloat(plan.monthlyPrice);
     const fullPrice = monthlyPrice * selectedDuration;
-    const discountedPrice = parseFloat(calculatePrice(plan, isEarlyBird));
+    const discountedPrice = parseFloat(calculatePrice(plan));
     const savings = fullPrice - discountedPrice;
     const percentage = (savings / fullPrice) * 100;
     
@@ -198,6 +193,17 @@ export default function Pricing() {
               <span className="font-bold text-primary text-2xl">{earlyBirdDiscount}% OFF</span>
               {" "}untuk mana-mana pakej langganan pertama
             </p>
+            
+            {/* Coupon Code Display */}
+            <div className="bg-background rounded-lg px-6 py-4 max-w-md mx-auto mt-4 border-2 border-primary">
+              <p className="text-sm text-muted-foreground mb-2">Gunakan kod kupon semasa pembayaran:</p>
+              <div className="flex items-center justify-center gap-2">
+                <code className="text-2xl font-bold font-mono text-primary tracking-wider bg-primary/10 px-4 py-2 rounded">
+                  POCKETBIZZ100
+                </code>
+              </div>
+            </div>
+            
             <div className="flex items-center justify-center gap-4 mt-4">
               <div className="bg-background rounded-lg px-4 py-2">
                 <p className="text-sm text-muted-foreground">Slot Berbaki</p>
@@ -254,8 +260,7 @@ export default function Pricing() {
           const isPro = plan.name === "pro";
           const hasEarlyBird = earlyBirdSlotsRemaining > 0;
           const price = calculatePrice(plan);
-          const earlyBirdPrice = calculatePrice(plan, true);
-          const savings = calculateSavings(plan, hasEarlyBird);
+          const savings = calculateSavings(plan);
 
           return (
             <Card
@@ -280,29 +285,20 @@ export default function Pricing() {
                 
                 {/* Pricing Display */}
                 <div className="mt-4 space-y-2">
-                  {hasEarlyBird ? (
-                    <>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-muted-foreground line-through">
-                          RM{price}
-                        </span>
-                        <Badge variant="default" className="bg-primary">
-                          {earlyBirdDiscount}% OFF
-                        </Badge>
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold font-mono text-primary" data-testid={`price-${plan.name}`}>
-                          RM{earlyBirdPrice}
-                        </span>
-                        <span className="text-muted-foreground">/{selectedDuration} bulan</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold font-mono" data-testid={`price-${plan.name}`}>
-                        RM{price}
-                      </span>
-                      <span className="text-muted-foreground">/{selectedDuration} bulan</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold font-mono" data-testid={`price-${plan.name}`}>
+                      RM{price}
+                    </span>
+                    <span className="text-muted-foreground">/{selectedDuration} bulan</span>
+                  </div>
+                  
+                  {/* Early Bird Reminder */}
+                  {hasEarlyBird && (
+                    <div className="bg-primary/10 rounded-lg p-2">
+                      <p className="text-sm font-semibold text-primary flex items-center gap-1">
+                        <Sparkles className="h-4 w-4" />
+                        Gunakan kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 70% OFF!
+                      </p>
                     </div>
                   )}
                   
@@ -315,7 +311,7 @@ export default function Pricing() {
                   
                   {/* Monthly Breakdown */}
                   <p className="text-sm text-muted-foreground">
-                    RM{(parseFloat(hasEarlyBird ? earlyBirdPrice : price) / selectedDuration).toFixed(2)}/bulan
+                    RM{(parseFloat(price) / selectedDuration).toFixed(2)}/bulan
                   </p>
                 </div>
               </CardHeader>
@@ -473,10 +469,10 @@ export default function Pricing() {
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-early-bird">
-            <h3 className="font-semibold mb-2">Apa itu tawaran early bird?</h3>
+            <h3 className="font-semibold mb-2">Bagaimana cara guna tawaran early bird?</h3>
             <p className="text-sm text-muted-foreground">
-              100 pengguna pertama dapat tambahan 70% OFF untuk langganan pertama mereka, tanpa kira pakej atau tempoh. 
-              Diskaun ini apply atas diskaun tempoh!
+              100 pengguna pertama dapat 70% OFF dengan kod kupon <code className="font-mono font-bold bg-primary/10 px-2 py-1 rounded">POCKETBIZZ100</code>. 
+              Masukkan kod ini semasa pembayaran di BCL.my untuk redeem diskaun. Terhad untuk langganan pertama sahaja!
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-renewal">

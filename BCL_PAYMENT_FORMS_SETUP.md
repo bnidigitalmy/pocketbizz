@@ -126,8 +126,38 @@ https://pocketbizz-production-f02a.up.railway.app/api/webhooks/bcl
 
 **Webhook Secret**: 
 ```
-[KAU PERLU BAGI BCL_WEBHOOK_SECRET DARI BCL.MY DASHBOARD]
+8SsKFV8URSqeyD7EqAal4IZFiAXqCWd5
 ```
+
+---
+
+## 🎟️ Early Bird Coupon Setup
+
+### Coupon Configuration
+
+**Coupon Code**: `POCKETBIZZ100`
+
+**Settings**:
+- **Discount Type**: Percentage
+- **Discount Amount**: 70%
+- **Usage Limit**: 100 (first 100 users only)
+- **Applies to**: All payment forms
+- **Expiry**: No expiry (quantity limited only)
+- **One time use per email**: Yes
+
+**How it works**:
+1. User visits pricing page and sees Early Bird banner
+2. User selects a plan and redirects to BCL.my payment form
+3. User enters coupon code `POCKETBIZZ100` during checkout
+4. BCL.my validates coupon and applies 70% discount automatically
+5. User pays discounted amount
+6. BCL.my tracks coupon usage and blocks after 100 uses
+
+**Benefits**:
+- ✅ No custom code needed in webhook
+- ✅ BCL.my handles all coupon logic
+- ✅ Automatic usage tracking and limits
+- ✅ Easy to modify discount or quantity via BCL.my dashboard
 
 ---
 
