@@ -35,7 +35,19 @@ import {
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -54,6 +66,29 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const [location] = useLocation();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const { toast } = useToast();
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/auth/logout");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Logout Berjaya",
+        description: "Anda telah log keluar dengan selamat.",
+      });
+      window.location.href = "/";
+    },
+    onError: () => {
+      toast({
+        title: "Logout Gagal",
+        description: "Sila cuba lagi.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Get pending orders count for badge
   const { data: bookings } = useQuery({
@@ -564,11 +599,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               <div className="mt-6 pt-4 border-t">
                 <button 
                   className="w-full p-3 text-left rounded-lg bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-3 text-sm text-red-700 font-medium"
-                  onClick={() => {
-                    if (confirm('Anda pasti mahu log keluar?')) {
-                      window.location.href = '/api/logout';
-                    }
-                  }}
+                  onClick={() => setShowLogoutDialog(true)}
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Log Keluar</span>
@@ -578,6 +609,30 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
           </div>
         </div>
       )}
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda pasti mahu log keluar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda perlu log masuk semula untuk mengakses akaun anda.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setShowLogoutDialog(false);
+                logoutMutation.mutate();
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {logoutMutation.isPending ? "Logging out..." : "Log Keluar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
