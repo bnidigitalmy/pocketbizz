@@ -26,7 +26,7 @@ export function ProductPerformanceWidget() {
   }
 
   // Handle error or empty data gracefully
-  if (isError || !performance) return null;
+  if (isError || !performance || typeof performance !== 'object') return null;
   
   // Check if all arrays are empty
   const hasData = (performance.mostProfitable?.length > 0) || 
