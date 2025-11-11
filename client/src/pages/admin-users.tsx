@@ -89,7 +89,14 @@ export default function AdminUsers() {
   const { toast } = useToast();
 
   const { data: usersData, isLoading } = useQuery({ 
-    queryKey: ['/api/admin/users', page],
+    queryKey: ['admin-users', page],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users?page=${page}&limit=20`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    },
   });
 
   const { data: plansData } = useQuery({ 
