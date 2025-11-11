@@ -4,7 +4,26 @@ import {
   PlusCircle, 
   Bell, 
   Menu,
-  X
+  X,
+  Search,
+  Package,
+  ChefHat,
+  BoxIcon,
+  Warehouse,
+  ShoppingCart,
+  FileText,
+  Building2,
+  Store,
+  Truck,
+  Receipt,
+  Users,
+  Megaphone,
+  Ticket,
+  UserPlus,
+  RefreshCw,
+  TrendingUp,
+  Cake,
+  DollarSign
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -101,9 +120,9 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   className={cn(
                     "relative -top-6",
                     "w-14 h-14",
-                    "bg-gradient-to-r from-blue-500 to-purple-600",
+                    "bg-gradient-to-r from-orange-500 to-amber-600",
                     "rounded-full",
-                    "shadow-lg shadow-blue-500/50",
+                    "shadow-lg shadow-orange-500/50",
                     "flex items-center justify-center",
                     "text-white",
                     "active:scale-95",
@@ -127,7 +146,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                       "relative",
                       "transition-colors duration-150",
                       isActive 
-                        ? "text-blue-600" 
+                        ? "text-orange-600" 
                         : "text-gray-600 hover:text-gray-800"
                     )}
                     aria-label={item.label}
@@ -224,29 +243,38 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
             <div className="space-y-3">
               <Link href="/bookings">
                 <button 
-                  className="w-full p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full p-4 text-left border rounded-lg hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
                   onClick={() => setShowQuickAdd(false)}
                 >
-                  <div className="font-medium">🎂 Tempahan Baru</div>
-                  <div className="text-sm text-gray-600">Customer tempah kek/desert</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <Cake className="w-5 h-5 text-orange-600" />
+                    <span>Tempahan Baru</span>
+                  </div>
+                  <div className="text-sm text-gray-600 ml-7">Customer tempah kek/desert</div>
                 </button>
               </Link>
               <Link href="/stock">
                 <button 
-                  className="w-full p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full p-4 text-left border rounded-lg hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
                   onClick={() => setShowQuickAdd(false)}
                 >
-                  <div className="font-medium">📦 Stok Masuk</div>
-                  <div className="text-sm text-gray-600">Beli bahan mentah baru</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <Package className="w-5 h-5 text-orange-600" />
+                    <span>Stok Masuk</span>
+                  </div>
+                  <div className="text-sm text-gray-600 ml-7">Beli bahan mentah baru</div>
                 </button>
               </Link>
               <Link href="/pos">
                 <button 
-                  className="w-full p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full p-4 text-left border rounded-lg hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
                   onClick={() => setShowQuickAdd(false)}
                 >
-                  <div className="font-medium">💰 Jualan POS</div>
-                  <div className="text-sm text-gray-600">Customer datang terus</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-orange-600" />
+                    <span>Jualan POS</span>
+                  </div>
+                  <div className="text-sm text-gray-600 ml-7">Customer datang terus</div>
                 </button>
               </Link>
             </div>
@@ -278,11 +306,12 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
             <h3 className="text-lg font-semibold mb-4">Semua Menu</h3>
             
             {/* Search bar for quick find */}
-            <div className="mb-4">
+            <div className="mb-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text" 
-                placeholder="🔍 Cari menu..."
-                className="w-full px-3 py-2 border rounded-lg text-sm"
+                placeholder="Cari menu..."
+                className="w-full pl-10 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
               />
             </div>
 
@@ -290,92 +319,156 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               {/* Pengurusan Stok */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-2">PENGURUSAN STOK</div>
               <Link href="/products">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🎂 <span>Produk & Resepi</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/products" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Cake className="w-4 h-4" />
+                  <span>Produk & Resepi</span>
                 </button>
               </Link>
               <Link href="/production">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  👨‍🍳 <span>Produksi</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/production" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <ChefHat className="w-4 h-4" />
+                  <span>Produksi</span>
                 </button>
               </Link>
               <Link href="/finished-products">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📦 <span>Stok Siap</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/finished-products" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <BoxIcon className="w-4 h-4" />
+                  <span>Stok Siap</span>
                 </button>
               </Link>
               <Link href="/stock">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📦 <span>Stok Gudang</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/stock" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Warehouse className="w-4 h-4" />
+                  <span>Stok Gudang</span>
                 </button>
               </Link>
               <Link href="/shopping-list">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🛒 <span>Senarai Belian</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/shopping-list" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Senarai Belian</span>
                 </button>
               </Link>
               <Link href="/purchase-orders">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📄 <span>Purchase Order</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/purchase-orders" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <FileText className="w-4 h-4" />
+                  <span>Purchase Order</span>
                 </button>
               </Link>
               <Link href="/suppliers">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🏢 <span>Suppliers</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/suppliers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Building2 className="w-4 h-4" />
+                  <span>Suppliers</span>
                 </button>
               </Link>
               
               {/* Vendor (Konsainan) */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">VENDOR (KONSAINAN)</div>
               <Link href="/vendors">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🏪 <span>Senarai Vendor</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/vendors" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Store className="w-4 h-4" />
+                  <span>Senarai Vendor</span>
                 </button>
               </Link>
               <Link href="/deliveries">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🚚 <span>Hantar ke Kedai</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/deliveries" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Truck className="w-4 h-4" />
+                  <span>Hantar ke Kedai</span>
                 </button>
               </Link>
               <Link href="/claims">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  � <span>Bayaran & Invoice</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/claims" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Receipt className="w-4 h-4" />
+                  <span>Bayaran & Invoice</span>
                 </button>
               </Link>
               
               {/* Direct Sales */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">JUALAN TERUS</div>
               <Link href="/customers">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  👤 <span>Pelanggan Setia</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/customers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Users className="w-4 h-4" />
+                  <span>Pelanggan Setia</span>
                 </button>
               </Link>
               <Link href="/broadcast">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📢 <span>Broadcast</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/broadcast" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Megaphone className="w-4 h-4" />
+                  <span>Broadcast</span>
                 </button>
               </Link>
               <Link href="/vouchers">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🎟️ <span>Voucher</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/vouchers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Ticket className="w-4 h-4" />
+                  <span>Voucher</span>
                 </button>
               </Link>
               
               {/* Ejen Reseller */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">EJEN RESELLER</div>
               <Link href="/resellers">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  👥 <span>Senarai Ejen</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/resellers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <UserPlus className="w-4 h-4" />
+                  <span>Senarai Ejen</span>
                 </button>
               </Link>
               <Link href="/reseller-transfer">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  🔄 <span>Transfer Stok</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/reseller-transfer" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Transfer Stok</span>
                 </button>
               </Link>
               <Link href="/reseller-performance">
-                <button className="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-3 text-sm" onClick={() => setShowMoreMenu(false)}>
-                  📈 <span>Prestasi Ejen</span>
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/reseller-performance" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Prestasi Ejen</span>
                 </button>
               </Link>
               <Link href="/pricing-tiers">
