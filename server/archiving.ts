@@ -75,17 +75,19 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
       const toArchive = allProducts.slice(limits.products);
       const ids = toArchive.map(p => p.id);
       
-      await db
-        .update(products)
-        .set({ isArchived: 1 })
-        .where(
-          and(
-            eq(products.userId, userId),
-            sql`${products.id} = ANY(${ids})`
-          )
-        );
-      
-      result.productsArchived = toArchive.length;
+      if (ids.length > 0) {
+        await db
+          .update(products)
+          .set({ isArchived: 1 })
+          .where(
+            and(
+              eq(products.userId, userId),
+              sql`${products.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+            )
+          );
+        
+        result.productsArchived = toArchive.length;
+      }
     }
   }
 
@@ -106,17 +108,19 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
       const toArchive = allVendors.slice(limits.vendors);
       const ids = toArchive.map(v => v.id);
       
-      await db
-        .update(vendors)
-        .set({ isArchived: 1 })
-        .where(
-          and(
-            eq(vendors.userId, userId),
-            sql`${vendors.id} = ANY(${ids})`
-          )
-        );
-      
-      result.vendorsArchived = toArchive.length;
+      if (ids.length > 0) {
+        await db
+          .update(vendors)
+          .set({ isArchived: 1 })
+          .where(
+            and(
+              eq(vendors.userId, userId),
+              sql`${vendors.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+            )
+          );
+        
+        result.vendorsArchived = toArchive.length;
+      }
     }
   }
 
@@ -137,17 +141,19 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
       const toArchive = allResellers.slice(limits.resellers);
       const ids = toArchive.map(r => r.id);
       
-      await db
-        .update(resellers)
-        .set({ isArchived: 1 })
-        .where(
-          and(
-            eq(resellers.userId, userId),
-            sql`${resellers.id} = ANY(${ids})`
-          )
-        );
-      
-      result.resellersArchived = toArchive.length;
+      if (ids.length > 0) {
+        await db
+          .update(resellers)
+          .set({ isArchived: 1 })
+          .where(
+            and(
+              eq(resellers.userId, userId),
+              sql`${resellers.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+            )
+          );
+        
+        result.resellersArchived = toArchive.length;
+      }
     }
   }
 
@@ -168,17 +174,19 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
       const toArchive = allCustomers.slice(limits.customers);
       const ids = toArchive.map(c => c.id);
       
-      await db
-        .update(customers)
-        .set({ isArchived: 1 })
-        .where(
-          and(
-            eq(customers.userId, userId),
-            sql`${customers.id} = ANY(${ids})`
-          )
-        );
-      
-      result.customersArchived = toArchive.length;
+      if (ids.length > 0) {
+        await db
+          .update(customers)
+          .set({ isArchived: 1 })
+          .where(
+            and(
+              eq(customers.userId, userId),
+              sql`${customers.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
+            )
+          );
+        
+        result.customersArchived = toArchive.length;
+      }
     }
   }
 
@@ -205,7 +213,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
         and(
           eq(stockItems.userId, userId),
           eq(stockItems.isArchived, 0),
-          sql`${stockItems.productId} NOT IN (${activeProductIds})`
+          sql`${stockItems.productId} NOT IN (${sql.join(activeProductIds.map(id => sql`${id}`), sql`, `)})`
         )
       );
 
@@ -217,7 +225,7 @@ export async function archiveUserData(userId: number): Promise<ArchiveResult> {
         .where(
           and(
             eq(stockItems.userId, userId),
-            sql`${stockItems.id} = ANY(${ids})`
+            sql`${stockItems.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`, `)}])`
           )
         );
       
