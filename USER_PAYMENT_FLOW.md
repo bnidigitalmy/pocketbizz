@@ -16,15 +16,16 @@
 5. Redirect to /auth/register?plan=basic&duration=6&returnTo=/pricing
    ↓
 6. User sees registration form with:
-   - Badge: "Trial Percuma 7 Hari"
+   - Badge: "Trial Percuma 14 Hari"
    - Info box: "Pakej dipilih: Basic (6 bulan)"
-   - Message: "Daftar sekarang untuk cuba trial 7 hari, kemudian boleh upgrade"
+   - Message: "Daftar sekarang untuk cuba trial 14 hari, kemudian boleh upgrade"
    ↓
 7. User fills form and registers
    ↓
 8. Account created with:
-   - 7-day FREE TRIAL activated
-   - Trial ends at: today + 7 days
+   - 14-day FREE TRIAL activated
+   - Trial ends at: today + 14 days
+   - Grace period: trial end + 7 days
    ↓
 9. Redirect back to /pricing page
    ↓
