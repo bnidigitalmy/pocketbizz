@@ -22,7 +22,7 @@ jobs:
       - name: Trigger grace period enforcement
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            https://pocketbizz-production.up.railway.app/api/cron/enforce-grace-period \
+            https://pocketbizz-production-f02a.up.railway.app/api/cron/enforce-grace-period \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
