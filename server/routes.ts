@@ -3452,6 +3452,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user subscriptions
+  app.get("/api/user/subscriptions", requireAuth, async (req, res) => {
+    try {
+      const { userSubscriptions } = await import("@shared/schema");
+      const { eq, desc } = await import("drizzle-orm");
+      
+      const subscriptions = await db
+        .select()
+        .from(userSubscriptions)
+        .where(eq(userSubscriptions.userId, req.user!.id))
+        .orderBy(desc(userSubscriptions.createdAt));
+      
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Failed to fetch subscriptions:", error);
+      res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+  });
+
+  // Get user plan limits and usage
+  app.get("/api/user/plan-limits", requireAuth, async (req, res) => {
+    try {
+      const { products: productsTable, stockItems, salesTransactions } = await import("@shared/schema");
+      const { eq, count } = await import("drizzle-orm");
+      
+      // Get current usage
+      const [productsCount] = await db
+        .select({ count: count() })
+        .from(productsTable)
+        .where(eq(productsTable.userId, req.user!.id));
+
+      const [stockCount] = await db
+        .select({ count: count() })
+        .from(stockItems)
+        .where(eq(stockItems.userId, req.user!.id));
+
+      const [transactionsCount] = await db
+        .select({ count: count() })
+        .from(salesTransactions)
+        .where(eq(salesTransactions.userId, req.user!.id));
+
+      // Get plan limits from feature gating
+      const { getPlanLimits } = await import("./feature-gating");
+      const limits = await getPlanLimits(req.user!.id);
+
+      res.json({
+        products: {
+          current: productsCount.count,
+          max: limits.maxProducts,
+        },
+        stockItems: {
+          current: stockCount.count,
+          max: limits.maxStockItems,
+        },
+        transactions: {
+          current: transactionsCount.count,
+          max: limits.maxTransactions,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to fetch plan limits:", error);
+      res.status(500).json({ error: "Failed to fetch plan limits" });
+    }
+  });
+
   app.patch("/api/user/profile", requireAuth, async (req, res) => {
     try {
       const updateSchema = z.object({

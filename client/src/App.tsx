@@ -42,6 +42,7 @@ import Expenses from "@/pages/expenses";
 import Claims from "@/pages/claims";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import Subscription from "@/pages/subscription";
 import StoreCatalog from "@/pages/store-catalog";
 import DriveSync from "@/pages/drive-sync";
 import Pricing from "@/pages/pricing";
@@ -111,6 +112,7 @@ function AppRouter() {
           <Route path="/notifications" component={Notifications} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
+          <Route path="/subscription" component={Subscription} />
           <Route path="/store-catalog" component={StoreCatalog} />
           <Route path="/drive-sync" component={DriveSync} />
           <Route path="/pricing-tiers" component={PricingTiers} />
