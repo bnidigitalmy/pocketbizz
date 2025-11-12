@@ -1525,22 +1525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/products", requireAuth, blockExpiredTrial, enforceProductLimit, async (req, res) => {
     try {
-      // Check product limit for trial users
-      if (req.user) {
-        const userProductCount = await storage.getProductCount(req.user.id);
-        const productLimit = await getUserProductLimit(req.user);
-        
-        if (productLimit > 0 && userProductCount >= productLimit) {
-          return res.status(403).json({ 
-            message: req.user.isOnTrial 
-              ? `Trial users are limited to ${productLimit} products. Upgrade to add more!`
-              : `Your plan allows up to ${productLimit} products. Upgrade to add more!`,
-            requiresUpgrade: true,
-            currentCount: userProductCount,
-            limit: productLimit
-          });
-        }
-      }
+      // enforceProductLimit middleware already checks limits - no need for duplicate check here
       
       const productSchema = insertProductSchema.extend({
         unitsPerBatch: z.string(),

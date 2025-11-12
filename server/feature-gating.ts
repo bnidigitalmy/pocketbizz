@@ -183,8 +183,19 @@ export function enforceLimit(resource: 'products' | 'customers' | 'vendors' | 'r
     const check = await checkLimit(req.user.id, resource);
     
     if (!check.allowed) {
+      // User-friendly messages in Bahasa Malaysia
+      const resourceNames: Record<string, string> = {
+        products: 'produk',
+        customers: 'pelanggan',
+        vendors: 'vendor',
+        resellers: 'reseller',
+        stock_items: 'item stok'
+      };
+      
+      const resourceName = resourceNames[resource] || resource;
+      
       return res.status(403).json({
-        message: `You've reached your ${resource} limit`,
+        message: `Had ${resourceName} anda telah dicapai (${check.current}/${check.limit}). Upgrade untuk tambah lebih banyak!`,
         current: check.current,
         limit: check.limit,
         plan: check.plan,

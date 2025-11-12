@@ -542,11 +542,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(userId: string, id: string): Promise<void> {
-    // Delete recipe items first (product ownership already validated, cascade via productId)
-    await db.delete(recipeItems)
-      .where(eq(recipeItems.productId, id));
+    // CASCADE delete will automatically remove:
+    // - recipeItems (onDelete: "cascade" on productId)
+    // - ingredients (onDelete: "cascade" on productId)
+    // - productionBatches (onDelete: "cascade" on productId)
+    // - deliveryItems (onDelete: "cascade" on productId)
+    // - salesItems (onDelete: "cascade" on productId)
+    // - vendorSales (onDelete: "cascade" on productId)
+    // - claimItems (onDelete: "cascade" on productId)
     
-    // Delete the product (user ownership validation)
+    // Just delete the product - database handles the rest
     await db.delete(products)
       .where(and(eq(products.id, id), eq(products.userId, userId)));
   }

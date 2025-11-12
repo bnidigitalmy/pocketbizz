@@ -28,6 +28,7 @@ interface ArchiveResult {
 /**
  * Archive excess data for a user based on their plan limits
  * Archives oldest records first (FIFO) while keeping most recent data
+ * WRAPPED IN TRANSACTION for atomicity - all or nothing
  */
 export async function archiveUserData(userId: string): Promise<ArchiveResult> {
   const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -59,179 +60,187 @@ export async function archiveUserData(userId: string): Promise<ArchiveResult> {
     stockItems: 0
   };
 
-  // Archive products beyond limit
-  if (limits.products > 0) {
-    const allProducts = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(
-        and(
-          eq(products.userId, userId),
-          eq(products.isArchived, 0)
-        )
-      )
-      .orderBy(desc(products.createdAt));
-
-    if (allProducts.length > limits.products) {
-      const toArchive = allProducts.slice(limits.products);
-      const ids = toArchive.map(p => p.id);
-      
-      if (ids.length > 0) {
-        await db
-          .update(products)
-          .set({ isArchived: 1 })
+  // TRANSACTION: Archive all or nothing to prevent partial data corruption
+  try {
+    await db.transaction(async (tx) => {
+      // Archive products beyond limit
+      if (limits.products > 0) {
+        const allProducts = await tx
+          .select({ id: products.id })
+          .from(products)
           .where(
             and(
               eq(products.userId, userId),
-              inArray(products.id, ids)
+              eq(products.isArchived, 0)
             )
-          );
-        
-        result.productsArchived = toArchive.length;
+          )
+          .orderBy(desc(products.createdAt));
+
+        if (allProducts.length > limits.products) {
+          const toArchive = allProducts.slice(limits.products);
+          const ids = toArchive.map(p => p.id);
+          
+          if (ids.length > 0) {
+            await tx
+              .update(products)
+              .set({ isArchived: 1 })
+              .where(
+                and(
+                  eq(products.userId, userId),
+                  inArray(products.id, ids)
+                )
+              );
+            
+            result.productsArchived = toArchive.length;
+          }
+        }
       }
-    }
-  }
 
-  // Archive vendors beyond limit
-  if (limits.vendors > 0) {
-    const allVendors = await db
-      .select({ id: vendors.id })
-      .from(vendors)
-      .where(
-        and(
-          eq(vendors.userId, userId),
-          eq(vendors.isArchived, 0)
-        )
-      )
-      .orderBy(desc(vendors.createdAt));
-
-    if (allVendors.length > limits.vendors) {
-      const toArchive = allVendors.slice(limits.vendors);
-      const ids = toArchive.map(v => v.id);
-      
-      if (ids.length > 0) {
-        await db
-          .update(vendors)
-          .set({ isArchived: 1 })
+      // Archive vendors beyond limit
+      if (limits.vendors > 0) {
+        const allVendors = await tx
+          .select({ id: vendors.id })
+          .from(vendors)
           .where(
             and(
               eq(vendors.userId, userId),
-              inArray(vendors.id, ids)
+              eq(vendors.isArchived, 0)
             )
-          );
-        
-        result.vendorsArchived = toArchive.length;
+          )
+          .orderBy(desc(vendors.createdAt));
+
+        if (allVendors.length > limits.vendors) {
+          const toArchive = allVendors.slice(limits.vendors);
+          const ids = toArchive.map(v => v.id);
+          
+          if (ids.length > 0) {
+            await tx
+              .update(vendors)
+              .set({ isArchived: 1 })
+              .where(
+                and(
+                  eq(vendors.userId, userId),
+                  inArray(vendors.id, ids)
+                )
+              );
+            
+            result.vendorsArchived = toArchive.length;
+          }
+        }
       }
-    }
-  }
 
-  // Archive resellers beyond limit
-  if (limits.resellers > 0) {
-    const allResellers = await db
-      .select({ id: resellers.id })
-      .from(resellers)
-      .where(
-        and(
-          eq(resellers.userId, userId),
-          eq(resellers.isArchived, 0)
-        )
-      )
-      .orderBy(desc(resellers.createdAt));
-
-    if (allResellers.length > limits.resellers) {
-      const toArchive = allResellers.slice(limits.resellers);
-      const ids = toArchive.map(r => r.id);
-      
-      if (ids.length > 0) {
-        await db
-          .update(resellers)
-          .set({ isArchived: 1 })
+      // Archive resellers beyond limit
+      if (limits.resellers > 0) {
+        const allResellers = await tx
+          .select({ id: resellers.id })
+          .from(resellers)
           .where(
             and(
               eq(resellers.userId, userId),
-              inArray(resellers.id, ids)
+              eq(resellers.isArchived, 0)
             )
-          );
-        
-        result.resellersArchived = toArchive.length;
+          )
+          .orderBy(desc(resellers.createdAt));
+
+        if (allResellers.length > limits.resellers) {
+          const toArchive = allResellers.slice(limits.resellers);
+          const ids = toArchive.map(r => r.id);
+          
+          if (ids.length > 0) {
+            await tx
+              .update(resellers)
+              .set({ isArchived: 1 })
+              .where(
+                and(
+                  eq(resellers.userId, userId),
+                  inArray(resellers.id, ids)
+                )
+              );
+            
+            result.resellersArchived = toArchive.length;
+          }
+        }
       }
-    }
-  }
 
-  // Archive customers beyond limit
-  if (limits.customers > 0) {
-    const allCustomers = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.userId, userId),
-          eq(customers.isArchived, 0)
-        )
-      )
-      .orderBy(desc(customers.createdAt));
-
-    if (allCustomers.length > limits.customers) {
-      const toArchive = allCustomers.slice(limits.customers);
-      const ids = toArchive.map(c => c.id);
-      
-      if (ids.length > 0) {
-        await db
-          .update(customers)
-          .set({ isArchived: 1 })
+      // Archive customers beyond limit
+      if (limits.customers > 0) {
+        const allCustomers = await tx
+          .select({ id: customers.id })
+          .from(customers)
           .where(
             and(
               eq(customers.userId, userId),
-              inArray(customers.id, ids)
+              eq(customers.isArchived, 0)
             )
-          );
-        
-        result.customersArchived = toArchive.length;
-      }
-    }
-  }
+          )
+          .orderBy(desc(customers.createdAt));
 
-  // Stock items - archive old ones if user exceeds count
-  // Stock items are standalone (ingredients), not tied to products
-  // Just keep the most recent ones based on plan limit
-  const allStockItems = await db
-    .select({ id: stockItems.id })
-    .from(stockItems)
-    .where(
-      and(
-        eq(stockItems.userId, userId),
-        eq(stockItems.isArchived, 0)
-      )
-    )
-    .orderBy(desc(stockItems.createdAt));
-  
-  // If there's a stock items limit in the plan, enforce it
-  const stockLimit = limits.stockItems || 0;
-  if (stockLimit > 0 && allStockItems.length > stockLimit) {
-    const toArchive = allStockItems.slice(stockLimit);
-    const ids = toArchive.map(s => s.id);
-    
-    if (ids.length > 0) {
-      await db
-        .update(stockItems)
-        .set({ isArchived: 1 })
+        if (allCustomers.length > limits.customers) {
+          const toArchive = allCustomers.slice(limits.customers);
+          const ids = toArchive.map(c => c.id);
+          
+          if (ids.length > 0) {
+            await tx
+              .update(customers)
+              .set({ isArchived: 1 })
+              .where(
+                and(
+                  eq(customers.userId, userId),
+                  inArray(customers.id, ids)
+                )
+              );
+            
+            result.customersArchived = toArchive.length;
+          }
+        }
+      }
+
+      // Stock items - archive old ones if user exceeds count
+      const allStockItems = await tx
+        .select({ id: stockItems.id })
+        .from(stockItems)
         .where(
           and(
             eq(stockItems.userId, userId),
-            inArray(stockItems.id, ids)
+            eq(stockItems.isArchived, 0)
           )
-        );
+        )
+        .orderBy(desc(stockItems.createdAt));
       
-      result.stockItemsArchived = ids.length;
-    }
+      const stockLimit = limits.stockItems || 0;
+      if (stockLimit > 0 && allStockItems.length > stockLimit) {
+        const toArchive = allStockItems.slice(stockLimit);
+        const ids = toArchive.map(s => s.id);
+        
+        if (ids.length > 0) {
+          await tx
+            .update(stockItems)
+            .set({ isArchived: 1 })
+            .where(
+              and(
+                eq(stockItems.userId, userId),
+                inArray(stockItems.id, ids)
+              )
+            );
+          
+          result.stockItemsArchived = ids.length;
+        }
+      }
+    });
+    
+    console.log(`✅ Successfully archived data for user ${userId}:`, result);
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Transaction failed - data archiving rolled back for user ${userId}:`, error);
+    throw new Error(`Failed to archive user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return result;
 }
 
 /**
  * Restore all archived data for a user
  * Called when user upgrades to a higher plan
+ * WRAPPED IN TRANSACTION for atomicity
  */
 export async function restoreUserData(userId: string): Promise<ArchiveResult> {
   const result: ArchiveResult = {
@@ -242,127 +251,136 @@ export async function restoreUserData(userId: string): Promise<ArchiveResult> {
     stockItemsArchived: 0,
   };
 
-  // Count and restore products
-  const archivedProducts = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(
-      and(
-        eq(products.userId, userId),
-        eq(products.isArchived, 1)
-      )
-    );
-  
-  if (archivedProducts.length > 0) {
-    await db
-      .update(products)
-      .set({ isArchived: 0 })
-      .where(
-        and(
-          eq(products.userId, userId),
-          eq(products.isArchived, 1)
-        )
-      );
-    result.productsArchived = archivedProducts.length;
-  }
+  try {
+    await db.transaction(async (tx) => {
+      // Count and restore products
+      const archivedProducts = await tx
+        .select({ id: products.id })
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, userId),
+            eq(products.isArchived, 1)
+          )
+        );
+      
+      if (archivedProducts.length > 0) {
+        await tx
+          .update(products)
+          .set({ isArchived: 0 })
+          .where(
+            and(
+              eq(products.userId, userId),
+              eq(products.isArchived, 1)
+            )
+          );
+        result.productsArchived = archivedProducts.length;
+      }
 
-  // Count and restore vendors
-  const archivedVendors = await db
-    .select({ id: vendors.id })
-    .from(vendors)
-    .where(
-      and(
-        eq(vendors.userId, userId),
-        eq(vendors.isArchived, 1)
-      )
-    );
-  
-  if (archivedVendors.length > 0) {
-    await db
-      .update(vendors)
-      .set({ isArchived: 0 })
-      .where(
-        and(
-          eq(vendors.userId, userId),
-          eq(vendors.isArchived, 1)
-        )
-      );
-    result.vendorsArchived = archivedVendors.length;
-  }
+      // Count and restore vendors
+      const archivedVendors = await tx
+        .select({ id: vendors.id })
+        .from(vendors)
+        .where(
+          and(
+            eq(vendors.userId, userId),
+            eq(vendors.isArchived, 1)
+          )
+        );
+      
+      if (archivedVendors.length > 0) {
+        await tx
+          .update(vendors)
+          .set({ isArchived: 0 })
+          .where(
+            and(
+              eq(vendors.userId, userId),
+              eq(vendors.isArchived, 1)
+            )
+          );
+        result.vendorsArchived = archivedVendors.length;
+      }
 
-  // Count and restore resellers
-  const archivedResellers = await db
-    .select({ id: resellers.id })
-    .from(resellers)
-    .where(
-      and(
-        eq(resellers.userId, userId),
-        eq(resellers.isArchived, 1)
-      )
-    );
-  
-  if (archivedResellers.length > 0) {
-    await db
-      .update(resellers)
-      .set({ isArchived: 0 })
-      .where(
-        and(
-          eq(resellers.userId, userId),
-          eq(resellers.isArchived, 1)
-        )
-      );
-    result.resellersArchived = archivedResellers.length;
-  }
+      // Count and restore resellers
+      const archivedResellers = await tx
+        .select({ id: resellers.id })
+        .from(resellers)
+        .where(
+          and(
+            eq(resellers.userId, userId),
+            eq(resellers.isArchived, 1)
+          )
+        );
+      
+      if (archivedResellers.length > 0) {
+        await tx
+          .update(resellers)
+          .set({ isArchived: 0 })
+          .where(
+            and(
+              eq(resellers.userId, userId),
+              eq(resellers.isArchived, 1)
+            )
+          );
+        result.resellersArchived = archivedResellers.length;
+      }
 
-  // Count and restore customers
-  const archivedCustomers = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(
-      and(
-        eq(customers.userId, userId),
-        eq(customers.isArchived, 1)
-      )
-    );
-  
-  if (archivedCustomers.length > 0) {
-    await db
-      .update(customers)
-      .set({ isArchived: 0 })
-      .where(
-        and(
-          eq(customers.userId, userId),
-          eq(customers.isArchived, 1)
-        )
-      );
-    result.customersArchived = archivedCustomers.length;
-  }
+      // Count and restore customers
+      const archivedCustomers = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.userId, userId),
+            eq(customers.isArchived, 1)
+          )
+        );
+      
+      if (archivedCustomers.length > 0) {
+        await tx
+          .update(customers)
+          .set({ isArchived: 0 })
+          .where(
+            and(
+              eq(customers.userId, userId),
+              eq(customers.isArchived, 1)
+            )
+          );
+        result.customersArchived = archivedCustomers.length;
+      }
 
-  // Count and restore stock items
-  const archivedStockItems = await db
-    .select({ id: stockItems.id })
-    .from(stockItems)
-    .where(
-      and(
-        eq(stockItems.userId, userId),
-        eq(stockItems.isArchived, 1)
-      )
-    );
-  
-  if (archivedStockItems.length > 0) {
-    await db
-      .update(stockItems)
-      .set({ isArchived: 0 })
-      .where(
-        and(
-          eq(stockItems.userId, userId),
-          eq(stockItems.isArchived, 1)
-        )
-      );
-    result.stockItemsArchived = archivedStockItems.length;
+      // Count and restore stock items
+      const archivedStockItems = await tx
+        .select({ id: stockItems.id })
+        .from(stockItems)
+        .where(
+          and(
+            eq(stockItems.userId, userId),
+            eq(stockItems.isArchived, 1)
+          )
+        );
+      
+      if (archivedStockItems.length > 0) {
+        await tx
+          .update(stockItems)
+          .set({ isArchived: 0 })
+          .where(
+            and(
+              eq(stockItems.userId, userId),
+              eq(stockItems.isArchived, 1)
+            )
+          );
+        result.stockItemsArchived = archivedStockItems.length;
+      }
+    });
+    
+    console.log(`✅ Successfully restored data for user ${userId}:`, result);
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Transaction failed - data restoration rolled back for user ${userId}:`, error);
+    throw new Error(`Failed to restore user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return result;
 }
 
 /**
