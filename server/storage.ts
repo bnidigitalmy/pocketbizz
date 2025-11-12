@@ -1585,7 +1585,7 @@ export class DatabaseStorage implements IStorage {
           // Sales data (POS)
           const salesData = await db.select({
             totalQuantity: sql<number>`COALESCE(SUM(${salesItems.quantity}), 0)`,
-            totalRevenue: sql<string>`COALESCE(SUM(${salesItems.quantity} * ${salesItems.unitPrice}), 0)`,
+            totalRevenue: sql<string>`COALESCE(SUM(CAST(${salesItems.quantity} AS DECIMAL) * CAST(${salesItems.unitPrice} AS DECIMAL)), 0)`,
           })
           .from(salesItems)
           .where(and(eq(salesItems.productId, product.id), eq(salesItems.userId, userId)));
@@ -1593,7 +1593,7 @@ export class DatabaseStorage implements IStorage {
         // Delivery data (vendors)
         const deliveryData = await db.select({
           totalQuantity: sql<number>`COALESCE(SUM(${deliveryItems.quantity}), 0)`,
-          totalRevenue: sql<string>`COALESCE(SUM(${deliveryItems.quantity} * ${deliveryItems.unitPrice}), 0)`,
+          totalRevenue: sql<string>`COALESCE(SUM(CAST(${deliveryItems.quantity} AS DECIMAL) * CAST(${deliveryItems.unitPrice} AS DECIMAL)), 0)`,
           totalRejected: sql<number>`COALESCE(SUM(${deliveryItems.rejectedQty}), 0)`,
         })
         .from(deliveryItems)
