@@ -24,13 +24,16 @@ export function GoalTrackerWidget() {
   const currentMonth = format(new Date(), "yyyy-MM-01");
 
   // Fetch goal progress for current month
-  const { data: progressData, isLoading } = useQuery({
+  const { data: progressData, isLoading, isError } = useQuery({
     queryKey: ["/api/goals", currentMonth, "progress"],
     queryFn: async () => {
-      const response = await fetch(`/api/goals/${currentMonth}/progress`);
+      const response = await fetch(`/api/goals/${currentMonth}/progress`, {
+        credentials: "include", // CRITICAL: Include session cookie
+      });
       if (!response.ok) throw new Error("Failed to fetch goal progress");
       return response.json();
     },
+    retry: 1, // Only retry once on failure
   });
 
   // Create/Update goal mutation
@@ -40,6 +43,7 @@ export function GoalTrackerWidget() {
         const response = await fetch(`/api/goals/${editingGoal.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(goalData),
         });
         if (!response.ok) throw new Error("Failed to update goal");
@@ -48,6 +52,7 @@ export function GoalTrackerWidget() {
         const response = await fetch("/api/goals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(goalData),
         });
         if (!response.ok) throw new Error("Failed to create goal");
@@ -103,23 +108,45 @@ export function GoalTrackerWidget() {
     );
   }
 
+  // Handle error state (e.g., 401 unauthorized, 500 server error)
+  if (isError) {
+    return (
+      <Card className="border-t-4 border-t-destructive">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-destructive" />
+            Sasaran Bulanan
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <AlertCircle className="h-12 w-12 mx-auto mb-3 text-destructive opacity-50" />
+            <p className="text-muted-foreground mb-4">
+              Gagal memuatkan data sasaran. Sila refresh halaman.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const { goal, progress } = progressData || {};
-  const hasGoal = goal && (parseFloat(goal.revenueTarget) > 0 || parseFloat(goal.profitTarget) > 0);
+  const hasGoal = goal && (parseFloat(goal?.revenueTarget || 0) > 0 || parseFloat(goal?.profitTarget || 0) > 0);
 
   // Calculate overall progress (average of all targets)
   let overallProgress = 0;
   let progressCount = 0;
-  if (hasGoal && progress) {
-    if (parseFloat(goal.revenueTarget) > 0) {
-      overallProgress += progress.revenueProgress;
+  if (hasGoal && progress && goal) {
+    if (parseFloat(goal.revenueTarget || 0) > 0) {
+      overallProgress += progress.revenueProgress || 0;
       progressCount++;
     }
-    if (parseFloat(goal.profitTarget) > 0) {
-      overallProgress += progress.profitProgress;
+    if (parseFloat(goal.profitTarget || 0) > 0) {
+      overallProgress += progress.profitProgress || 0;
       progressCount++;
     }
-    if (goal.salesVolumeTarget > 0) {
-      overallProgress += progress.salesVolumeProgress;
+    if ((goal.salesVolumeTarget || 0) > 0) {
+      overallProgress += progress.salesVolumeProgress || 0;
       progressCount++;
     }
     overallProgress = progressCount > 0 ? overallProgress / progressCount : 0;
@@ -195,36 +222,36 @@ export function GoalTrackerWidget() {
           <>
             {/* Progress Bars */}
             <div className="space-y-4">
-              {parseFloat(goal.revenueTarget) > 0 && (
+              {parseFloat(goal?.revenueTarget || 0) > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Sasaran Hasil</span>
                     <span className="font-medium" data-testid="text-revenue-progress">
-                      RM {progress?.actualRevenue?.toFixed(0) || 0} / RM {parseFloat(goal.revenueTarget).toFixed(0)}
+                      RM {progress?.actualRevenue?.toFixed(0) || 0} / RM {parseFloat(goal?.revenueTarget || 0).toFixed(0)}
                     </span>
                   </div>
                   <Progress value={Math.min(progress?.revenueProgress || 0, 100)} className="h-2" />
                 </div>
               )}
 
-              {parseFloat(goal.profitTarget) > 0 && (
+              {parseFloat(goal?.profitTarget || 0) > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Sasaran Untung</span>
                     <span className="font-medium" data-testid="text-profit-progress">
-                      RM {progress?.actualProfit?.toFixed(0) || 0} / RM {parseFloat(goal.profitTarget).toFixed(0)}
+                      RM {progress?.actualProfit?.toFixed(0) || 0} / RM {parseFloat(goal?.profitTarget || 0).toFixed(0)}
                     </span>
                   </div>
                   <Progress value={Math.min(progress?.profitProgress || 0, 100)} className="h-2" />
                 </div>
               )}
 
-              {goal.salesVolumeTarget > 0 && (
+              {(goal?.salesVolumeTarget || 0) > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Sasaran Jualan</span>
                     <span className="font-medium" data-testid="text-sales-progress">
-                      {progress?.actualSalesVolume || 0} / {goal.salesVolumeTarget} transaksi
+                      {progress?.actualSalesVolume || 0} / {goal?.salesVolumeTarget || 0} transaksi
                     </span>
                   </div>
                   <Progress value={Math.min(progress?.salesVolumeProgress || 0, 100)} className="h-2" />
@@ -243,7 +270,7 @@ export function GoalTrackerWidget() {
             </div>
 
             {/* User Notes */}
-            {goal.notes && (
+            {goal?.notes && (
               <div className="p-3 rounded-lg bg-muted/50 border">
                 <p className="text-sm text-muted-foreground italic">"{goal.notes}"</p>
               </div>

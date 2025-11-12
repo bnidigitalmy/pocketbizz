@@ -3395,57 +3395,63 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getGoalProgress(userId: string, targetMonth: string): Promise<any> {
-    // Get goal
-    const goal = await this.getGoalByMonth(userId, targetMonth);
-    if (!goal) {
+    try {
+      // Get goal
+      const goal = await this.getGoalByMonth(userId, targetMonth);
+      if (!goal) {
+        return { goal: null, progress: null };
+      }
+      
+      // Calculate actual performance for the month
+      const monthStart = new Date(targetMonth);
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+      
+      // Get sales and deliveries for the month
+      const salesData = await db.select({
+        totalRevenue: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)`,
+        totalProfit: sql<number>`COALESCE(SUM(${sales.profitAmount}), 0)`,
+        salesCount: sql<number>`COUNT(*)`
+      })
+        .from(sales)
+        .where(and(
+          eq(sales.userId, userId),
+          sql`${sales.saleDate} >= ${monthStart.toISOString().split('T')[0]}`,
+          sql`${sales.saleDate} < ${monthEnd.toISOString().split('T')[0]}`
+        ));
+      
+      const deliveriesData = await db.select({
+        totalRevenue: sql<number>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
+        totalProfit: sql<number>`COALESCE(SUM(${deliveries.profitAmount}), 0)`,
+        deliveryCount: sql<number>`COUNT(*)`
+      })
+        .from(deliveries)
+        .where(and(
+          eq(deliveries.userId, userId),
+          sql`${deliveries.deliveryDate} >= ${monthStart.toISOString().split('T')[0]}`,
+          sql`${deliveries.deliveryDate} < ${monthEnd.toISOString().split('T')[0]}`
+        ));
+      
+      const actualRevenue = Number(salesData[0]?.totalRevenue || 0) + Number(deliveriesData[0]?.totalRevenue || 0);
+      const actualProfit = Number(salesData[0]?.totalProfit || 0) + Number(deliveriesData[0]?.totalProfit || 0);
+      const actualSalesVolume = Number(salesData[0]?.salesCount || 0) + Number(deliveriesData[0]?.deliveryCount || 0);
+      
+      return {
+        goal,
+        progress: {
+          actualRevenue,
+          actualProfit,
+          actualSalesVolume,
+          revenueProgress: goal.revenueTarget > 0 ? (actualRevenue / parseFloat(goal.revenueTarget)) * 100 : 0,
+          profitProgress: goal.profitTarget > 0 ? (actualProfit / parseFloat(goal.profitTarget)) * 100 : 0,
+          salesVolumeProgress: goal.salesVolumeTarget > 0 ? (actualSalesVolume / goal.salesVolumeTarget) * 100 : 0,
+        }
+      };
+    } catch (error) {
+      console.error('[Storage] getGoalProgress error:', error);
+      // Return safe default instead of throwing
       return { goal: null, progress: null };
     }
-    
-    // Calculate actual performance for the month
-    const monthStart = new Date(targetMonth);
-    const monthEnd = new Date(monthStart);
-    monthEnd.setMonth(monthEnd.getMonth() + 1);
-    
-    // Get sales and deliveries for the month
-    const salesData = await db.select({
-      totalRevenue: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)`,
-      totalProfit: sql<number>`COALESCE(SUM(${sales.profitAmount}), 0)`,
-      salesCount: sql<number>`COUNT(*)`
-    })
-      .from(sales)
-      .where(and(
-        eq(sales.userId, userId),
-        sql`${sales.saleDate} >= ${monthStart.toISOString().split('T')[0]}`,
-        sql`${sales.saleDate} < ${monthEnd.toISOString().split('T')[0]}`
-      ));
-    
-    const deliveriesData = await db.select({
-      totalRevenue: sql<number>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
-      totalProfit: sql<number>`COALESCE(SUM(${deliveries.profitAmount}), 0)`,
-      deliveryCount: sql<number>`COUNT(*)`
-    })
-      .from(deliveries)
-      .where(and(
-        eq(deliveries.userId, userId),
-        sql`${deliveries.deliveryDate} >= ${monthStart.toISOString().split('T')[0]}`,
-        sql`${deliveries.deliveryDate} < ${monthEnd.toISOString().split('T')[0]}`
-      ));
-    
-    const actualRevenue = (salesData[0]?.totalRevenue || 0) + (deliveriesData[0]?.totalRevenue || 0);
-    const actualProfit = (salesData[0]?.totalProfit || 0) + (deliveriesData[0]?.totalProfit || 0);
-    const actualSalesVolume = (salesData[0]?.salesCount || 0) + (deliveriesData[0]?.deliveryCount || 0);
-    
-    return {
-      goal,
-      progress: {
-        actualRevenue,
-        actualProfit,
-        actualSalesVolume,
-        revenueProgress: goal.revenueTarget > 0 ? (actualRevenue / parseFloat(goal.revenueTarget)) * 100 : 0,
-        profitProgress: goal.profitTarget > 0 ? (actualProfit / parseFloat(goal.profitTarget)) * 100 : 0,
-        salesVolumeProgress: goal.salesVolumeTarget > 0 ? (actualSalesVolume / goal.salesVolumeTarget) * 100 : 0,
-      }
-    };
   }
 
   // ========================================
