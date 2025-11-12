@@ -116,7 +116,7 @@ export default function Subscription() {
               </h3>
               <p className="text-sm text-orange-700">
                 {isOnTrial 
-                  ? `Free trial anda akan tamat dalam ${daysRemaining} hari. Upgrade sekarang untuk terus guna PocketBizz!`
+                  ? `Trial percuma anda akan tamat dalam ${daysRemaining} hari. Upgrade sekarang untuk terus guna PocketBizz!`
                   : `Langganan anda akan tamat dalam ${daysRemaining} hari. Renew sekarang untuk elak gangguan.`
                 }
               </p>
@@ -140,7 +140,7 @@ export default function Subscription() {
                   {activeSubscription 
                     ? `Active since ${format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy")}`
                     : isOnTrial 
-                      ? "14-day free trial"
+                      ? "Trial percuma 14 hari"
                       : "No active subscription"
                   }
                 </CardDescription>
