@@ -124,12 +124,24 @@ async function getUserActiveSubscription(userId: string) {
   return activeSub;
 }
 
-// Helper: Check if user's trial has expired (regardless of isOnTrial flag)
+// Helper: Check if user's trial AND grace period have expired
+// Grace period = 7 days after trial ends (total 14 + 7 = 21 days)
 function isTrialExpired(user: any): boolean {
+  // No trial date set = not on trial
   if (!user.trialEndsAt) return false;
   
-  // Trial is expired if trialEndsAt is in the past
-  return new Date(user.trialEndsAt) < new Date();
+  const now = new Date();
+  
+  // If user has active paid subscription, trial status doesn't matter
+  // (will be checked separately by getUserActiveSubscription)
+  
+  // If grace period exists, use that as the final deadline
+  if (user.graceEndsAt) {
+    return new Date(user.graceEndsAt) < now;
+  }
+  
+  // Otherwise, just check trial end date
+  return new Date(user.trialEndsAt) < now;
 }
 
 // Helper: Get user's product limit based on subscription status
