@@ -211,7 +211,7 @@ function AppContent() {
   const [location] = useLocation();
   
   // Public pages don't need sidebar
-  const publicPaths = ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/pricing", "/checkout", "/payment/callback"];
+  const publicPaths = ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/pricing", "/pricing-v2", "/checkout", "/payment/callback"];
   const isPublicPage = publicPaths.includes(location) || location.startsWith("/store/");
 
   const sidebarStyle = {
