@@ -183,6 +183,18 @@ export default function PricingV2() {
     
     return Math.round(totalPrice).toFixed(2);
   };
+
+  // Calculate per month price (after discount)
+  const calculatePerMonthPrice = (plan: SubscriptionPlan) => {
+    const totalPrice = parseFloat(calculatePrice(plan));
+    return (totalPrice / selectedDuration).toFixed(2);
+  };
+
+  // Calculate per day price (after discount)
+  const calculatePerDayPrice = (plan: SubscriptionPlan) => {
+    const perMonthPrice = parseFloat(calculatePerMonthPrice(plan));
+    return (perMonthPrice / 30).toFixed(2);
+  };
   
   const calculateSavings = (plan: SubscriptionPlan) => {
     const monthlyPrice = parseFloat(plan.monthlyPrice);
@@ -503,37 +515,52 @@ export default function PricingV2() {
                 )}
                 
                 {/* Pricing Display */}
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold font-mono">
-                      RM{price}
-                    </span>
-                    <span className="text-muted-foreground">/{selectedDuration} bulan</span>
+                <div className="mt-4 space-y-3">
+                  {/* Main Price - Per Month */}
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-bold font-mono text-primary">
+                        RM{calculatePerMonthPrice(plan)}
+                      </span>
+                      <span className="text-lg text-muted-foreground">/bulan</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Bayar {selectedDuration} bulan: RM{price}
+                    </div>
+                  </div>
+
+                  {/* Per Day Price */}
+                  <div className="bg-accent/20 rounded-lg p-3 border border-accent/30">
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-1">Hanya</div>
+                      <div className="text-2xl font-bold text-accent-foreground">
+                        RM{calculatePerDayPrice(plan)} <span className="text-sm font-normal">/hari</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Murah dari harga kopi!</div>
+                    </div>
                   </div>
                   
                   {/* Early Bird Reminder */}
                   {hasEarlyBird && (
                     <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
                       <p className="text-sm font-medium text-primary mb-1">
-                        Guna kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 50% OFF
+                        🎁 Guna kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 50% OFF
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Hanya <span className="font-semibold text-primary">
-                          RM{((parseFloat(price) * 0.5) / (selectedDuration * 30)).toFixed(2)} sehari
-                        </span> selepas diskaun
+                        Selepas diskaun: <span className="font-semibold text-primary">
+                          RM{(parseFloat(calculatePerMonthPrice(plan)) * 0.5).toFixed(2)}/bulan
+                        </span> atau <span className="font-semibold text-primary">
+                          RM{(parseFloat(calculatePerDayPrice(plan)) * 0.5).toFixed(2)}/hari
+                        </span>
                       </p>
                     </div>
                   )}
                   
                   {parseFloat(savings.amount) > 0 && (
                     <p className="text-sm text-green-600 font-semibold">
-                      ✓ Jimat RM{savings.amount} ({savings.percentage}%)
+                      ✓ Jimat RM{savings.amount} berbanding bayar bulanan
                     </p>
                   )}
-                  
-                  <p className="text-sm text-muted-foreground">
-                    RM{(parseFloat(price) / selectedDuration).toFixed(2)}/bulan
-                  </p>
                 </div>
               </CardHeader>
 
