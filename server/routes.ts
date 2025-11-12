@@ -32,6 +32,7 @@ import {
   insertCategorySchema,
   insertCustomerVoucherSchema,
   convertUnit,
+  UNIT_CONVERSIONS,
   insertUserSchema,
   insertSubscriptionPlanSchema,
   insertPricingTierSchema,
@@ -1583,6 +1584,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
           const usageUnit = item.usageUnit || stockItem.unit; // Default to stock unit if not provided
           
+          // VALIDATION: Check if unit conversion is possible
+          const from = usageUnit.toLowerCase().trim();
+          const to = stockItem.unit.toLowerCase().trim();
+          
+          if (from !== to && (!UNIT_CONVERSIONS[from] || !UNIT_CONVERSIONS[from][to])) {
+            return res.status(400).json({
+              error: `Unit conversion error: Cannot convert from "${usageUnit}" to "${stockItem.unit}" for ingredient "${stockItem.name}". Please use compatible units.`,
+              invalidRecipeItem: {
+                stockItemName: stockItem.name,
+                recipeUnit: usageUnit,
+                stockUnit: stockItem.unit,
+              }
+            });
+          }
+          
           // Convert recipe quantity to stock's purchase unit for accurate pricing
           // Example: Recipe uses 500 gram, stock purchased in kg -> convert 500g to 0.5kg
           const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);
@@ -1700,6 +1716,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (stockItem) {
             const recipeQuantity = parseFloat(item.quantityNeeded) || 0;
             const usageUnit = item.usageUnit || stockItem.unit;
+            
+            // VALIDATION: Check if unit conversion is possible
+            const from = usageUnit.toLowerCase().trim();
+            const to = stockItem.unit.toLowerCase().trim();
+            
+            if (from !== to && (!UNIT_CONVERSIONS[from] || !UNIT_CONVERSIONS[from][to])) {
+              return res.status(400).json({
+                error: `Unit conversion error: Cannot convert from "${usageUnit}" to "${stockItem.unit}" for ingredient "${stockItem.name}". Please use compatible units.`,
+                invalidRecipeItem: {
+                  stockItemName: stockItem.name,
+                  recipeUnit: usageUnit,
+                  stockUnit: stockItem.unit,
+                }
+              });
+            }
             
             // Convert recipe quantity to stock's purchase unit
             const convertedQuantity = convertUnit(recipeQuantity, usageUnit, stockItem.unit);

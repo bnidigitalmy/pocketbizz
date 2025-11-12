@@ -47,13 +47,25 @@ export function convertUnit(quantity: number, fromUnit: string, toUnit: string):
   if (from === to) return quantity;
   
   // Check if conversion exists
-  if (!UNIT_CONVERSIONS[from] || !UNIT_CONVERSIONS[from][to]) {
-    // If no conversion found, return original quantity (incompatible units)
+  if (!UNIT_CONVERSIONS[from]) {
+    console.warn(`⚠️ Unit conversion warning: Unknown source unit "${fromUnit}". Returning original quantity. This may cause incorrect cost calculations!`);
+    return quantity;
+  }
+  
+  if (!UNIT_CONVERSIONS[from][to]) {
+    console.warn(`⚠️ Unit conversion warning: Cannot convert from "${fromUnit}" to "${toUnit}". Incompatible units! Returning original quantity. This WILL cause incorrect cost calculations!`);
     return quantity;
   }
   
   // Convert: multiply by conversion factor
-  return quantity * UNIT_CONVERSIONS[from][to];
+  const converted = quantity * UNIT_CONVERSIONS[from][to];
+  
+  // Log conversion for debugging (only in development)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🔄 Unit conversion: ${quantity} ${fromUnit} → ${converted.toFixed(4)} ${toUnit}`);
+  }
+  
+  return converted;
 }
 
 // Enums
