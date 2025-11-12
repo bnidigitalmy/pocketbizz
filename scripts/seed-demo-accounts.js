@@ -12,6 +12,13 @@ const db = drizzle({ client: pool, schema });
 
 const PASSWORD = 'Bani@#243643'; // Same password for all demo accounts
 
+// Helper to generate random date in past N days
+function randomPastDate(daysAgo) {
+  const date = new Date();
+  date.setDate(date.getDate() - Math.floor(Math.random() * daysAgo));
+  return date.toISOString().split('T')[0];
+}
+
 const demoAccounts = [
   {
     email: 'trial@pocketbizz.my',
@@ -312,6 +319,357 @@ function generateSuppliers(userId) {
   ];
 }
 
+// Generate Categories
+function generateCategories(userId, planName) {
+  if (planName === 'trial' || planName === 'basic') {
+    return [
+      { userId, name: 'Kuih Tradisional' },
+      { userId, name: 'Kek' },
+      { userId, name: 'Biskut' },
+      { userId, name: 'Pastri' },
+      { userId, name: 'Frozen' },
+    ];
+  } else {
+    return [
+      { userId, name: 'Makanan' },
+      { userId, name: 'Minuman' },
+      { userId, name: 'Roti' },
+      { userId, name: 'Pastri' },
+      { userId, name: 'Kek' },
+      { userId, name: 'Kuih' },
+      { userId, name: 'Catering' },
+    ];
+  }
+}
+
+// Generate Recipe Items (link products to stock items)
+function generateRecipeItems(products, stockItems) {
+  const recipes = [];
+  
+  products.forEach(product => {
+    // Each product uses 3-5 stock items
+    const numIngredients = Math.floor(Math.random() * 3) + 3;
+    const usedStockItems = [];
+    
+    for (let i = 0; i < numIngredients && stockItems.length > 0; i++) {
+      const stockItem = stockItems[Math.floor(Math.random() * stockItems.length)];
+      
+      // Avoid duplicate ingredients in same recipe
+      if (usedStockItems.includes(stockItem.id)) continue;
+      usedStockItems.push(stockItem.id);
+      
+      const quantity = (Math.random() * 500 + 50).toFixed(2); // 50g - 550g
+      const costPerRecipe = (parseFloat(quantity) / 1000 * parseFloat(stockItem.purchasePrice)).toFixed(2);
+      
+      recipes.push({
+        productId: product.id,
+        stockItemId: stockItem.id,
+        quantityNeeded: quantity,
+        usageUnit: 'gram',
+        costPerRecipe: costPerRecipe,
+      });
+    }
+  });
+  
+  return recipes;
+}
+
+// Generate Production Batches
+function generateProductionBatches(userId, products, count) {
+  const batches = [];
+  
+  for (let i = 0; i < count; i++) {
+    const product = products[Math.floor(Math.random() * products.length)];
+    const quantity = Math.floor(Math.random() * 50) + 10; // 10-60 units
+    const daysAgo = Math.floor(Math.random() * 30);
+    const batchDate = randomPastDate(daysAgo);
+    
+    // Expiry 7-30 days from batch date
+    const expiryDays = Math.floor(Math.random() * 24) + 7;
+    const expiryDate = new Date(batchDate);
+    expiryDate.setDate(expiryDate.getDate() + expiryDays);
+    
+    const totalCost = (parseFloat(product.sellingPrice) * 0.6 * quantity).toFixed(2);
+    const remainingQty = Math.floor(quantity * (Math.random() * 0.3 + 0.1)); // 10-40% remaining
+    
+    batches.push({
+      userId,
+      productId: product.id,
+      productName: product.name,
+      quantity,
+      remainingQty: remainingQty.toString(),
+      batchDate,
+      expiryDate: expiryDate.toISOString().split('T')[0],
+      totalCost,
+      notes: `Batch production ${i + 1}`,
+    });
+  }
+  
+  return batches;
+}
+
+// Generate Sales Items
+function generateSalesItems(sales, products) {
+  const items = [];
+  
+  sales.forEach(sale => {
+    // Each sale has 1-4 items
+    const numItems = Math.floor(Math.random() * 3) + 1;
+    
+    for (let i = 0; i < numItems; i++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      const quantity = Math.floor(Math.random() * 5) + 1;
+      const unitPrice = parseFloat(product.sellingPrice);
+      const unitCost = unitPrice * 0.6; // 60% cost ratio
+      const totalPrice = (quantity * unitPrice).toFixed(2);
+      const totalCost = (quantity * unitCost).toFixed(2);
+      const profitAmount = (parseFloat(totalPrice) - parseFloat(totalCost)).toFixed(2);
+      
+      items.push({
+        saleId: sale.id,
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        unitPrice: unitPrice.toFixed(2),
+        unitCost: unitCost.toFixed(2),
+        totalPrice,
+        totalCost,
+        profitAmount,
+      });
+    }
+  });
+  
+  return items;
+}
+
+// Generate Deliveries (for PRO/PREMIUM with vendors)
+function generateDeliveries(userId, vendors, count) {
+  const deliveries = [];
+  const today = new Date();
+  
+  for (let i = 0; i < count; i++) {
+    const vendor = vendors[Math.floor(Math.random() * vendors.length)];
+    const daysAgo = Math.floor(Math.random() * 30);
+    const deliveryDate = randomPastDate(daysAgo);
+    const invoiceNum = `INV-${deliveryDate.replace(/-/g, '')}-${String(i + 1).padStart(4, '0')}`;
+    
+    const totalAmount = (Math.random() * 500 + 100).toFixed(2); // RM100-600
+    
+    deliveries.push({
+      userId,
+      invoiceNumber: invoiceNum,
+      vendorId: vendor.id,
+      vendorName: vendor.name,
+      deliveryDate,
+      status: ['delivered', 'claimed'][Math.floor(Math.random() * 2)],
+      paymentStatus: ['pending', 'partial', 'settled'][Math.floor(Math.random() * 3)],
+      totalAmount,
+    });
+  }
+  
+  return deliveries;
+}
+
+// Generate Delivery Items
+function generateDeliveryItems(deliveries, products) {
+  const items = [];
+  
+  deliveries.forEach(delivery => {
+    const numItems = Math.floor(Math.random() * 4) + 2; // 2-5 items
+    
+    for (let i = 0; i < numItems; i++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      const quantity = Math.floor(Math.random() * 20) + 5;
+      const unitPrice = parseFloat(product.sellingPrice);
+      const retailPrice = unitPrice * 1.3; // 30% markup for vendor
+      const totalPrice = (quantity * unitPrice).toFixed(2);
+      
+      items.push({
+        deliveryId: delivery.id,
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        unitPrice: unitPrice.toFixed(2),
+        retailPrice: retailPrice.toFixed(2),
+        totalPrice,
+        rejectedQty: 0,
+      });
+    }
+  });
+  
+  return items;
+}
+
+// Generate Expenses
+function generateExpenses(userId, count) {
+  const expenses = [];
+  const categories = ['bahan', 'minyak', 'upah', 'plastik', 'lain'];
+  const descriptions = {
+    bahan: ['Beli tepung', 'Stock gula', 'Telur segar', 'Mentega premium', 'Coklat chip'],
+    minyak: ['Petrol hantar', 'Minyak motor', 'Tol highway', 'Parking'],
+    upah: ['Gaji part time', 'Upah bungkus', 'Helper weekend', 'Commission agent'],
+    plastik: ['Plastik bungkus', 'Kotak kek', 'Ribbon', 'Sticker logo'],
+    lain: ['Bil elektrik', 'Bil air', 'Gas dapur', 'Repair oven', 'Beli mixer']
+  };
+  
+  for (let i = 0; i < count; i++) {
+    const category = categories[Math.floor(Math.random() * categories.length)];
+    const descList = descriptions[category];
+    const description = descList[Math.floor(Math.random() * descList.length)];
+    const amount = (Math.random() * 200 + 20).toFixed(2); // RM20-220
+    const expenseDate = randomPastDate(60); // Last 60 days
+    
+    expenses.push({
+      userId,
+      category,
+      description,
+      amount,
+      expenseDate,
+    });
+  }
+  
+  return expenses;
+}
+
+// Generate Business Profile
+function generateBusinessProfile(userId, businessName, email) {
+  return {
+    userId,
+    businessName,
+    registrationNumber: `SSM${Math.floor(Math.random() * 1000000)}`,
+    address: `${Math.floor(Math.random() * 100) + 1}, Jalan Usahawan ${Math.floor(Math.random() * 10) + 1}, Shah Alam`,
+    phone: `01${Math.floor(Math.random() * 90000000) + 10000000}`,
+    email,
+    tagline: 'Sedap, Fresh & Berkualiti',
+    bankName: 'Maybank',
+    accountNumber: `${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+    accountName: businessName,
+  };
+}
+
+// Generate Shopping Cart
+function generateShoppingCart(userId, stockItems, count) {
+  const cart = [];
+  
+  for (let i = 0; i < count; i++) {
+    const stockItem = stockItems[Math.floor(Math.random() * stockItems.length)];
+    const shortageQty = (Math.random() * 5 + 1).toFixed(2); // 1-6 units short
+    
+    cart.push({
+      userId,
+      stockItemId: stockItem.id,
+      stockItemName: stockItem.name,
+      shortageQty,
+      unit: stockItem.unit,
+      notes: `Need to restock for production`,
+    });
+  }
+  
+  return cart;
+}
+
+// Generate Purchase Orders
+function generatePurchaseOrders(userId, suppliers, stockItems, count) {
+  const orders = [];
+  const userIdShort = userId.substring(0, 8);
+  
+  for (let i = 0; i < count; i++) {
+    const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+    const poDate = randomPastDate(45);
+    const timestamp = Date.now();
+    const poNumber = `PO-${userIdShort}-${timestamp}-${String(i + 1).padStart(3, '0')}`;
+    const status = ['draft', 'sent', 'received'][Math.floor(Math.random() * 3)];
+    const totalAmount = (Math.random() * 500 + 100).toFixed(2);
+    
+    orders.push({
+      id: `po-${userIdShort}-${timestamp}-${i}`,
+      userId,
+      poNumber,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      supplierPhone: supplier.phone,
+      supplierEmail: supplier.email,
+      supplierAddress: supplier.address,
+      deliveryAddress: `${Math.floor(Math.random() * 100) + 1}, Jalan Perniagaan`,
+      status,
+      totalAmount,
+      notes: `Order dari ${supplier.name}`,
+      sentAt: status !== 'draft' ? new Date(poDate) : null,
+      receivedAt: status === 'received' ? new Date(poDate) : null,
+    });
+  }
+  
+  return orders;
+}
+
+// Generate PO Items
+function generatePOItems(purchaseOrders, stockItems) {
+  const items = [];
+  
+  purchaseOrders.forEach(po => {
+    const numItems = Math.floor(Math.random() * 4) + 2; // 2-5 items per PO
+    
+    for (let i = 0; i < numItems; i++) {
+      const stockItem = stockItems[Math.floor(Math.random() * stockItems.length)];
+      const quantity = (Math.random() * 20 + 5).toFixed(2); // 5-25 units
+      const estimatedPrice = parseFloat(stockItem.purchasePrice);
+      const actualPrice = po.status === 'received' ? (estimatedPrice * (Math.random() * 0.2 + 0.9)).toFixed(2) : null;
+      
+      items.push({
+        poId: po.id,
+        stockItemId: stockItem.id,
+        itemName: stockItem.name,
+        quantity,
+        unit: stockItem.unit,
+        estimatedPrice: estimatedPrice.toFixed(2),
+        actualPrice,
+        notes: '',
+      });
+    }
+  });
+  
+  return items;
+}
+
+// Generate Stock Movements
+function generateStockMovements(userId, stockItems, count) {
+  const movements = [];
+  
+  for (let i = 0; i < count; i++) {
+    const stockItem = stockItems[Math.floor(Math.random() * stockItems.length)];
+    const types = ['purchase', 'replenish', 'adjust', 'production_use', 'waste'];
+    const movementType = types[Math.floor(Math.random() * types.length)];
+    
+    const quantityBefore = (Math.random() * 50 + 10).toFixed(2);
+    const quantityChange = movementType === 'production_use' || movementType === 'waste' 
+      ? -(Math.random() * 10 + 1).toFixed(2)
+      : (Math.random() * 20 + 5).toFixed(2);
+    const quantityAfter = (parseFloat(quantityBefore) + parseFloat(quantityChange)).toFixed(2);
+    
+    const reasons = {
+      purchase: 'Initial stock purchase',
+      replenish: 'Stock replenishment from supplier',
+      adjust: 'Manual stock adjustment',
+      production_use: 'Used in production batch',
+      waste: 'Damaged/expired items',
+    };
+    
+    movements.push({
+      userId,
+      stockItemId: stockItem.id,
+      movementType,
+      quantityBefore,
+      quantityChange,
+      quantityAfter,
+      reason: reasons[movementType],
+      referenceType: movementType,
+      createdBy: userId,
+    });
+  }
+  
+  return movements;
+}
+
 async function seedDemoAccounts() {
   console.log('🌱 Starting demo accounts seeding...\n');
   
@@ -343,8 +701,19 @@ async function seedDemoAccounts() {
       if (existingUser) {
         console.log(`   ⚠️  User already exists, deleting old data...`);
         
-        // Delete related data
+        // Delete related data in correct order (respect foreign keys)
+        await db.delete(schema.salesItems).where(eq(schema.salesItems.saleId, existingUser.id));
         await db.delete(schema.sales).where(eq(schema.sales.userId, existingUser.id));
+        await db.delete(schema.deliveryItems).where(eq(schema.deliveryItems.deliveryId, existingUser.id));
+        await db.delete(schema.deliveries).where(eq(schema.deliveries.userId, existingUser.id));
+        await db.delete(schema.purchaseOrderItems).where(eq(schema.purchaseOrderItems.poId, existingUser.id));
+        await db.delete(schema.purchaseOrders).where(eq(schema.purchaseOrders.userId, existingUser.id));
+        await db.delete(schema.shoppingCart).where(eq(schema.shoppingCart.userId, existingUser.id));
+        await db.delete(schema.productionBatches).where(eq(schema.productionBatches.userId, existingUser.id));
+        await db.delete(schema.recipeItems).where(eq(schema.recipeItems.productId, existingUser.id));
+        await db.delete(schema.expenses).where(eq(schema.expenses.userId, existingUser.id));
+        await db.delete(schema.businessProfile).where(eq(schema.businessProfile.userId, existingUser.id));
+        await db.delete(schema.categories).where(eq(schema.categories.userId, existingUser.id));
         await db.delete(schema.customers).where(eq(schema.customers.userId, existingUser.id));
         await db.delete(schema.vendors).where(eq(schema.vendors.userId, existingUser.id));
         await db.delete(schema.suppliers).where(eq(schema.suppliers.userId, existingUser.id));
@@ -485,6 +854,83 @@ async function seedDemoAccounts() {
       const insertedSuppliers = await db.insert(schema.suppliers).values(suppliers).returning();
       console.log(`   ✓ Suppliers created: ${insertedSuppliers.length}`);
       
+      // === NEW COMPREHENSIVE DATA ===
+      
+      // Generate categories
+      const categories = generateCategories(user.id, account.plan);
+      const insertedCategories = await db.insert(schema.categories).values(categories).returning();
+      console.log(`   ✓ Categories created: ${insertedCategories.length}`);
+      
+      // Generate recipe items (link products to stock items)
+      const recipeItems = generateRecipeItems(insertedProducts, insertedStockItems);
+      if (recipeItems.length > 0) {
+        await db.insert(schema.recipeItems).values(recipeItems);
+        console.log(`   ✓ Recipe items created: ${recipeItems.length}`);
+      }
+      
+      // Generate production batches
+      const batchCount = account.plan === 'trial' ? 3 : account.plan === 'basic' ? 8 : 15;
+      const batches = generateProductionBatches(user.id, insertedProducts, batchCount);
+      const insertedBatches = await db.insert(schema.productionBatches).values(batches).returning();
+      console.log(`   ✓ Production batches created: ${insertedBatches.length}`);
+      
+      // Generate sales items (detailed line items for each sale)
+      const salesItems = generateSalesItems(insertedSales, insertedProducts);
+      await db.insert(schema.salesItems).values(salesItems);
+      console.log(`   ✓ Sales items created: ${salesItems.length}`);
+      
+      // Generate expenses
+      const expenseCount = account.plan === 'trial' ? 5 : account.plan === 'basic' ? 15 : 30;
+      const expenses = generateExpenses(user.id, expenseCount);
+      await db.insert(schema.expenses).values(expenses);
+      console.log(`   ✓ Expenses created: ${expenses.length}`);
+      
+      // Generate business profile
+      const businessProfile = generateBusinessProfile(user.id, account.businessName, account.email);
+      await db.insert(schema.businessProfile).values(businessProfile);
+      console.log(`   ✓ Business profile created`);
+      
+      // Generate stock movements (audit trail)
+      const movementCount = account.plan === 'trial' ? 10 : account.plan === 'basic' ? 25 : 50;
+      const movements = generateStockMovements(user.id, insertedStockItems, movementCount);
+      await db.insert(schema.stockMovements).values(movements);
+      console.log(`   ✓ Stock movements created: ${movements.length}`);
+      
+      // Generate shopping cart
+      const cartCount = account.plan === 'trial' ? 2 : account.plan === 'basic' ? 3 : 5;
+      const cartItems = generateShoppingCart(user.id, insertedStockItems, cartCount);
+      await db.insert(schema.shoppingCart).values(cartItems);
+      console.log(`   ✓ Shopping cart items created: ${cartItems.length}`);
+      
+      // Generate purchase orders
+      const poCount = account.plan === 'trial' ? 2 : account.plan === 'basic' ? 5 : 10;
+      const purchaseOrders = generatePurchaseOrders(user.id, insertedSuppliers, insertedStockItems, poCount);
+      const insertedPOs = await db.insert(schema.purchaseOrders).values(purchaseOrders).returning();
+      console.log(`   ✓ Purchase orders created: ${insertedPOs.length}`);
+      
+      // Generate PO items
+      const poItems = generatePOItems(insertedPOs, insertedStockItems);
+      await db.insert(schema.purchaseOrderItems).values(poItems);
+      console.log(`   ✓ PO items created: ${poItems.length}`);
+      
+      // Generate deliveries and delivery items (PRO/PREMIUM only)
+      if (account.plan === 'pro' || account.plan === 'premium') {
+        const vendors = await db.query.vendors.findMany({
+          where: eq(schema.vendors.userId, user.id),
+        });
+        
+        if (vendors.length > 0) {
+          const deliveryCount = account.plan === 'pro' ? 10 : 20;
+          const deliveries = generateDeliveries(user.id, vendors, deliveryCount);
+          const insertedDeliveries = await db.insert(schema.deliveries).values(deliveries).returning();
+          console.log(`   ✓ Deliveries created: ${insertedDeliveries.length}`);
+          
+          const deliveryItems = generateDeliveryItems(insertedDeliveries, insertedProducts);
+          await db.insert(schema.deliveryItems).values(deliveryItems);
+          console.log(`   ✓ Delivery items created: ${deliveryItems.length}`);
+        }
+      }
+      
       console.log(`   ✅ ${account.email} setup complete!`);
     }
     
@@ -493,7 +939,18 @@ async function seedDemoAccounts() {
     console.log('   Email: trial@pocketbizz.my | Password: Bani@#243643');
     console.log('   Email: basic@pocketbizz.my | Password: Bani@#243643');
     console.log('   Email: pro@pocketbizz.my | Password: Bani@#243643');
-    console.log('   Email: premium@pocketbizz.my | Password: Bani@#243643\n');
+    console.log('   Email: premium@pocketbizz.my | Password: Bani@#243643');
+    console.log('\n📊 Data generated for each account:');
+    console.log('   • Products with categories and recipes');
+    console.log('   • Stock items with movements (audit trail)');
+    console.log('   • Customers and detailed sales with line items');
+    console.log('   • Production batches (finished goods inventory)');
+    console.log('   • Expenses across all categories');
+    console.log('   • Purchase orders to suppliers');
+    console.log('   • Shopping cart with low stock items');
+    console.log('   • Business profile (letterhead info)');
+    console.log('   • Deliveries to vendors (PRO/PREMIUM)');
+    console.log('   • And more!\n');
     
   } catch (error) {
     console.error('❌ Error seeding demo accounts:', error);
