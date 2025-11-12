@@ -67,7 +67,7 @@ export default function Pricing() {
   });
 
   const earlyBirdSlotsRemaining = earlyBirdData?.remaining ?? 0;
-  const earlyBirdDiscount = 70; // 70% off early bird discount
+  const earlyBirdDiscount = 50; // 50% off early bird discount
   
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     console.log('handleSelectPlan called - userData:', userData, 'isAuthError:', isAuthError);
@@ -193,6 +193,10 @@ export default function Pricing() {
                 100 pengguna pertama dapat diskaun{" "}
                 <span className="font-bold text-primary">{earlyBirdDiscount}%</span> untuk langganan pertama
               </p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto">
+                Hanya <span className="font-semibold text-primary">RM1-RM2 sehari</span> untuk sistem pengurusan lengkap. 
+                Jimat masa, elak kesilapan, dan fokus pada perniagaan anda.
+              </p>
             </div>
             
             {/* Coupon Code Display */}
@@ -289,9 +293,14 @@ export default function Pricing() {
                   
                   {/* Early Bird Reminder */}
                   {hasEarlyBird && (
-                    <div className="bg-primary/10 rounded-lg p-2 border border-primary/20">
-                      <p className="text-sm font-medium text-primary">
-                        Guna kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 70% OFF
+                    <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                      <p className="text-sm font-medium text-primary mb-1">
+                        Guna kod <code className="font-mono font-bold">POCKETBIZZ100</code> untuk 50% OFF
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Hanya <span className="font-semibold text-primary">
+                          RM{((parseFloat(price) * 0.5) / (selectedDuration * 30)).toFixed(2)} sehari
+                        </span> selepas diskaun
                       </p>
                     </div>
                   )}
@@ -347,7 +356,7 @@ export default function Pricing() {
                     handleSelectPlan(plan);
                   }}
                 >
-                  � Bayar Sekarang {plan.displayName}
+                   Bayar Sekarang {plan.displayName}
                   <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
@@ -465,8 +474,8 @@ export default function Pricing() {
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-early-bird">
             <h3 className="font-semibold mb-2">Bagaimana cara guna tawaran early bird?</h3>
             <p className="text-sm text-muted-foreground">
-              100 pengguna pertama layak mendapat diskaun 70% dengan kod kupon <code className="font-mono font-bold bg-primary/10 px-2 py-1 rounded">POCKETBIZZ100</code>. 
-              Masukkan kod ini semasa pembayaran untuk tebus diskaun. Tawaran ini terhad untuk langganan pertama sahaja.
+              100 pengguna pertama layak mendapat diskaun 50% dengan kod kupon <code className="font-mono font-bold bg-primary/10 px-2 py-1 rounded">POCKETBIZZ100</code>. 
+              Masukkan kod ini semasa pembayaran untuk tebus diskaun. Dengan early bird, anda bayar kurang dari RM2 sehari sahaja untuk sistem pengurusan lengkap!
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border" data-testid="faq-renewal">

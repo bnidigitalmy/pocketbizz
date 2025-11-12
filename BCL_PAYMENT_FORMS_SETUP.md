@@ -139,17 +139,22 @@ https://pocketbizz-production-f02a.up.railway.app/api/webhooks/bcl
 
 **Settings**:
 - **Discount Type**: Percentage
-- **Discount Amount**: 70%
+- **Discount Amount**: 50%
 - **Usage Limit**: 100 (first 100 users only)
 - **Applies to**: All payment forms
 - **Expiry**: No expiry (quantity limited only)
 - **One time use per email**: Yes
 
+**Marketing Angle**:
+- **Daily pricing**: "Kurang dari RM2 sehari untuk sistem lengkap"
+- **Value proposition**: Jimat masa, elak kesilapan, fokus pada perniagaan
+- **Urgency**: 100 slots sahaja untuk early adopters
+
 **How it works**:
 1. User visits pricing page and sees Early Bird banner
 2. User selects a plan and redirects to BCL.my payment form
 3. User enters coupon code `POCKETBIZZ100` during checkout
-4. BCL.my validates coupon and applies 70% discount automatically
+4. BCL.my validates coupon and applies 50% discount automatically
 5. User pays discounted amount
 6. BCL.my tracks coupon usage and blocks after 100 uses
 
