@@ -551,6 +551,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get early bird status" });
     }
   });
+
+  // Get trial impact stats for current user
+  app.get("/api/user/trial-impact", requireAuth, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Calculate days used in trial
+      const trialStartDate = new Date(user.createdAt);
+      const now = new Date();
+      const daysUsed = Math.floor((now.getTime() - trialStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining = user.trialEndsAt 
+        ? Math.max(0, Math.floor((new Date(user.trialEndsAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
+
+      // Get sales data
+      const salesData = await db.query.sales.findMany({
+        where: (sales, { eq }) => eq(sales.userId, user.id),
+      });
+
+      const totalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+      const salesCount = salesData.length;
+
+      // Get products count
+      const productsData = await db.query.products.findMany({
+        where: (products, { eq }) => eq(products.userId, user.id),
+      });
+      const productsCount = productsData.length;
+
+      // Get customers count
+      const customersData = await db.query.customers.findMany({
+        where: (customers, { eq }) => eq(customers.userId, user.id),
+      });
+      const customersCount = customersData.length;
+
+      // Get stock movements (for waste prevention estimate)
+      const stockMovements = await db.query.stockMovements.findMany({
+        where: (movements, { eq }) => eq(movements.userId, user.id),
+      });
+      const stockMovementsCount = stockMovements.length;
+
+      // Estimate time saved (rough calculation)
+      // Average 2 min per sale entry, 5 min per product setup, 3 min per customer
+      const timeSavedMinutes = (salesCount * 2) + (productsCount * 5) + (customersCount * 3);
+      const timeSavedHours = Math.round(timeSavedMinutes / 60 * 10) / 10; // Round to 1 decimal
+
+      // Estimate stock waste prevented (if using FIFO/expiry tracking)
+      // Rough estimate: RM30 per expired item caught, assume 5% of stock movements are preventions
+      const wastePreventionEstimate = Math.round(stockMovementsCount * 0.05 * 30);
+
+      // Calculate potential monthly projection
+      const avgDailySales = daysUsed > 0 ? totalSales / daysUsed : 0;
+      const projectedMonthlySales = Math.round(avgDailySales * 30);
+
+      // Time saved per week (extrapolate from days used)
+      const avgDailyTimeSaved = daysUsed > 0 ? timeSavedHours / daysUsed : 0;
+      const weeklyTimeSaved = Math.round(avgDailyTimeSaved * 7 * 10) / 10;
+
+      res.json({
+        daysUsed,
+        daysRemaining,
+        isOnTrial: user.isOnTrial === 1,
+        trialEndsAt: user.trialEndsAt,
+        stats: {
+          totalSales: Math.round(totalSales),
+          salesCount,
+          productsCount,
+          customersCount,
+          stockMovementsCount,
+          timeSavedHours,
+          weeklyTimeSaved,
+          wastePreventionEstimate,
+          projectedMonthlySales,
+        }
+      });
+    } catch (error: any) {
+      console.error("Trial impact stats error:", error);
+      res.status(500).json({ message: "Failed to get trial impact stats" });
+    }
+  });
   
   // ==================== SUBSCRIPTION PLANS ====================
   

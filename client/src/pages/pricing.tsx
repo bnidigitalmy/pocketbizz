@@ -356,8 +356,7 @@ export default function Pricing() {
                     handleSelectPlan(plan);
                   }}
                 >
-                   Bayar Sekarang {plan.displayName}
-                  <ExternalLink className="ml-2 h-4 w-4" />
+                  Pilih Pakej {plan.displayName}
                 </Button>
               </CardFooter>
             </Card>
@@ -424,33 +423,45 @@ export default function Pricing() {
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Vendor & Komisyen Tracking</td>
+                    <td className="p-4">Sistem Tuntutan Vendor</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Thermal Invoice + QR Payment</td>
+                    <td className="p-4">Rangkaian Reseller</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">WhatsApp Share Invoice</td>
+                    <td className="p-4">Sistem Tempahan</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
-                    <td className="p-4">Tracking Expired/Rosak Items</td>
+                    <td className="p-4">Invois Thermal + QR</td>
                     <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
+                    <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr>
+                    <td className="p-4">Kongsi Invois WhatsApp</td>
+                    <td className="text-center p-4 text-muted-foreground">-</td>
+                    <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
+                    <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr>
+                    <td className="p-4">Multi-lokasi/Cawangan</td>
+                    <td className="text-center p-4 text-muted-foreground">-</td>
+                    <td className="text-center p-4 text-muted-foreground">-</td>
                     <td className="text-center p-4"><Check className="h-5 w-5 text-primary mx-auto" /></td>
                   </tr>
                   <tr>
                     <td className="p-4">Tahap Sokongan</td>
                     <td className="text-center p-4">Email</td>
-                    <td className="text-center p-4">Prioriti</td>
+                    <td className="text-center p-4">WhatsApp</td>
                     <td className="text-center p-4">Dedikasi</td>
                   </tr>
                 </tbody>

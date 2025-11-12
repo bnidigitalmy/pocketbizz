@@ -106,20 +106,18 @@ const pricingPlans = [
     sortOrder: 2,
     
     features: JSON.stringify([
-      'Everything in Trial',
-      '50 products, 200 customers',
-      '100 stock items',
-      'Unlimited sales',
-      'Sales analytics & trends',
-      'Low stock alerts',
-      'Expense tracking',
-      'Production planning',
-      'Delivery scheduling',
-      'Invoice generation (PDF)',
-      'Data export (Excel/CSV)',
+      'Inventory & stock management',
+      'POS & sales tracking',
+      'Production batches',
       'Purchase orders',
       'Supplier management',
-      'Email support (48h response)'
+      'Delivery scheduling',
+      'Invoice generation',
+      'Basic reports & analytics',
+      'Low stock alerts',
+      'Expense tracking',
+      'Data export (Excel/CSV)',
+      'Email support'
     ])
   },
   
@@ -163,23 +161,21 @@ const pricingPlans = [
     sortOrder: 3,
     
     features: JSON.stringify([
-      '✨ Everything in Basic',
-      '200 products, 1,000 customers',
-      '3 users (owner + 2 staff)',
-      '🔥 Vendor Claims System (photo evidence)',
-      '🔥 Vendor Stock Balance tracking',
-      '🔥 Reseller/Agent Network',
-      '🔥 Commission Tracking',
+      'Everything in Basic',
+      '3 users (multi-location access)',
+      'Vendor Claims System',
+      'Vendor stock balance tracking',
+      'Reseller/Agent network',
+      'Commission tracking',
       'Advanced analytics & forecasting',
       'Loyalty points & rewards',
       'Voucher & promo codes',
       'Booking system (pre-orders)',
-      'WhatsApp broadcast (500 msg/month)',
-      'PO templates (recurring orders)',
+      'PO templates',
       'Multi-user access',
       'Audit trail',
       'Custom branding',
-      'Priority email support (24h)'
+      'Priority support (24h)'
     ])
   },
   
@@ -223,19 +219,16 @@ const pricingPlans = [
     sortOrder: 4,
     
     features: JSON.stringify([
-      '🌟 Everything in Pro',
+    features: JSON.stringify([
       'UNLIMITED products, customers, vendors',
       '10 users (multi-location)',
-      '🔥 Public Online Store',
-      '🔥 Custom Domain',
-      '🔥 API Access',
-      '🔥 Webhook Integration',
-      'WhatsApp broadcast (5,000 msg/month)',
-      'SMS notifications (500 SMS/month)',
       'Advanced role-based permissions',
       'Branch management',
       'Consolidated reports',
       '2FA security',
+      'Vendor Claims System',
+      'Reseller Network',
+      'Booking System',
       'Dedicated account manager',
       'WhatsApp support hotline',
       'Priority support (4h response)',

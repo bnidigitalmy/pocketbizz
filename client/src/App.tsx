@@ -46,6 +46,7 @@ import Subscription from "@/pages/subscription";
 import StoreCatalog from "@/pages/store-catalog";
 import DriveSync from "@/pages/drive-sync";
 import Pricing from "@/pages/pricing";
+import PricingV2 from "@/pages/pricing-v2";
 import Checkout from "@/pages/checkout";
 import PaymentCallback from "@/pages/payment-callback";
 import PricingTiers from "@/pages/pricing-tiers";
@@ -73,6 +74,7 @@ function PublicRouter() {
         <Route path="/auth/forgot-password" component={AuthForgotPassword} />
         <Route path="/auth/reset-password" component={AuthResetPassword} />
         <Route path="/pricing" component={Pricing} />
+        <Route path="/pricing-v2" component={PricingV2} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/payment/callback" component={PaymentCallback} />
         <Route path="/store/:slug" component={PublicStore} />
