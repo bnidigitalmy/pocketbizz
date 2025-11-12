@@ -1667,8 +1667,8 @@ export class DatabaseStorage implements IStorage {
         const deliveriesData = await db.select({
           totalDeliveries: sql<number>`COUNT(*)`,
           totalAmount: sql<string>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
-          settledCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus}::text = 'settled' THEN 1 END)`,
-          pendingCount: sql<number>`COUNT(CASE WHEN ${deliveries.paymentStatus}::text = 'pending' THEN 1 END)`,
+          settledCount: sql<number>`COUNT(CASE WHEN CAST(${deliveries.paymentStatus} AS TEXT) = 'settled' THEN 1 END)`,
+          pendingCount: sql<number>`COUNT(CASE WHEN CAST(${deliveries.paymentStatus} AS TEXT) = 'pending' THEN 1 END)`,
         })
         .from(deliveries)
         .where(and(eq(deliveries.vendorId, vendor.id), eq(deliveries.userId, userId)));
@@ -1735,7 +1735,7 @@ export class DatabaseStorage implements IStorage {
         const transfersData = await db.select({
           totalTransfers: sql<number>`COUNT(*)`,
           totalAmount: sql<string>`COALESCE(SUM(${resellerTransfers.totalAmount}), 0)`,
-          paidCount: sql<number>`COUNT(CASE WHEN ${resellerTransfers.paymentStatus}::text = 'paid' THEN 1 END)`,
+          paidCount: sql<number>`COUNT(CASE WHEN CAST(${resellerTransfers.paymentStatus} AS TEXT) = 'paid' THEN 1 END)`,
         })
         .from(resellerTransfers)
         .where(and(eq(resellerTransfers.resellerId, reseller.id), eq(resellerTransfers.userId, userId)));
