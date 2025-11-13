@@ -450,7 +450,7 @@ export interface IStorage {
   rejectVendorClaim(userId: string, claimId: string, reviewNotes: string): Promise<any>;
   getClaimItems(claimId: string): Promise<any[]>;
   getClaimPhotos(claimId: string): Promise<any[]>;
-  generateClaimNumber(): Promise<string>;
+  generateClaimNumber(userId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -991,6 +991,13 @@ export class DatabaseStorage implements IStorage {
           userId,
         }));
         await tx.insert(deliveryItems).values(itemsWithDeliveryId);
+        
+        // Update vendor stock balance for each delivered item
+        for (const item of itemsWithDeliveryId) {
+          await this.updateStockBalance(delivery.vendorId, item.productId, {
+            delivered: item.quantity
+          });
+        }
       }
       
       return newDelivery;
@@ -1012,22 +1019,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDeliveryItemRejection(userId: string, itemId: string, rejectedQty: number, rejectionReason: string | null): Promise<void> {
-    // Verify ownership through deliveries table
-    const [item] = await db.select()
-      .from(deliveryItems)
-      .innerJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
-      .where(and(eq(deliveryItems.id, itemId), eq(deliveries.userId, userId)));
-    
-    if (!item) {
-      throw new Error("Delivery item not found or access denied");
-    }
-    
-    await db.update(deliveryItems)
-      .set({ 
-        rejectedQty,
-        rejectionReason 
-      })
-      .where(eq(deliveryItems.id, itemId));
+    return await db.transaction(async (tx) => {
+      // Verify ownership through deliveries table
+      const [item] = await tx.select()
+        .from(deliveryItems)
+        .innerJoin(deliveries, eq(deliveryItems.deliveryId, deliveries.id))
+        .where(and(eq(deliveryItems.id, itemId), eq(deliveries.userId, userId)));
+      
+      if (!item) {
+        throw new Error("Delivery item not found or access denied");
+      }
+      
+      await tx.update(deliveryItems)
+        .set({ 
+          rejectedQty,
+          rejectionReason 
+        })
+        .where(eq(deliveryItems.id, itemId));
+    });
   }
 
   // POS Sales
@@ -4197,13 +4206,16 @@ export class DatabaseStorage implements IStorage {
   // VENDOR CLAIMS
   // ========================================
   
-  async generateClaimNumber(): Promise<string> {
+  async generateClaimNumber(userId: string): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
     
     const count = await db.select()
       .from(vendorClaims)
-      .where(sql`DATE(${vendorClaims.createdAt}) = CURRENT_DATE`);
+      .where(and(
+        eq(vendorClaims.userId, userId),
+        sql`DATE(${vendorClaims.createdAt}) = CURRENT_DATE`
+      ));
     
     return `CLM-${dateStr}-${String(count.length + 1).padStart(4, '0')}`;
   }
@@ -4211,7 +4223,7 @@ export class DatabaseStorage implements IStorage {
   async createVendorClaim(userId: string, claimData: any, items: any[], photos: string[]): Promise<any> {
     return await db.transaction(async (tx) => {
       // Generate claim number
-      const claimNumber = await this.generateClaimNumber();
+      const claimNumber = await this.generateClaimNumber(userId);
       
       // Calculate total amount
       const totalAmount = items.reduce((sum, item) => 
