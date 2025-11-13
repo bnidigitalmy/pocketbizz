@@ -2609,11 +2609,38 @@ export class DatabaseStorage implements IStorage {
         .from(purchaseOrderItems)
         .where(eq(purchaseOrderItems.poId, id));
 
-      // Generate new PO number
-      const count = await tx.select({ count: sql<number>`count(*)` })
+      // Generate new PO number with advisory lock to prevent race conditions
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+      
+      // Use PostgreSQL advisory lock to serialize PO generation per date per user
+      const userHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const lockId = parseInt(dateStr) * 1000000 + (userHash % 1000000) + 100000;
+      
+      // Acquire advisory lock for this user+date (automatically released at transaction end)
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+      
+      // Now safely find the latest PO number for this date FOR THIS USER
+      const latestPO = await tx
+        .select()
         .from(purchaseOrders)
-        .where(eq(purchaseOrders.userId, userId));
-      const poNumber = `PO-${String(Number(count[0]?.count || 0) + 1).padStart(5, '0')}`;
+        .where(and(
+          eq(purchaseOrders.userId, userId),
+          sql`${purchaseOrders.poNumber} LIKE ${'PO-' + dateStr + '-%'}`
+        ))
+        .orderBy(desc(purchaseOrders.poNumber))
+        .limit(1);
+      
+      let sequenceNumber = 1;
+      if (latestPO.length > 0 && latestPO[0].poNumber) {
+        // Extract sequence number from PO-YYYYMMDD-XXX
+        const parts = latestPO[0].poNumber.split('-');
+        if (parts.length === 3) {
+          sequenceNumber = parseInt(parts[2]) + 1;
+        }
+      }
+      
+      const poNumber = `PO-${dateStr}-${String(sequenceNumber).padStart(3, '0')}`;
 
       // Create new PO as draft
       const [newPO] = await tx.insert(purchaseOrders).values({
@@ -2734,16 +2761,38 @@ export class DatabaseStorage implements IStorage {
         .from(poTemplateItems)
         .where(and(eq(poTemplateItems.templateId, templateId), eq(poTemplateItems.userId, userId)));
       
-      // Generate PO number
+      // Generate PO number with advisory lock to prevent race conditions
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-      const count = await tx.select().from(purchaseOrders).where(
-        and(
-          sql`DATE(${purchaseOrders.createdAt}) = CURRENT_DATE`,
-          eq(purchaseOrders.userId, userId)
-        )
-      );
-      const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
+      
+      // Use PostgreSQL advisory lock to serialize PO generation per date per user
+      const userHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const lockId = parseInt(dateStr) * 1000000 + (userHash % 1000000) + 100000;
+      
+      // Acquire advisory lock for this user+date (automatically released at transaction end)
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+      
+      // Now safely find the latest PO number for this date FOR THIS USER
+      const latestPO = await tx
+        .select()
+        .from(purchaseOrders)
+        .where(and(
+          eq(purchaseOrders.userId, userId),
+          sql`${purchaseOrders.poNumber} LIKE ${'PO-' + dateStr + '-%'}`
+        ))
+        .orderBy(desc(purchaseOrders.poNumber))
+        .limit(1);
+      
+      let sequenceNumber = 1;
+      if (latestPO.length > 0 && latestPO[0].poNumber) {
+        // Extract sequence number from PO-YYYYMMDD-XXX
+        const parts = latestPO[0].poNumber.split('-');
+        if (parts.length === 3) {
+          sequenceNumber = parseInt(parts[2]) + 1;
+        }
+      }
+      
+      const poNumber = `PO-${dateStr}-${String(sequenceNumber).padStart(3, '0')}`;
       
       // Calculate total from template items
       const totalAmount = templateItems.reduce((sum, item) => {
@@ -2804,16 +2853,38 @@ export class DatabaseStorage implements IStorage {
         and(inArray(shoppingCart.id, cartItemIds), eq(shoppingCart.userId, userId))
       );
       
-      // Generate PO number
+      // Generate PO number with advisory lock to prevent race conditions
       const today = new Date();
-      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-      const count = await tx.select().from(purchaseOrders).where(
-        and(
-          sql`DATE(${purchaseOrders.createdAt}) = CURRENT_DATE`,
-          eq(purchaseOrders.userId, userId)
-        )
-      );
-      const poNumber = `PO-${dateStr}-${String(count.length + 1).padStart(3, '0')}`;
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+      
+      // Use PostgreSQL advisory lock to serialize PO generation per date per user
+      const userHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const lockId = parseInt(dateStr) * 1000000 + (userHash % 1000000) + 100000; // +100000 to differentiate from invoice locks
+      
+      // Acquire advisory lock for this user+date (automatically released at transaction end)
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+      
+      // Now safely find the latest PO number for this date FOR THIS USER
+      const latestPO = await tx
+        .select()
+        .from(purchaseOrders)
+        .where(and(
+          eq(purchaseOrders.userId, userId),
+          sql`${purchaseOrders.poNumber} LIKE ${'PO-' + dateStr + '-%'}`
+        ))
+        .orderBy(desc(purchaseOrders.poNumber))
+        .limit(1);
+      
+      let sequenceNumber = 1;
+      if (latestPO.length > 0 && latestPO[0].poNumber) {
+        // Extract sequence number from PO-YYYYMMDD-XXX
+        const parts = latestPO[0].poNumber.split('-');
+        if (parts.length === 3) {
+          sequenceNumber = parseInt(parts[2]) + 1;
+        }
+      }
+      
+      const poNumber = `PO-${dateStr}-${String(sequenceNumber).padStart(3, '0')}`;
       
       // Auto-save supplier if new (manual input without supplierId)
       let finalSupplierId = supplierId;
