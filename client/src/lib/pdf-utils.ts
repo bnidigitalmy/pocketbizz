@@ -184,29 +184,13 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
     yPos += 5;
   }
   
-  // Jumlah Bersih (Net)
-  doc.text('Jumlah Bersih:', breakdownX, yPos);
-  doc.text(`RM ${delivery.netAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
-  yPos += 5;
-  
-  // Komisyen (Commission)
-  if (parseFloat(delivery.commission || '0') > 0) {
-    doc.setTextColor(100, 100, 200);
-    doc.text('Komisyen:', breakdownX, yPos);
-    doc.text(`- RM ${delivery.commission}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
-    doc.setTextColor(0);
-    yPos += 7;
-  } else {
-    yPos += 2;
-  }
-  
   // Separator line
   doc.setLineWidth(0.5);
   doc.setDrawColor(200, 200, 200);
   doc.line(breakdownX, yPos, breakdownX + breakdownWidth, yPos);
   yPos += 7;
   
-  // Jumlah Keseluruhan (Total Amount) - highlighted
+  // Jumlah Keseluruhan (Total Amount = Net Amount, commission already deducted from unit prices)
   doc.setFillColor(217, 97, 118, 0.1);
   doc.rect(breakdownX - 2, yPos - 6, breakdownWidth + 4, 10, 'F');
   
@@ -214,7 +198,7 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(217, 97, 118);
   doc.text('JUMLAH KESELURUHAN:', breakdownX, yPos);
-  doc.text(`RM ${delivery.claimableAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
+  doc.text(`RM ${delivery.netAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
   
   // QR Code Payment (if available)
   if (businessProfile?.paymentQrCode) {

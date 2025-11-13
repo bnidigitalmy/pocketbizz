@@ -134,16 +134,9 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
                 <div>RM {(grossTotal - totalRejected).toFixed(2)}</div>
               </div>
               
-              {hasCommission && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#2563eb' }}>
-                  <div>Komisyen Vendor:</div>
-                  <div>- RM {totalCommission.toFixed(2)}</div>
-                </div>
-              )}
-              
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
                 <div>JUMLAH KESELURUHAN:</div>
-                <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
+                <div>RM {(grossTotal - totalRejected).toFixed(2)}</div>
               </div>
             </div>
           );
@@ -153,7 +146,7 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
       {/* Notes */}
       <div style={{ borderTop: '1px dashed black', paddingTop: '8px', marginBottom: '10px' }}>
         <div style={{ fontSize: '9px', marginBottom: '5px' }}>
-          * Harga sudah termasuk tolakan komisyen
+          * Harga yang dipaparkan sudah ditolak komisyen vendor
         </div>
         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px' }}>NOTA PENTING:</div>
         <div style={{ fontSize: '9px', lineHeight: '1.4', textAlign: 'justify' }}>
