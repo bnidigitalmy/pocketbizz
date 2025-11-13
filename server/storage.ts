@@ -1597,7 +1597,8 @@ export class DatabaseStorage implements IStorage {
             totalRevenue: sql<string>`COALESCE(SUM(CAST(${salesItems.quantity} AS DECIMAL) * CAST(${salesItems.unitPrice} AS DECIMAL)), 0)`,
           })
           .from(salesItems)
-          .where(and(eq(salesItems.productId, product.id), eq(salesItems.userId, userId)));
+          .innerJoin(sales, eq(salesItems.saleId, sales.id))
+          .where(and(eq(salesItems.productId, product.id), eq(sales.userId, userId)));
 
         // Delivery data (vendors)
         const deliveryData = await db.select({
