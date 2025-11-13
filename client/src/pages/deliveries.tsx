@@ -77,14 +77,21 @@ export default function Deliveries() {
   const { 
     data,
     isLoading,
+    isError,
+    error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ["/api/deliveries"],
     queryFn: async ({ pageParam = 0 }) => {
-      const response = await fetch(`/api/deliveries?limit=20&offset=${pageParam}`);
-      if (!response.ok) throw new Error("Gagal mendapatkan data penghantaran");
+      const response = await fetch(`/api/deliveries?limit=20&offset=${pageParam}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || "Gagal mendapatkan data penghantaran");
+      }
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {
@@ -97,7 +104,7 @@ export default function Deliveries() {
   });
 
   // Flatten all pages into single array
-  const deliveries = data?.pages.flatMap(page => page.data) || [];
+  const deliveries = data?.pages?.flatMap(page => page?.data || []) || [];
 
   const { data: vendors = [] } = useQuery<any[]>({
     queryKey: ["/api/vendors"],
@@ -557,6 +564,27 @@ export default function Deliveries() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
           <p className="text-muted-foreground">Memuat data...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <h3 className="font-medium mb-1">Ralat Memuatkan Data</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              {error?.message || "Tidak dapat memuatkan data penghantaran"}
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Cuba Semula
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
