@@ -1025,16 +1025,28 @@ function PaymentClaimViewDialog({ claim, open, onOpenChange }: PaymentClaimViewD
           {/* Thermal Invoice (Hidden, for printing) */}
           <div className="hidden">
             <ClaimInvoice
-              id={`claim-invoice-${claim.id}`}
-              claimNumber={claim.claimNumber}
-              vendorName={claim.vendorName}
-              claimDate={claim.claimDate}
-              items={claim.items}
-              totalGross={claim.totalGross}
-              totalCommission={claim.totalCommission}
-              totalClaimable={claim.totalClaimable}
-              deliveryInvoiceNumbers={claim.deliveryIds.map((_, i) => `INV-${i + 1}`)} // TODO: Get actual invoice numbers
-              notes={claim.notes}
+              claim={{
+                id: claim.id,
+                vendorId: claim.vendorId,
+                vendorName: claim.vendorName,
+                claimNumber: claim.claimNumber,
+                claimDate: claim.claimDate,
+                periodFrom: claim.claimDate, // TODO: Get actual period from deliveries
+                periodTo: claim.claimDate,
+                deliveryInvoices: claim.deliveryIds.map((_, i) => `INV-${i + 1}`), // TODO: Get actual invoice numbers
+                items: claim.items.map((item) => ({
+                  productName: item.productName,
+                  deliveredQty: item.quantityDelivered,
+                  soldQty: item.quantitySold,
+                  expiredQty: item.quantityExpired,
+                  returnedQty: item.quantityReturned,
+                  unitPrice: item.unitPrice,
+                  claimAmount: item.claimableAmount,
+                })),
+                totalDelivered: claim.totalGross,
+                totalClaim: claim.totalClaimable,
+                status: claim.status,
+              }}
             />
           </div>
 

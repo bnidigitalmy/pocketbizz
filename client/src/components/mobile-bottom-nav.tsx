@@ -466,6 +466,15 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <span>Bayaran & Invoice</span>
                 </button>
               </Link>
+              <Link href="/payment-claims">
+                <button className={cn(
+                  "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
+                  location === "/payment-claims" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
+                )} onClick={() => setShowMoreMenu(false)}>
+                  <Receipt className="w-4 h-4" />
+                  <span>Tuntutan Bayaran</span>
+                </button>
+              </Link>
               
               {/* Direct Sales */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">JUALAN TERUS</div>

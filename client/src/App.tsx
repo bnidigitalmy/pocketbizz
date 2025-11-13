@@ -60,6 +60,7 @@ import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
 import Bookings from "@/pages/bookings";
 import VendorClaims from "@/pages/vendor-claims";
+import { PaymentClaimsPage } from "@/pages/payment-claims";
 import Notifications from "@/pages/notifications";
 import PublicStore from "@/pages/public-store";
 import NotFound from "@/pages/not-found";
@@ -111,6 +112,7 @@ function AppRouter() {
           <Route path="/expenses" component={Expenses} />
           <Route path="/claims" component={Claims} />
           <Route path="/vendor-claims" component={VendorClaims} />
+          <Route path="/payment-claims" component={PaymentClaimsPage} />
           <Route path="/notifications" component={Notifications} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
