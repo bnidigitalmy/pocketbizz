@@ -65,28 +65,36 @@ const passwordSchema = z.string()
 
 // Auth middleware - adds user object to request if logged in
 async function loadUser(req: Request, res: Response, next: NextFunction) {
-  if (req.session.userId) {
-    const user = await storage.getUserById(req.session.userId);
-    if (user) {
-      // Auto-disable expired trials
-      if (user.isOnTrial && user.trialEndsAt && new Date(user.trialEndsAt) < new Date()) {
-        await storage.updateUser(user.id, { isOnTrial: 0 });
-        user.isOnTrial = 0;
-      }
-      
-      // Auto-expire subscriptions that have passed their end date
-      const subscriptions = await storage.getUserSubscriptions(user.id);
-      const now = new Date();
-      
-      for (const sub of subscriptions) {
-        if (sub.status === 'active' && sub.subscriptionEndsAt && new Date(sub.subscriptionEndsAt) < now) {
-          // Mark subscription as expired
-          await storage.updateUserSubscription(sub.id, { status: 'expired' });
+  try {
+    if (req.session.userId) {
+      const user = await storage.getUserById(req.session.userId);
+      if (user) {
+        // Auto-disable expired trials
+        if (user.isOnTrial && user.trialEndsAt && new Date(user.trialEndsAt) < new Date()) {
+          await storage.updateUser(user.id, { isOnTrial: 0 });
+          user.isOnTrial = 0;
         }
+        
+        // Auto-expire subscriptions that have passed their end date
+        const subscriptions = await storage.getUserSubscriptions(user.id);
+        const now = new Date();
+        
+        for (const sub of subscriptions) {
+          if (sub.status === 'active' && sub.subscriptionEndsAt && new Date(sub.subscriptionEndsAt) < now) {
+            // Mark subscription as expired
+            await storage.updateUserSubscription(sub.id, { status: 'expired' });
+          }
+        }
+        
+        req.user = user;
+      } else {
+        // User ID exists in session but user not found in DB - destroy session
+        req.session.destroy(() => {});
       }
-      
-      req.user = user;
     }
+  } catch (error) {
+    console.error('[Auth] loadUser error:', error);
+    // Don't block request on loadUser error
   }
   next();
 }
@@ -541,8 +549,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Not authenticated" });
     }
     
+    // Touch session to keep it alive
+    req.session.touch();
+    
     const { password, ...userWithoutPassword } = req.user;
     res.json({ user: userWithoutPassword });
+  });
+  
+  // Session health check endpoint
+  app.get("/api/auth/session-check", (req, res) => {
+    const hasSession = !!req.session.userId;
+    const hasUser = !!req.user;
+    
+    res.json({
+      authenticated: hasUser,
+      sessionId: hasSession ? req.sessionID : null,
+      userId: req.session.userId || null,
+    });
   });
   
   // Get current user's early bird status

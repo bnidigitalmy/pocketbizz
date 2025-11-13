@@ -114,13 +114,17 @@ app.use(
     secret: process.env.SESSION_SECRET || "pocketbizz-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset maxAge on every response
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // 'none' required for cross-origin cookies in production
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (reduced from 30 for better security)
+      path: '/', // Explicitly set cookie path
+      domain: process.env.NODE_ENV === "production" ? '.pocketbizz.my' : undefined, // Allow subdomains in production
     },
     proxy: true, // Trust the reverse proxy for secure cookie handling
+    name: 'pocketbizz.sid', // Custom session cookie name to avoid conflicts
   })
 );
 
