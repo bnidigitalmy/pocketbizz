@@ -60,6 +60,7 @@ interface DeliveryItem {
   productId: string;
   productName: string;
   quantityDelivered: number;
+  rejectedQty?: number;
   unitPrice: string;
   unit: string;
   itemGross: string;
@@ -371,8 +372,9 @@ function PaymentClaimCreateDialog({
       const delivery = deliveries.find((d) => d.id === deliveryId);
       if (delivery) {
         delivery.items.forEach((item) => {
-          // Get net delivered (after deducting rejected during delivery)
-          const rejectedQty = parseFloat(item.itemRejected || "0");
+          // Get rejected quantity (prioritize rejectedQty field, fallback to calculating from itemRejected amount)
+          const rejectedQty = item.rejectedQty || 
+            (parseFloat(item.itemRejected || "0") / parseFloat(item.unitPrice || "1"));
           const netDelivered = item.quantityDelivered - rejectedQty;
           const unitPrice = parseFloat(item.unitPrice) || 0;
           
@@ -426,7 +428,8 @@ function PaymentClaimCreateDialog({
       d.items.some((i) => i.id === item.deliveryItemId)
     );
     const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-    const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+    const rejectedQty = deliveryItem?.rejectedQty || 
+      (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
     const netDelivered = item.quantityDelivered - rejectedQty;
     
     // Get updated values
@@ -438,7 +441,7 @@ function PaymentClaimCreateDialog({
     if (expired + returned > netDelivered) {
       toast({
         title: "Ralat",
-        description: `${item.productName}: Rosak (${expired}) + Return (${returned}) melebihi quantity bersih (${netDelivered})`,
+        description: `${item.productName}: Rosak (${expired}) + Return (${returned}) melebihi quantity bersih (${netDelivered.toFixed(2)})`,
         variant: "destructive",
       });
       return;
@@ -693,7 +696,8 @@ function PaymentClaimCreateDialog({
                       d.items.some((i) => i.id === item.deliveryItemId)
                     );
                     const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-                    const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+                    const rejectedQty = deliveryItem?.rejectedQty || 
+                      (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
                     const netDelivered = item.quantityDelivered - rejectedQty;
                     
                     return (
@@ -706,10 +710,10 @@ function PaymentClaimCreateDialog({
                                 <div className="text-sm text-muted-foreground space-y-0.5">
                                   <p>Dihantar: {item.quantityDelivered} {item.unit}</p>
                                   {rejectedQty > 0 && (
-                                    <p className="text-red-600">Tolak Rosak Penghantaran: -{rejectedQty}</p>
+                                    <p className="text-red-600">Tolak Rosak Penghantaran: {rejectedQty.toFixed(2)}</p>
                                   )}
                                   <p className="font-semibold text-blue-600">
-                                    Bersih Dihantar: {netDelivered} {item.unit}
+                                    Bersih Dihantar: {netDelivered.toFixed(2)} {item.unit}
                                   </p>
                                   <p className="text-xs">@ RM {parseFloat(item.unitPrice).toFixed(2)}</p>
                                 </div>
@@ -727,7 +731,7 @@ function PaymentClaimCreateDialog({
                                 <Label className="text-xs text-green-600 font-semibold">Terjual (Auto)</Label>
                                 <Input
                                   type="number"
-                                  value={item.quantitySold}
+                                  value={item.quantitySold.toFixed(2)}
                                   disabled
                                   className="bg-green-50 text-green-700 font-semibold"
                                 />
@@ -770,10 +774,10 @@ function PaymentClaimCreateDialog({
 
                             <div className="text-xs space-y-1">
                               <p className="text-muted-foreground">
-                                Formula: <strong className="text-blue-600">{netDelivered}</strong> (bersih) - 
+                                Formula: <strong className="text-blue-600">{netDelivered.toFixed(2)}</strong> (bersih) - 
                                 <strong className="text-orange-600"> {item.quantityExpired}</strong> (rosak) - 
                                 <strong className="text-orange-600"> {item.quantityReturned}</strong> (return) = 
-                                <strong className="text-green-600"> {item.quantitySold}</strong> (terjual)
+                                <strong className="text-green-600"> {item.quantitySold.toFixed(2)}</strong> (terjual)
                               </p>
                               <p className="text-muted-foreground">
                                 Kasar: RM {item.grossAmount} | Komisen ({commissionRate}%): -RM{" "}
@@ -841,7 +845,8 @@ function PaymentClaimCreateDialog({
                     d.items.some((i) => i.id === item.deliveryItemId)
                   );
                   const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-                  const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+                  const rejectedQty = deliveryItem?.rejectedQty || 
+                    (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
                   const netDelivered = item.quantityDelivered - rejectedQty;
                   
                   return (
@@ -851,7 +856,7 @@ function PaymentClaimCreateDialog({
                         <span className="text-green-600">RM {item.claimableAmount}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                        <p>Bersih Dihantar: {netDelivered} | Terjual: {item.quantitySold}</p>
+                        <p>Bersih Dihantar: {netDelivered.toFixed(2)} | Terjual: {item.quantitySold.toFixed(2)}</p>
                         <p>Rosak: {item.quantityExpired} | Return: {item.quantityReturned}</p>
                       </div>
                     </div>
