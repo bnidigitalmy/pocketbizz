@@ -59,7 +59,7 @@ interface DeliveryItem {
   id: string;
   productId: string;
   productName: string;
-  quantityDelivered: number;
+  quantity: number;  // Backend returns 'quantity', not 'quantityDelivered'
   rejectedQty?: number;
   unitPrice: string;
   unit: string;
@@ -383,7 +383,7 @@ function PaymentClaimCreateDialog({
             rejectedQty = parseFloat(item.itemRejected) / unitPrice;
           }
           
-          const netDelivered = item.quantityDelivered - rejectedQty;
+          const netDelivered = item.quantity - rejectedQty;  // Use 'quantity', not 'quantityDelivered'
           const unitPrice = parseFloat(item.unitPrice) || 0;
           
           // Default: assume all sold (user will update rosak/return if any)
@@ -401,7 +401,7 @@ function PaymentClaimCreateDialog({
             productId: item.productId,
             productName: item.productName,
             unit: item.unit,
-            quantityDelivered: item.quantityDelivered,
+            quantityDelivered: item.quantity,  // Store as 'quantityDelivered' in ClaimItem
             quantitySold: quantitySold,
             quantityExpired: 0,
             quantityReturned: 0,
