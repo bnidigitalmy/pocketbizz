@@ -148,10 +148,9 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
         <div style={{ fontSize: '9px', marginBottom: '5px' }}>
           * Harga yang dipaparkan sudah ditolak komisyen vendor
         </div>
-        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px' }}>NOTA PENTING:</div>
+        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px' }}>NOTA:</div>
         <div style={{ fontSize: '9px', lineHeight: '1.4', textAlign: 'justify' }}>
-          Jumlah akhir bayaran tertakluk kepada kuantiti sebenar produk yang berjaya dijual oleh kedai. 
-          Produk yang rosak atau tidak terjual akan ditolak daripada jumlah bayaran.
+          Ini adalah rekod penghantaran sahaja. Untuk tuntutan bayaran, sila rujuk dokumen "Tuntutan Bayaran" yang berasingan.
         </div>
       </div>
 
