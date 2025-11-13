@@ -4749,11 +4749,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const subscription = await storage.createUserSubscription({
           userId,
           planId,
+          planName: plan.name,
           status: 'active',
           subscriptionStartsAt: startDate,
           subscriptionEndsAt: endDate,
-          amount: (parseFloat(plan.monthlyPrice) * (durationMonths || 1)).toFixed(2),
-          currency: 'MYR',
+          totalPaid: (parseFloat(plan.monthlyPrice) * (durationMonths || 1)).toFixed(2),
+          durationMonths: durationMonths || 1,
+          paymentProvider: 'manual',
         });
         
         // Disable trial if active
