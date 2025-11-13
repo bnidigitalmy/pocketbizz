@@ -316,6 +316,49 @@ export const vendorStockBalance = pgTable("vendor_stock_balance", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Payment Claims (Vendor Payment Claims based on actual sales)
+export const paymentClaims = pgTable("payment_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  vendorName: text("vendor_name").notNull(),
+  claimNumber: text("claim_number").unique(), // Format: CLM-PAY-YYYYMMDD-XXXX
+  claimDate: date("claim_date").notNull(),
+  status: text("status").notNull().default("draft"), // draft, submitted, paid
+  totalGross: decimal("total_gross", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalCommission: decimal("total_commission", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalClaimable: decimal("total_claimable", { precision: 10, scale: 2 }).notNull().default("0"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Payment Claim Items (Individual product sales in payment claim)
+export const paymentClaimItems = pgTable("payment_claim_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").notNull().references(() => paymentClaims.id, { onDelete: "cascade" }),
+  deliveryItemId: varchar("delivery_item_id").references(() => deliveryItems.id, { onDelete: "set null" }),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  productName: text("product_name").notNull(),
+  unit: text("unit").notNull(),
+  quantityDelivered: integer("quantity_delivered").notNull(),
+  quantitySold: integer("quantity_sold").notNull(),
+  quantityExpired: integer("quantity_expired").notNull().default(0),
+  quantityReturned: integer("quantity_returned").notNull().default(0),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  commissionRate: integer("commission_rate").notNull(), // Percentage
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  grossAmount: decimal("gross_amount", { precision: 10, scale: 2 }).notNull(),
+  claimableAmount: decimal("claimable_amount", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Payment Claim Deliveries (Link between claims and deliveries)
+export const paymentClaimDeliveries = pgTable("payment_claim_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").notNull().references(() => paymentClaims.id, { onDelete: "cascade" }),
+  deliveryId: varchar("delivery_id").notNull().references(() => deliveries.id, { onDelete: "cascade" }),
+});
+
 // POS Sales Table (Transactions)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -713,6 +756,22 @@ export const insertClaimPhotoSchema = createInsertSchema(claimPhotos).omit({
   uploadedAt: true,
 });
 
+export const insertPaymentClaimSchema = createInsertSchema(paymentClaims).omit({
+  id: true,
+  userId: true,
+  claimNumber: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentClaimItemSchema = createInsertSchema(paymentClaimItems).omit({
+  id: true,
+});
+
+export const insertPaymentClaimDeliverySchema = createInsertSchema(paymentClaimDeliveries).omit({
+  id: true,
+});
+
 export const insertVendorStockBalanceSchema = createInsertSchema(vendorStockBalance).omit({
   id: true,
   updatedAt: true,
@@ -827,6 +886,15 @@ export type InsertVendorClaim = z.infer<typeof insertVendorClaimSchema>;
 
 export type ClaimItem = typeof claimItems.$inferSelect;
 export type InsertClaimItem = z.infer<typeof insertClaimItemSchema>;
+
+export type PaymentClaim = typeof paymentClaims.$inferSelect;
+export type InsertPaymentClaim = z.infer<typeof insertPaymentClaimSchema>;
+
+export type PaymentClaimItem = typeof paymentClaimItems.$inferSelect;
+export type InsertPaymentClaimItem = z.infer<typeof insertPaymentClaimItemSchema>;
+
+export type PaymentClaimDelivery = typeof paymentClaimDeliveries.$inferSelect;
+export type InsertPaymentClaimDelivery = z.infer<typeof insertPaymentClaimDeliverySchema>;
 
 export type ClaimPhoto = typeof claimPhotos.$inferSelect;
 export type InsertClaimPhoto = z.infer<typeof insertClaimPhotoSchema>;

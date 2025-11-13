@@ -126,6 +126,9 @@ import {
   vendorClaims,
   claimItems,
   claimPhotos,
+  paymentClaims,
+  paymentClaimItems,
+  paymentClaimDeliveries,
   type VendorSale,
   type InsertVendorSale,
   type VendorStockBalance,
@@ -136,6 +139,12 @@ import {
   type InsertClaimItem,
   type ClaimPhoto,
   type InsertClaimPhoto,
+  type PaymentClaim,
+  type InsertPaymentClaim,
+  type PaymentClaimItem,
+  type InsertPaymentClaimItem,
+  type PaymentClaimDelivery,
+  type InsertPaymentClaimDelivery,
   storeSettings,
   storeAnalytics,
   type StoreSettings,
@@ -144,7 +153,7 @@ import {
   type InsertStoreAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray, like } from "drizzle-orm";
 
 export interface IStorage {
   // Products
@@ -451,6 +460,15 @@ export interface IStorage {
   getClaimItems(claimId: string): Promise<any[]>;
   getClaimPhotos(claimId: string): Promise<any[]>;
   generateClaimNumber(userId: string): Promise<string>;
+  
+  // Payment Claims
+  createPaymentClaim(userId: string, claimData: any, items: any[], deliveryIds: string[]): Promise<any>;
+  getPaymentClaims(userId: string, filters?: any): Promise<any[]>;
+  getPaymentClaimById(userId: string, id: string): Promise<any | undefined>;
+  updatePaymentClaim(userId: string, claimId: string, data: any): Promise<any>;
+  deletePaymentClaim(userId: string, claimId: string): Promise<void>;
+  markPaymentClaimAsPaid(userId: string, claimId: string): Promise<any>;
+  generatePaymentClaimNumber(userId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4644,6 +4662,176 @@ export class DatabaseStorage implements IStorage {
       referrer: data?.referrer || null,
       userAgent: data?.userAgent || null,
     });
+  }
+
+  // ====== PAYMENT CLAIMS ======
+  async generatePaymentClaimNumber(userId: string): Promise<string> {
+    const today = new Date();
+    const dateStr = format(today, 'yyyyMMdd');
+    const prefix = `CLM-PAY-${dateStr}`;
+    
+    // Get latest claim number for today
+    const latestClaim = await db.select()
+      .from(paymentClaims)
+      .where(and(
+        eq(paymentClaims.userId, userId),
+        like(paymentClaims.claimNumber, `${prefix}%`)
+      ))
+      .orderBy(desc(paymentClaims.claimNumber))
+      .limit(1);
+    
+    if (latestClaim.length === 0) {
+      return `${prefix}-0001`;
+    }
+    
+    const lastNumber = parseInt(latestClaim[0].claimNumber!.split('-').pop() || '0');
+    const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+    return `${prefix}-${nextNumber}`;
+  }
+
+  async createPaymentClaim(userId: string, claimData: any, items: any[], deliveryIds: string[]): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Generate claim number
+      const claimNumber = await this.generatePaymentClaimNumber(userId);
+      
+      // Calculate totals from items
+      const totalGross = items.reduce((sum, item) => sum + parseFloat(item.grossAmount || '0'), 0);
+      const totalCommission = items.reduce((sum, item) => sum + parseFloat(item.commissionAmount || '0'), 0);
+      const totalClaimable = items.reduce((sum, item) => sum + parseFloat(item.claimableAmount || '0'), 0);
+      
+      // Create claim
+      const [claim] = await tx.insert(paymentClaims).values({
+        userId,
+        vendorId: claimData.vendorId,
+        vendorName: claimData.vendorName,
+        claimNumber,
+        claimDate: claimData.claimDate || new Date().toISOString().split('T')[0],
+        status: claimData.status || 'draft',
+        totalGross: totalGross.toFixed(2),
+        totalCommission: totalCommission.toFixed(2),
+        totalClaimable: totalClaimable.toFixed(2),
+        notes: claimData.notes || null,
+      }).returning();
+      
+      // Create claim items
+      if (items.length > 0) {
+        await tx.insert(paymentClaimItems).values(
+          items.map((item: any) => ({
+            claimId: claim.id,
+            deliveryItemId: item.deliveryItemId || null,
+            productId: item.productId,
+            productName: item.productName,
+            unit: item.unit,
+            quantityDelivered: item.quantityDelivered,
+            quantitySold: item.quantitySold,
+            quantityExpired: item.quantityExpired || 0,
+            quantityReturned: item.quantityReturned || 0,
+            unitPrice: item.unitPrice,
+            commissionRate: item.commissionRate,
+            commissionAmount: item.commissionAmount,
+            grossAmount: item.grossAmount,
+            claimableAmount: item.claimableAmount,
+          }))
+        );
+      }
+      
+      // Link deliveries
+      if (deliveryIds.length > 0) {
+        await tx.insert(paymentClaimDeliveries).values(
+          deliveryIds.map((deliveryId: string) => ({
+            claimId: claim.id,
+            deliveryId,
+          }))
+        );
+      }
+      
+      return claim;
+    });
+  }
+
+  async getPaymentClaims(userId: string, filters?: any): Promise<any[]> {
+    const conditions = [eq(paymentClaims.userId, userId)];
+    
+    if (filters?.vendorId) {
+      conditions.push(eq(paymentClaims.vendorId, filters.vendorId));
+    }
+    
+    if (filters?.status) {
+      conditions.push(eq(paymentClaims.status, filters.status));
+    }
+    
+    if (filters?.startDate) {
+      conditions.push(gte(paymentClaims.claimDate, filters.startDate));
+    }
+    
+    if (filters?.endDate) {
+      conditions.push(lte(paymentClaims.claimDate, filters.endDate));
+    }
+    
+    return await db.select()
+      .from(paymentClaims)
+      .where(and(...conditions))
+      .orderBy(desc(paymentClaims.createdAt));
+  }
+
+  async getPaymentClaimById(userId: string, id: string): Promise<any | undefined> {
+    const [claim] = await db.select()
+      .from(paymentClaims)
+      .where(and(eq(paymentClaims.id, id), eq(paymentClaims.userId, userId)));
+    
+    if (!claim) return undefined;
+    
+    // Get claim items
+    const items = await db.select()
+      .from(paymentClaimItems)
+      .where(eq(paymentClaimItems.claimId, id));
+    
+    // Get linked delivery IDs
+    const deliveryLinks = await db.select()
+      .from(paymentClaimDeliveries)
+      .where(eq(paymentClaimDeliveries.claimId, id));
+    
+    const deliveryIds = deliveryLinks.map(link => link.deliveryId);
+    
+    return { ...claim, items, deliveryIds };
+  }
+
+  async updatePaymentClaim(userId: string, claimId: string, data: any): Promise<any> {
+    const [updated] = await db.update(paymentClaims)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(paymentClaims.id, claimId), eq(paymentClaims.userId, userId)))
+      .returning();
+    
+    return updated;
+  }
+
+  async deletePaymentClaim(userId: string, claimId: string): Promise<void> {
+    // Only allow deleting draft claims
+    const claim = await this.getPaymentClaimById(userId, claimId);
+    if (!claim) {
+      throw new Error("Claim not found");
+    }
+    if (claim.status !== 'draft') {
+      throw new Error("Only draft claims can be deleted");
+    }
+    
+    await db.delete(paymentClaims)
+      .where(and(eq(paymentClaims.id, claimId), eq(paymentClaims.userId, userId)));
+  }
+
+  async markPaymentClaimAsPaid(userId: string, claimId: string): Promise<any> {
+    const [updated] = await db.update(paymentClaims)
+      .set({
+        status: 'paid',
+        updatedAt: new Date(),
+      })
+      .where(and(eq(paymentClaims.id, claimId), eq(paymentClaims.userId, userId)))
+      .returning();
+    
+    return updated;
   }
 }
 

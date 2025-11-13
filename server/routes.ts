@@ -5827,6 +5827,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===================================================================
+  // PAYMENT CLAIMS ROUTES (Vendor Payment Claims based on actual sales)
+  // ===================================================================
+  
+  // Create payment claim
+  app.post("/api/payment-claims", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { vendorId, vendorName, claimDate, status, items, deliveryIds, notes } = req.body;
+      
+      if (!vendorId || !vendorName || !items || items.length === 0) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const claim = await storage.createPaymentClaim(
+        req.user!.id,
+        { vendorId, vendorName, claimDate, status, notes },
+        items,
+        deliveryIds || []
+      );
+      
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Create payment claim error:", error);
+      res.status(500).json({ error: error.message || "Failed to create payment claim" });
+    }
+  });
+  
+  // Get payment claims
+  app.get("/api/payment-claims", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const { vendorId, status, startDate, endDate } = req.query;
+      const filters: any = {};
+      
+      if (vendorId) filters.vendorId = vendorId as string;
+      if (status) filters.status = status as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const claims = await storage.getPaymentClaims(req.user!.id, filters);
+      res.json(claims);
+    } catch (error) {
+      console.error("Get payment claims error:", error);
+      res.status(500).json({ error: "Failed to get payment claims" });
+    }
+  });
+  
+  // Get single payment claim
+  app.get("/api/payment-claims/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const claim = await storage.getPaymentClaimById(req.user!.id, req.params.id);
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      res.json(claim);
+    } catch (error) {
+      console.error("Get payment claim error:", error);
+      res.status(500).json({ error: "Failed to get payment claim" });
+    }
+  });
+  
+  // Update payment claim
+  app.patch("/api/payment-claims/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const claim = await storage.updatePaymentClaim(req.user!.id, req.params.id, req.body);
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Update payment claim error:", error);
+      res.status(500).json({ error: error.message || "Failed to update payment claim" });
+    }
+  });
+  
+  // Delete payment claim (draft only)
+  app.delete("/api/payment-claims/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      await storage.deletePaymentClaim(req.user!.id, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete payment claim error:", error);
+      res.status(400).json({ error: error.message || "Failed to delete payment claim" });
+    }
+  });
+  
+  // Mark payment claim as paid
+  app.patch("/api/payment-claims/:id/mark-paid", requireAuth, blockExpiredTrial, async (req, res) => {
+    try {
+      const claim = await storage.markPaymentClaimAsPaid(req.user!.id, req.params.id);
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Mark paid error:", error);
+      res.status(500).json({ error: error.message || "Failed to mark as paid" });
+    }
+  });
+
+  // ===================================================================
   // ONLINE STORE CATALOG ROUTES
   // ===================================================================
   
