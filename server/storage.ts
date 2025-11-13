@@ -844,14 +844,28 @@ export class DatabaseStorage implements IStorage {
     // Get items for each delivery with commission breakdown
     const deliveriesWithItems = await Promise.all(
       deliveriesToReturn.map(async (delivery) => {
-        const items = await db.select().from(deliveryItems)
-          .where(eq(deliveryItems.deliveryId, delivery.id));
+        const itemsRaw = await db.select({
+          id: deliveryItems.id,
+          deliveryId: deliveryItems.deliveryId,
+          productId: deliveryItems.productId,
+          productName: deliveryItems.productName,
+          quantity: deliveryItems.quantity,
+          unitPrice: deliveryItems.unitPrice,
+          retailPrice: deliveryItems.retailPrice,
+          totalPrice: deliveryItems.totalPrice,
+          rejectedQty: deliveryItems.rejectedQty,
+          rejectionReason: deliveryItems.rejectionReason,
+          unit: products.unit, // Get unit from products table
+        })
+        .from(deliveryItems)
+        .leftJoin(products, eq(deliveryItems.productId, products.id))
+        .where(eq(deliveryItems.deliveryId, delivery.id));
         
         // Calculate gross, rejected, net amounts
         let grossAmount = 0;
         let rejectedAmount = 0;
         
-        items.forEach(item => {
+        itemsRaw.forEach(item => {
           const itemGross = item.quantity * parseFloat(item.unitPrice);
           const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
           
@@ -864,7 +878,7 @@ export class DatabaseStorage implements IStorage {
         const claimableAmount = netAmount - commission;
         
         // Calculate per-item commission and claimable amounts
-        const itemsWithBreakdown = items.map(item => {
+        const itemsWithBreakdown = itemsRaw.map(item => {
           const itemGross = item.quantity * parseFloat(item.unitPrice);
           const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
           const itemNet = itemGross - itemRejected;
@@ -875,6 +889,7 @@ export class DatabaseStorage implements IStorage {
           
           return {
             ...item,
+            unit: item.unit || 'unit', // Fallback if product has no unit
             itemGross: itemGross.toFixed(2),
             itemRejected: itemRejected.toFixed(2),
             itemNet: itemNet.toFixed(2),
