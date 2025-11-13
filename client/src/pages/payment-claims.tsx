@@ -372,9 +372,17 @@ function PaymentClaimCreateDialog({
       const delivery = deliveries.find((d) => d.id === deliveryId);
       if (delivery) {
         delivery.items.forEach((item) => {
-          // Get rejected quantity (prioritize rejectedQty field, fallback to calculating from itemRejected amount)
-          const rejectedQty = item.rejectedQty || 
-            (parseFloat(item.itemRejected || "0") / parseFloat(item.unitPrice || "1"));
+          // Get rejected quantity - use direct field or calculate from amount
+          let rejectedQty = 0;
+          if (item.rejectedQty !== undefined && item.rejectedQty !== null) {
+            // Use direct rejectedQty field from database
+            rejectedQty = Number(item.rejectedQty) || 0;
+          } else if (item.itemRejected) {
+            // Fallback: calculate from itemRejected amount
+            const unitPrice = parseFloat(item.unitPrice) || 1;
+            rejectedQty = parseFloat(item.itemRejected) / unitPrice;
+          }
+          
           const netDelivered = item.quantityDelivered - rejectedQty;
           const unitPrice = parseFloat(item.unitPrice) || 0;
           
@@ -428,8 +436,18 @@ function PaymentClaimCreateDialog({
       d.items.some((i) => i.id === item.deliveryItemId)
     );
     const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-    const rejectedQty = deliveryItem?.rejectedQty || 
-      (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
+    
+    // Get rejected quantity
+    let rejectedQty = 0;
+    if (deliveryItem) {
+      if (deliveryItem.rejectedQty !== undefined && deliveryItem.rejectedQty !== null) {
+        rejectedQty = Number(deliveryItem.rejectedQty) || 0;
+      } else if (deliveryItem.itemRejected) {
+        const unitPrice = parseFloat(deliveryItem.unitPrice) || 1;
+        rejectedQty = parseFloat(deliveryItem.itemRejected) / unitPrice;
+      }
+    }
+    
     const netDelivered = item.quantityDelivered - rejectedQty;
     
     // Get updated values
@@ -696,8 +714,18 @@ function PaymentClaimCreateDialog({
                       d.items.some((i) => i.id === item.deliveryItemId)
                     );
                     const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-                    const rejectedQty = deliveryItem?.rejectedQty || 
-                      (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
+                    
+                    // Get rejected quantity with proper null/undefined handling
+                    let rejectedQty = 0;
+                    if (deliveryItem) {
+                      if (deliveryItem.rejectedQty !== undefined && deliveryItem.rejectedQty !== null) {
+                        rejectedQty = Number(deliveryItem.rejectedQty) || 0;
+                      } else if (deliveryItem.itemRejected) {
+                        const unitPrice = parseFloat(deliveryItem.unitPrice) || 1;
+                        rejectedQty = parseFloat(deliveryItem.itemRejected) / unitPrice;
+                      }
+                    }
+                    
                     const netDelivered = item.quantityDelivered - rejectedQty;
                     
                     return (
@@ -845,8 +873,18 @@ function PaymentClaimCreateDialog({
                     d.items.some((i) => i.id === item.deliveryItemId)
                   );
                   const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
-                  const rejectedQty = deliveryItem?.rejectedQty || 
-                    (parseFloat(deliveryItem?.itemRejected || "0") / parseFloat(deliveryItem?.unitPrice || "1"));
+                  
+                  // Get rejected quantity with proper null/undefined handling
+                  let rejectedQty = 0;
+                  if (deliveryItem) {
+                    if (deliveryItem.rejectedQty !== undefined && deliveryItem.rejectedQty !== null) {
+                      rejectedQty = Number(deliveryItem.rejectedQty) || 0;
+                    } else if (deliveryItem.itemRejected) {
+                      const unitPrice = parseFloat(deliveryItem.unitPrice) || 1;
+                      rejectedQty = parseFloat(deliveryItem.itemRejected) / unitPrice;
+                    }
+                  }
+                  
                   const netDelivered = item.quantityDelivered - rejectedQty;
                   
                   return (
