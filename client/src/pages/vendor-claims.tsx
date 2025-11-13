@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Upload, FileText, CheckCircle, XCircle, Eye, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, FileText, CheckCircle, XCircle, Eye, AlertTriangle, AlertCircle } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -36,16 +36,23 @@ export default function VendorClaimsPage({}: VendorClaimsPageProps) {
   const { toast } = useToast();
 
   // Fetch claims
-  const { data: claims = [], isLoading } = useQuery<any[]>({
+  const { data: claims = [], isLoading, isError, error } = useQuery<any[]>({
     queryKey: ["/api/vendor-claims", filterStatus, filterVendor],
     queryFn: async () => {
       let url = "/api/vendor-claims?";
       if (filterStatus !== "all") url += `status=${filterStatus}&`;
       if (filterVendor !== "all") url += `vendorId=${filterVendor}`;
       
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch claims");
-      return res.json();
+      const res = await fetch(url, {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || "Failed to fetch claims");
+      }
+      const data = await res.json();
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -133,6 +140,21 @@ export default function VendorClaimsPage({}: VendorClaimsPageProps) {
           <Card>
             <CardContent className="pt-6">
               <p className="text-center text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        ) : isError ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+              <h3 className="font-medium mb-1">Ralat Memuatkan Data</h3>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                {error instanceof Error ? error.message : "Tidak dapat memuatkan data tuntutan"}
+              </p>
+              <Button onClick={() => window.location.reload()}>
+                Cuba Semula
+              </Button>
             </CardContent>
           </Card>
         ) : claims.length === 0 ? (
