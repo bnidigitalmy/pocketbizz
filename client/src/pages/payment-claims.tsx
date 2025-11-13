@@ -371,20 +371,35 @@ function PaymentClaimCreateDialog({
       const delivery = deliveries.find((d) => d.id === deliveryId);
       if (delivery) {
         delivery.items.forEach((item) => {
+          // Get net delivered (after deducting rejected during delivery)
+          const rejectedQty = parseFloat(item.itemRejected || "0");
+          const netDelivered = item.quantityDelivered - rejectedQty;
+          const unitPrice = parseFloat(item.unitPrice) || 0;
+          
+          // Default: assume all sold (user will update rosak/return if any)
+          const quantityExpired = 0;
+          const quantityReturned = 0;
+          const quantitySold = netDelivered - quantityExpired - quantityReturned;
+          
+          // Calculate amounts
+          const grossAmount = quantitySold * unitPrice;
+          const commissionAmount = (grossAmount * commissionRate) / 100;
+          const claimableAmount = grossAmount - commissionAmount;
+          
           items.push({
             deliveryItemId: item.id,
             productId: item.productId,
             productName: item.productName,
             unit: item.unit,
             quantityDelivered: item.quantityDelivered,
-            quantitySold: item.quantityDelivered, // Default: all sold
+            quantitySold: quantitySold,
             quantityExpired: 0,
             quantityReturned: 0,
             unitPrice: item.unitPrice,
             commissionRate: commissionRate,
-            commissionAmount: "0",
-            grossAmount: "0",
-            claimableAmount: "0",
+            commissionAmount: commissionAmount.toFixed(2),
+            grossAmount: grossAmount.toFixed(2),
+            claimableAmount: claimableAmount.toFixed(2),
           });
         });
       }
@@ -401,25 +416,37 @@ function PaymentClaimCreateDialog({
 
   const updateClaimItem = (index: number, field: keyof ClaimItem, value: any) => {
     const newItems = [...claimItems];
-    newItems[index] = { ...newItems[index], [field]: value };
-
-    // Recalculate amounts
     const item = newItems[index];
-    const sold = parseInt(item.quantitySold.toString()) || 0;
-    const expired = parseInt(item.quantityExpired.toString()) || 0;
-    const returned = parseInt(item.quantityReturned.toString()) || 0;
+    
+    // Update the field
+    newItems[index] = { ...item, [field]: value };
+    
+    // Get delivery item to check rejected qty
+    const delivery = deliveries.find((d) => 
+      d.items.some((i) => i.id === item.deliveryItemId)
+    );
+    const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
+    const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+    const netDelivered = item.quantityDelivered - rejectedQty;
+    
+    // Get updated values
+    const expired = parseInt(newItems[index].quantityExpired.toString()) || 0;
+    const returned = parseInt(newItems[index].quantityReturned.toString()) || 0;
     const unitPrice = parseFloat(item.unitPrice) || 0;
 
-    // Validate quantities
-    if (sold + expired + returned > item.quantityDelivered) {
+    // Validate: expired + returned cannot exceed net delivered
+    if (expired + returned > netDelivered) {
       toast({
         title: "Ralat",
-        description: `${item.productName}: Jumlah quantity melebihi quantity dihantar`,
+        description: `${item.productName}: Rosak (${expired}) + Return (${returned}) melebihi quantity bersih (${netDelivered})`,
         variant: "destructive",
       });
       return;
     }
 
+    // Auto-calculate sold = net delivered - expired - returned
+    const sold = netDelivered - expired - returned;
+    
     // Calculate gross amount (sold items only)
     const grossAmount = sold * unitPrice;
 
@@ -429,6 +456,7 @@ function PaymentClaimCreateDialog({
     // Calculate claimable amount
     const claimableAmount = grossAmount - commissionAmount;
 
+    newItems[index].quantitySold = sold;
     newItems[index].grossAmount = grossAmount.toFixed(2);
     newItems[index].commissionAmount = commissionAmount.toFixed(2);
     newItems[index].claimableAmount = claimableAmount.toFixed(2);
@@ -437,21 +465,8 @@ function PaymentClaimCreateDialog({
   };
 
   const handlePreview = () => {
-    // Validate all quantities
-    for (const item of claimItems) {
-      const total =
-        parseInt(item.quantitySold.toString()) +
-        parseInt(item.quantityExpired.toString()) +
-        parseInt(item.quantityReturned.toString());
-      if (total > item.quantityDelivered) {
-        toast({
-          title: "Ralat",
-          description: `${item.productName}: Quantity tidak sah`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    // Validation already done in updateClaimItem
+    // Just proceed to preview
     setStep("preview");
   };
 
@@ -662,86 +677,114 @@ function PaymentClaimCreateDialog({
           {step === "quantities" && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Update jualan sebenar untuk setiap produk
-                </p>
+                <Card className="mb-4 border-blue-500 bg-blue-50">
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-blue-900">
+                      💡 <strong>Panduan:</strong> Update hanya baki akhir (Rosak & Return). 
+                      Sistem akan auto-kira jualan = Bersih Dihantar - Rosak - Return
+                    </p>
+                  </CardContent>
+                </Card>
 
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {claimItems.map((item, index) => (
-                    <Card key={index}>
-                      <CardContent className="pt-4">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-medium">{item.productName}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Dihantar: {item.quantityDelivered} {item.unit} @ RM{" "}
-                                {parseFloat(item.unitPrice).toFixed(2)}
+                  {claimItems.map((item, index) => {
+                    // Get delivery item for rejected qty info
+                    const delivery = deliveries.find((d) => 
+                      d.items.some((i) => i.id === item.deliveryItemId)
+                    );
+                    const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
+                    const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+                    const netDelivered = item.quantityDelivered - rejectedQty;
+                    
+                    return (
+                      <Card key={index}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium">{item.productName}</p>
+                                <div className="text-sm text-muted-foreground space-y-0.5">
+                                  <p>Dihantar: {item.quantityDelivered} {item.unit}</p>
+                                  {rejectedQty > 0 && (
+                                    <p className="text-red-600">Tolak Rosak Penghantaran: -{rejectedQty}</p>
+                                  )}
+                                  <p className="font-semibold text-blue-600">
+                                    Bersih Dihantar: {netDelivered} {item.unit}
+                                  </p>
+                                  <p className="text-xs">@ RM {parseFloat(item.unitPrice).toFixed(2)}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Boleh Dituntut</p>
+                                <p className="text-lg font-bold text-green-600">
+                                  RM {item.claimableAmount}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label className="text-xs text-green-600 font-semibold">Terjual (Auto)</Label>
+                                <Input
+                                  type="number"
+                                  value={item.quantitySold}
+                                  disabled
+                                  className="bg-green-50 text-green-700 font-semibold"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Rosak (Update)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={netDelivered}
+                                  value={item.quantityExpired}
+                                  onChange={(e) =>
+                                    updateClaimItem(
+                                      index,
+                                      "quantityExpired",
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="border-orange-300 focus:border-orange-500"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Return (Update)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={netDelivered}
+                                  value={item.quantityReturned}
+                                  onChange={(e) =>
+                                    updateClaimItem(
+                                      index,
+                                      "quantityReturned",
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="border-orange-300 focus:border-orange-500"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="text-xs space-y-1">
+                              <p className="text-muted-foreground">
+                                Formula: <strong className="text-blue-600">{netDelivered}</strong> (bersih) - 
+                                <strong className="text-orange-600"> {item.quantityExpired}</strong> (rosak) - 
+                                <strong className="text-orange-600"> {item.quantityReturned}</strong> (return) = 
+                                <strong className="text-green-600"> {item.quantitySold}</strong> (terjual)
+                              </p>
+                              <p className="text-muted-foreground">
+                                Kasar: RM {item.grossAmount} | Komisen ({commissionRate}%): -RM{" "}
+                                {item.commissionAmount}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Boleh Dituntut</p>
-                              <p className="text-lg font-bold text-green-600">
-                                RM {item.claimableAmount}
-                              </p>
-                            </div>
                           </div>
-
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <Label className="text-xs">Terjual</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                max={item.quantityDelivered}
-                                value={item.quantitySold}
-                                onChange={(e) =>
-                                  updateClaimItem(index, "quantitySold", parseInt(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Rosak</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                max={item.quantityDelivered}
-                                value={item.quantityExpired}
-                                onChange={(e) =>
-                                  updateClaimItem(
-                                    index,
-                                    "quantityExpired",
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Return</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                max={item.quantityDelivered}
-                                value={item.quantityReturned}
-                                onChange={(e) =>
-                                  updateClaimItem(
-                                    index,
-                                    "quantityReturned",
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="text-xs text-muted-foreground">
-                            Kasar: RM {item.grossAmount} | Komisen ({commissionRate}%): -RM{" "}
-                            {item.commissionAmount}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -793,18 +836,27 @@ function PaymentClaimCreateDialog({
               </Card>
 
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {claimItems.map((item, index) => (
-                  <div key={index} className="text-sm p-3 border rounded">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{item.productName}</span>
-                      <span className="text-green-600">RM {item.claimableAmount}</span>
+                {claimItems.map((item, index) => {
+                  const delivery = deliveries.find((d) => 
+                    d.items.some((i) => i.id === item.deliveryItemId)
+                  );
+                  const deliveryItem = delivery?.items.find((i) => i.id === item.deliveryItemId);
+                  const rejectedQty = parseFloat(deliveryItem?.itemRejected || "0");
+                  const netDelivered = item.quantityDelivered - rejectedQty;
+                  
+                  return (
+                    <div key={index} className="text-sm p-3 border rounded">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{item.productName}</span>
+                        <span className="text-green-600">RM {item.claimableAmount}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                        <p>Bersih Dihantar: {netDelivered} | Terjual: {item.quantitySold}</p>
+                        <p>Rosak: {item.quantityExpired} | Return: {item.quantityReturned}</p>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Terjual: {item.quantitySold} | Rosak: {item.quantityExpired} | Return:{" "}
-                      {item.quantityReturned}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex justify-between">
