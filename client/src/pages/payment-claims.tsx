@@ -503,7 +503,13 @@ function PaymentClaimCreateDialog({
           vendorName,
           claimDate: dateTo,
           status: "draft",
-          items: claimItems,
+          items: claimItems.map(item => ({
+            ...item,
+            quantityDelivered: Math.round(item.quantityDelivered),
+            quantitySold: Math.round(item.quantitySold),
+            quantityExpired: Math.round(item.quantityExpired),
+            quantityReturned: Math.round(item.quantityReturned),
+          })),
           deliveryIds: selectedDeliveryIds,
           notes,
         }),
@@ -537,7 +543,13 @@ function PaymentClaimCreateDialog({
           vendorName,
           claimDate: dateTo,
           status: "submitted",
-          items: claimItems,
+          items: claimItems.map(item => ({
+            ...item,
+            quantityDelivered: Math.round(item.quantityDelivered),
+            quantitySold: Math.round(item.quantitySold),
+            quantityExpired: Math.round(item.quantityExpired),
+            quantityReturned: Math.round(item.quantityReturned),
+          })),
           deliveryIds: selectedDeliveryIds,
           notes,
         }),
@@ -837,16 +849,10 @@ function PaymentClaimCreateDialog({
                   <CardTitle>Ringkasan Tuntutan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Jumlah Kasar</p>
                       <p className="text-2xl font-bold">RM {totalGross.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Komisen ({commissionRate}%)</p>
-                      <p className="text-2xl font-bold text-red-600">
-                        -RM {totalCommission.toFixed(2)}
-                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Boleh Dituntut</p>
