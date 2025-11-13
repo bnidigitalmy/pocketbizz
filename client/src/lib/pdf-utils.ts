@@ -206,14 +206,14 @@ export function generateInvoicePDF(delivery: any, businessProfile?: any) {
   doc.line(breakdownX, yPos, breakdownX + breakdownWidth, yPos);
   yPos += 7;
   
-  // Jumlah Boleh Dituntut (Claimable Amount) - highlighted
+  // Jumlah Keseluruhan (Total Amount) - highlighted
   doc.setFillColor(217, 97, 118, 0.1);
   doc.rect(breakdownX - 2, yPos - 6, breakdownWidth + 4, 10, 'F');
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(217, 97, 118);
-  doc.text('JUMLAH BOLEH DITUNTUT:', breakdownX, yPos);
+  doc.text('JUMLAH KESELURUHAN:', breakdownX, yPos);
   doc.text(`RM ${delivery.claimableAmount || '0.00'}`, breakdownX + breakdownWidth, yPos, { align: 'right' });
   
   // QR Code Payment (if available)

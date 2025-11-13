@@ -96,7 +96,7 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
               
               {hasRejected && (
                 <div style={{ fontSize: '9px', color: '#d97706', paddingLeft: '5px', marginTop: '2px' }}>
-                  <div>❌ Expired/Rosak: {item.rejectedQty} unit</div>
+                  <div>❌ Rosak: {item.rejectedQty} unit</div>
                   {item.rejectionReason && <div>Sebab: {item.rejectionReason}</div>}
                   <div>Tolakan: -RM {rejectedAmount.toFixed(2)}</div>
                   <div style={{ fontWeight: 'bold' }}>Bersih: RM {netAmount.toFixed(2)}</div>
@@ -123,9 +123,9 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
                 <div>RM {grossTotal.toFixed(2)}</div>
               </div>
               
-              {/* Always show Tolak Expired/Rosak line */}
+              {/* Always show Tolak Rosak line */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: hasRejected ? '#d97706' : '#666' }}>
-                <div>Tolak Expired/Rosak:</div>
+                <div>Tolak Rosak:</div>
                 <div>{hasRejected ? `- RM ${totalRejected.toFixed(2)}` : 'Tiada'}</div>
               </div>
               
@@ -142,7 +142,7 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
               )}
               
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', borderTop: '1px solid black', paddingTop: '5px', marginTop: '3px' }}>
-                <div>JUMLAH PERLU DIBAYAR:</div>
+                <div>JUMLAH KESELURUHAN:</div>
                 <div>RM {parseFloat(totalAmount).toFixed(2)}</div>
               </div>
             </div>
@@ -158,7 +158,7 @@ export function ThermalInvoice({ vendor, items, invoiceNumber, deliveryDate, tot
         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px' }}>NOTA PENTING:</div>
         <div style={{ fontSize: '9px', lineHeight: '1.4', textAlign: 'justify' }}>
           Jumlah akhir bayaran tertakluk kepada kuantiti sebenar produk yang berjaya dijual oleh kedai. 
-          Produk yang expired, rosak, atau tidak terjual akan ditolak dari jumlah bayaran.
+          Produk yang rosak atau tidak terjual akan ditolak daripada jumlah bayaran.
         </div>
       </div>
 

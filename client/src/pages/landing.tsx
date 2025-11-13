@@ -607,7 +607,7 @@ export default function Landing() {
               </p>
               <p className="flex items-start gap-2">
                 <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                <span>Breakdown lengkap: Kasar → Tolak Expired/Rosak → Bersih → Komisyen → Jumlah Perlu Dibayar</span>
+                <span>Breakdown lengkap: Kasar → Tolak Rosak → Bersih → Komisyen → Jumlah Keseluruhan</span>
               </p>
             </div>
           </div>

@@ -1102,7 +1102,7 @@ export default function Claims() {
                                   )}
                                   
                                   <div className="flex justify-between pt-2 border-t-2 border-primary/20">
-                                    <span className="font-bold text-base">JUMLAH PERLU DIBAYAR:</span>
+                                    <span className="font-bold text-base">JUMLAH KESELURUHAN:</span>
                                     <span className="font-mono font-bold text-lg text-primary">
                                       RM {totals.claimable.toFixed(2)}
                                     </span>
