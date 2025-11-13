@@ -4667,7 +4667,10 @@ export class DatabaseStorage implements IStorage {
   // ====== PAYMENT CLAIMS ======
   async generatePaymentClaimNumber(userId: string): Promise<string> {
     const today = new Date();
-    const dateStr = format(today, 'yyyyMMdd');
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
     const prefix = `CLM-PAY-${dateStr}`;
     
     // Get latest claim number for today
