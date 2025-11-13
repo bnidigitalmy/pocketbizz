@@ -855,7 +855,7 @@ export class DatabaseStorage implements IStorage {
           totalPrice: deliveryItems.totalPrice,
           rejectedQty: deliveryItems.rejectedQty,
           rejectionReason: deliveryItems.rejectionReason,
-          unit: products.unit, // Get unit from products table
+          unit: products.unit, // Get unit from products table (may be null if product deleted)
         })
         .from(deliveryItems)
         .leftJoin(products, eq(deliveryItems.productId, products.id))
@@ -866,8 +866,8 @@ export class DatabaseStorage implements IStorage {
         let rejectedAmount = 0;
         
         itemsRaw.forEach(item => {
-          const itemGross = item.quantity * parseFloat(item.unitPrice);
-          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+          const itemGross = (item.quantity || 0) * parseFloat(item.unitPrice || '0');
+          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice || '0');
           
           grossAmount += itemGross;
           rejectedAmount += itemRejected;
@@ -879,8 +879,8 @@ export class DatabaseStorage implements IStorage {
         
         // Calculate per-item commission and claimable amounts
         const itemsWithBreakdown = itemsRaw.map(item => {
-          const itemGross = item.quantity * parseFloat(item.unitPrice);
-          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+          const itemGross = (item.quantity || 0) * parseFloat(item.unitPrice || '0');
+          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice || '0');
           const itemNet = itemGross - itemRejected;
           
           // Proportionally distribute commission based on item's net amount
@@ -888,8 +888,17 @@ export class DatabaseStorage implements IStorage {
           const itemClaimable = itemNet - itemCommission;
           
           return {
-            ...item,
-            unit: item.unit || 'unit', // Fallback if product has no unit
+            id: item.id,
+            deliveryId: item.deliveryId,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity || 0,
+            unitPrice: item.unitPrice,
+            retailPrice: item.retailPrice,
+            totalPrice: item.totalPrice,
+            rejectedQty: item.rejectedQty || 0,
+            rejectionReason: item.rejectionReason,
+            unit: item.unit || 'unit', // Fallback if product has no unit or deleted
             itemGross: itemGross.toFixed(2),
             itemRejected: itemRejected.toFixed(2),
             itemNet: itemNet.toFixed(2),
