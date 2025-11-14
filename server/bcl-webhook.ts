@@ -146,6 +146,7 @@ export async function processBCLWebhook(req: Request, res: Response) {
     // BCL sends nested structure with main_data
     const webhookData = payload.data || payload;
     const mainData = webhookData.main_data || {};
+    const statusStr = String((mainData as any).status ?? "").toLowerCase();
 
     console.log("[BCL] Webhook received:", {
       event: payload.event,
@@ -177,7 +178,7 @@ export async function processBCLWebhook(req: Request, res: Response) {
     }
 
     // Handle payment-failed events
-    if (payload.event === "payment-failed" || (mainData.status || "").toLowerCase() === "failed") {
+    if (payload.event === "payment-failed" || statusStr === "failed") {
       console.warn("[BCL] Payment failed:", {
         email: mainData.payer_email,
         recordId: webhookData.record_id,
@@ -193,8 +194,8 @@ export async function processBCLWebhook(req: Request, res: Response) {
     }
 
     // Verify payment is actually paid (multiple representations)
-    const rawStatus = (mainData.status || "").toLowerCase();
-    const rawIsPaid = String(mainData.is_paid).toLowerCase();
+    const rawStatus = statusStr;
+    const rawIsPaid = String((mainData as any).is_paid ?? "").toLowerCase();
     const isPaid = ["1","true","paid","completed"].includes(rawIsPaid) || ["paid","completed"].includes(rawStatus);
     
     if (!isPaid && payload.event !== "form-submit") {
@@ -386,15 +387,15 @@ export async function testBCLWebhook(req: Request, res: Response) {
       main_data: {
         id: crypto.randomUUID(),
         form_id: formId || 999,
-        email: email || "test@example.com",
-        package: pkg || "basic",
-        duration: (months || 3).toString(),
-      },
-      payment_info: {
-        payment_status: "paid",
-        amount: price || 117,
+        payer_email: email || "test@example.com",
+        payer_name: "Test User",
+        payer_telephone_number: "0123456789",
+        order_number: `TEST-${Date.now()}`,
+        amount: String(price || 117),
+        is_paid: 1,
+        status: "completed",
+        payment_channel: "FPX",
         currency: "MYR",
-        transaction_id: `TXN-${Date.now()}`,
       },
     },
   };
