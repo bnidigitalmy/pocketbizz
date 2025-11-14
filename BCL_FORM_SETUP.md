@@ -1,7 +1,9 @@
-# BCL.my Form Setup Guide - PocketBizz
+# BCL.my Form Setup Guide - PocketBizz (SIMPLIFIED)
 
 ## Overview
 PocketBizz menggunakan BCL.my untuk payment processing dengan 4 form berbeza untuk setiap duration (1, 3, 6, 12 bulan).
+
+**Important:** BCL.my **TIDAK** support hidden fields atau URL parameter persistence. User akan isi email manual dalam form, dan webhook akan match by email untuk activate subscription.
 
 ## Form URLs
 1. **1 Bulan** - https://bnidigital.bcl.my/form/1-bulan (RM27)
@@ -9,40 +11,60 @@ PocketBizz menggunakan BCL.my untuk payment processing dengan 4 form berbeza unt
 3. **6 Bulan** - https://bnidigital.bcl.my/form/6-bulan (RM146)
 4. **12 Bulan** - https://bnidigital.bcl.my/form/12-bulan (RM259)
 
-## Required Form Fields
-Setiap form MESTI ada custom fields berikut (set sebagai hidden fields):
+## ✅ Form Fields (Yang Dah Ada - KEEP AS IS)
+
+Setiap form hanya perlu 3 basic fields (yang BCL dah provide by default):
 
 ### 1. Email Field
 - **Field Type:** Email
-- **Field Slug:** `email`
-- **Required:** Yes
-- **Purpose:** User identification (fallback jika user_id tak jumpa)
+- **Required:** Yes ✅
+- **Purpose:** User identification (CRITICAL - this is how webhook matches user)
+- **User akan isi:** Email yang sama dengan PocketBizz account
 
-### 2. User ID Field
+### 2. Name Field  
 - **Field Type:** Text
-- **Field Slug:** `user_id`
-- **Required:** Yes
-- **Purpose:** Primary user identification (UUID format)
-
-### 3. Name Field
-- **Field Type:** Text
-- **Field Slug:** `name`
-- **Required:** No
+- **Required:** Yes ✅
 - **Purpose:** Display name untuk receipt
 
-### 4. Package Field
-- **Field Type:** Text/Hidden
-- **Field Slug:** `package`
-- **Default Value:** `standard`
-- **Required:** Yes
-- **Purpose:** Plan identification (selalu "standard" untuk PocketBizz)
+### 3. Mobile Number Field
+- **Field Type:** Phone
+- **Required:** Yes ✅
+- **Purpose:** Contact information
 
-### 5. Duration Field
-- **Field Type:** Text/Hidden
-- **Field Slug:** `duration`
-- **Default Value:** (set mengikut form - "1", "3", "6", atau "12")
-- **Required:** Yes
-- **Purpose:** Duration verification
+## ❌ TIDAK PERLU Custom Fields
+
+Kau **TIDAK PERLU** tambah field lain:
+- ❌ user_id - Customer takkan tahu UUID mereka
+- ❌ package - Form slug (1-bulan, 3-bulan, etc.) dah identify package automatically
+- ❌ duration - Form slug dah identify duration automatically
+
+## 🔧 Form Configuration Checklist
+
+Untuk setiap 4 forms:
+
+### Form: 1-bulan (RM27)
+- [ ] Form title: "Langganan 1 Bulan"
+- [ ] Form slug: **MESTI** `1-bulan` (lowercase, no spaces)
+- [ ] Amount: RM27.00
+- [ ] Fields: Email (required), Name (required), Mobile Number (required)
+
+### Form: 3-bulan (RM79)
+- [ ] Form title: "Langganan 3 Bulan"
+- [ ] Form slug: **MESTI** `3-bulan` (lowercase, no spaces)
+- [ ] Amount: RM79.00
+- [ ] Fields: Email (required), Name (required), Mobile Number (required)
+
+### Form: 6-bulan (RM146)
+- [ ] Form title: "Langganan 6 Bulan"
+- [ ] Form slug: **MESTI** `6-bulan` (lowercase, no spaces)
+- [ ] Amount: RM146.00
+- [ ] Fields: Email (required), Name (required), Mobile Number (required)
+
+### Form: 12-bulan (RM259)
+- [ ] Form title: "Langganan 12 Bulan"
+- [ ] Form slug: **MESTI** `12-bulan` (lowercase, no spaces)
+- [ ] Amount: RM259.00
+- [ ] Fields: Email (required), Name (required), Mobile Number (required)
 
 ## Webhook Configuration
 
@@ -63,32 +85,59 @@ Enable these events dalam BCL.my:
 - ✅ `payment-success` - Triggered bila payment confirmed
 - ✅ `payment-failed` - (Optional) For tracking failed payments
 
+### Webhook Events
+Enable these events dalam BCL.my:
+- ✅ `form-submit` - Triggered bila form submitted
+- ✅ `payment-success` - Triggered bila payment confirmed
+- ✅ `payment-failed` - (Optional) For tracking failed payments
+
 ### Webhook Headers
 BCL.my akan send:
 - `x-bcl-signature` - HMAC SHA256 signature untuk verification
 
-## Form Pre-fill Flow
+## 💡 How It Works (Simplified Flow)
 
-Bila user click button dalam `/subscription` page, PocketBizz akan redirect ke BCL form dengan URL params:
+### User Journey:
+1. User **register di PocketBizz** dengan email (contoh: `ahmad@example.com`)
+2. User login → navigate to `/subscription` page
+3. User click button "3 Bulan - RM79"
+4. Browser redirect ke: `https://bnidigital.bcl.my/form/3-bulan`
+5. **User manually isi form BCL:**
+   - Email: `ahmad@example.com` ← **MESTI sama dengan PocketBizz account**
+   - Name: Ahmad bin Ali
+   - Mobile: 012-3456789
+6. User complete payment (FPX/Card/E-Wallet)
+7. BCL send webhook ke PocketBizz backend
+8. Backend:
+   - Receive webhook dengan `form_slug: "3-bulan"` dan `email: "ahmad@example.com"`
+   - Lookup user dalam database by email
+   - Create subscription (3 months, RM79)
+   - Auto-activate account
+9. User refresh `/subscription` → sees active plan ✅
 
-```
-https://bnidigital.bcl.my/form/3-bulan?email=user@example.com&user_id=uuid-here&name=Ahmad&package=standard&duration=3
-```
+### Critical Success Factor:
+**User MESTI gunakan email yang SAMA** untuk:
+- ✅ Register PocketBizz account
+- ✅ Isi BCL payment form
 
-**Important:** BCL form perlu configure untuk accept dan map URL parameters ni ke hidden fields.
+Kalau email berbeza → webhook tak jumpa user → payment tak auto-activate.
 
 ## Payment Flow
 
-1. User click duration button (1/3/6/12 bulan) dalam `/subscription` page
-2. Frontend redirect ke BCL form dengan prefilled params
-3. User complete payment
-4. BCL send webhook ke `/api/webhooks/bcl`
-5. Backend:
+1. User register/login di PocketBizz
+2. User click duration button (1/3/6/12 bulan) dalam `/subscription` page
+3. Frontend redirect ke BCL form (tanpa params, clean URL)
+4. User manually isi email (MESTI sama dengan PocketBizz account), name, phone
+5. User complete payment
+6. BCL send webhook ke `/api/webhooks/bcl`
+7. Backend:
    - Verify signature
-   - Lookup user (try `user_id` first, fallback to `email`)
+   - Extract `form_slug` (e.g., "3-bulan") → identify package & duration
+   - Extract `email` from webhook payload
+   - Lookup user dalam database by email
    - Create subscription record dalam `userSubscriptions` table
    - Auto-activate user account
-6. User dapat access full features immediately
+8. User refresh page → sees active subscription ✅
 
 ## Testing
 
@@ -105,7 +154,7 @@ Ini akan log safe snapshot of webhook payload (tanpa sensitive data):
   "paymentStatus": "paid",
   "amount": 79,
   "currency": "MYR",
-  "mainDataKeys": ["id", "form_id", "email", "user_id", "package", "duration"],
+  "mainDataKeys": ["id", "form_id", "email", "name", "phone"],
   "paymentInfoKeys": ["payment_status", "amount", "currency", "transaction_id"]
 }
 ```
@@ -125,22 +174,37 @@ curl -X POST http://localhost:5000/api/webhooks/bcl/test \
 
 ## Verification Checklist
 
-- [ ] 4 forms created dengan correct slugs (1-bulan, 3-bulan, 6-bulan, 12-bulan)
+- [ ] 4 forms created dengan correct slugs: `1-bulan`, `3-bulan`, `6-bulan`, `12-bulan` (lowercase, exact match)
 - [ ] Each form has correct amount (RM27, RM79, RM146, RM259)
-- [ ] All 5 custom fields added to each form
-- [ ] Fields set as hidden or auto-populate from URL params
-- [ ] Webhook URL configured dalam BCL dashboard
-- [ ] Webhook secret added to Railway env vars
+- [ ] Each form has 3 basic fields: Email (required), Name (required), Mobile Number (required)
+- [ ] Webhook URL configured dalam BCL dashboard: `https://your-domain.com/api/webhooks/bcl`
+- [ ] Webhook events enabled: Payment Success, Form Submit
+- [ ] Webhook secret added to Railway env vars: `BCL_WEBHOOK_SECRET`
 - [ ] Test payment completed successfully
+- [ ] User registered dengan email BEFORE payment
+- [ ] User isi SAME email dalam BCL form
 - [ ] Subscription auto-activated dalam database
-- [ ] Debug logging disabled after verification (BCL_DEBUG_LOG=0)
+- [ ] Debug logging disabled after verification (`BCL_DEBUG_LOG=0`)
 
 ## Troubleshooting
 
-### User not found
-- Ensure `user_id` field dalam BCL form matches exact UUID dari PocketBizz
-- Check `email` field sebagai fallback
-- Verify user exists dalam database sebelum payment
+### User not found error
+**Symptom:** Webhook logs show "User not found with email: xyz@example.com"
+
+**Solutions:**
+1. ✅ Verify user exists dalam database: `SELECT * FROM users WHERE email = 'xyz@example.com'`
+2. ✅ User MESTI register di PocketBizz SEBELUM buat payment
+3. ✅ Email dalam BCL form MESTI exactly sama dengan email registration (check typos, spacing, case)
+4. ✅ Email adalah case-insensitive dalam database, tapi better match exactly
+
+### Form slug not matched
+**Symptom:** Webhook logs show "Unknown form - formSlug: 3bulan"
+
+**Solutions:**
+1. ✅ Check BCL form slug setting - MESTI exact: `1-bulan`, `3-bulan`, `6-bulan`, `12-bulan`
+2. ✅ Slug format: lowercase, dengan hyphen (dash)
+3. ✅ NO spaces, NO uppercase
+4. ✅ BCL form editor → Settings → Form Slug (edit jika salah)
 
 ### Webhook signature verification failed
 - Double-check `BCL_WEBHOOK_SECRET` dalam Railway env vars

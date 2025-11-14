@@ -211,29 +211,27 @@ export async function processBCLWebhook(req: Request, res: Response) {
     const formId = payload.data.form_id;
     const formSlug = payload.data.form_slug;
     const email = payload.data.main_data.email;
-    const userId = payload.data.main_data.user_id;
-    const customPackage = payload.data.main_data.package;
-    const customDuration = payload.data.main_data.duration;
+    const name = payload.data.main_data.name;
+    const phone = payload.data.main_data.phone;
 
     console.log("[BCL] Webhook data received:", {
       formId,
       formSlug,
       email,
-      userId,
-      customPackage,
-      customDuration,
+      name,
+      phone,
     });
 
-    // Email is required as fallback
-    if (!email && !userId) {
-      console.error("[BCL] Missing both email and userId in webhook payload");
+    // Email is required (primary identifier)
+    if (!email) {
+      console.error("[BCL] Missing email in webhook payload");
       return res.status(400).json({ 
         success: false, 
-        error: "Email or userId required" 
+        error: "Email is required" 
       });
     }
 
-    // Get package config - try form slug first, then form ID, then custom fields
+    // Get package config - try form slug first, then form ID
     let packageConfig: { package: string; planName: string; months: number; price: number; } | undefined;
     
     if (formSlug && BCL_FORM_CONFIG[formSlug]) {
@@ -242,16 +240,6 @@ export async function processBCLWebhook(req: Request, res: Response) {
     } else if (BCL_PACKAGE_CONFIG[formId]) {
       packageConfig = BCL_PACKAGE_CONFIG[formId];
       console.log("[BCL] Matched form ID:", formId);
-    } else if (customPackage && customDuration) {
-      // Allow override via custom fields
-      const months = parseInt(customDuration);
-      packageConfig = {
-        package: customPackage,
-        planName: `${customPackage.charAt(0).toUpperCase() + customPackage.slice(1)} Plan`,
-        months: months,
-        price: 0, // Will validate against payment amount
-      };
-      console.log("[BCL] Using custom fields:", customPackage, months);
     }
 
     if (!packageConfig) {
@@ -264,47 +252,24 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     console.log("[BCL] Processing payment for:", {
       email,
-      userId,
       package: packageConfig.package,
       months: packageConfig.months,
       price: packageConfig.price,
     });
 
-    // Find user - prioritize userId over email for exact matching
-    let user = null;
-    
-    if (userId) {
-      console.log("[BCL] Looking up user by ID:", userId);
-      user = await db.query.users.findFirst({
-        where: eq(users.id, userId),
-      });
-      
-      if (user) {
-        console.log("[BCL] User found by ID:", user.id, user.email);
-      } else {
-        console.warn("[BCL] User ID provided but not found:", userId);
-      }
-    }
-    
-    // Fallback to email lookup if userId didn't work
-    if (!user && email) {
-      console.log("[BCL] Looking up user by email:", email);
-      user = await db.query.users.findFirst({
-        where: eq(users.email, email),
-      });
-      
-      if (user) {
-        console.log("[BCL] User found by email:", user.id, user.email);
-      }
-    }
+    // Find user by email (BCL forms don't support hidden fields, so email is primary identifier)
+    console.log("[BCL] Looking up user by email:", email);
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
 
     if (!user) {
-      console.error("[BCL] User not found - userId:", userId, "email:", email);
+      console.error("[BCL] User not found with email:", email);
       return res.status(404).json({ 
         success: false, 
-        error: "User not found. Please register first.",
-        userId,
+        error: "User not found. Please register at PocketBizz first with this email address.",
         email,
+        hint: "Make sure you register using the same email address before making payment"
       });
     }
 

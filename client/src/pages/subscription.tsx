@@ -108,7 +108,7 @@ export default function Subscription() {
     const url = BCL_SINGLE_PLAN_URL[months];
     if (!url) return;
 
-    // If not logged in (rare on this page), send to register
+    // If not logged in, redirect to register
     if (!user) {
       const params = new URLSearchParams({
         plan: 'standard',
@@ -119,15 +119,10 @@ export default function Subscription() {
       return;
     }
 
-    const params = new URLSearchParams({
-      email: user.email,
-      user_id: user.id,
-      name: user.name || '',
-      package: 'standard',
-      duration: months.toString(),
-    });
-
-    window.location.href = `${url}?${params.toString()}`;
+    // BCL.my doesn't support hidden fields or URL param persistence
+    // User will need to enter their email manually in the form
+    // Webhook will match by email to activate subscription
+    window.location.href = url;
   };
 
   return (
@@ -301,7 +296,7 @@ export default function Subscription() {
             </div>
 
             <div className="text-xs text-muted-foreground text-center w-full">
-              Bayaran diproses melalui BCL.my. Akaun anda akan aktif secara automatik selepas pembayaran berjaya.
+              Bayaran diproses melalui BCL.my. <strong>Pastikan gunakan email yang sama ({user?.email})</strong> semasa isi borang pembayaran. Akaun anda akan aktif secara automatik selepas pembayaran berjaya.
             </div>
           </CardFooter>
         )}
