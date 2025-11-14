@@ -48,6 +48,7 @@ import DriveSync from "@/pages/drive-sync";
 import PricingSimple from "@/pages/pricing-simple";
 import Checkout from "@/pages/checkout";
 import PaymentCallback from "@/pages/payment-callback";
+import PaymentSuccess from "@/pages/payment-success";
 import Resellers from "@/pages/resellers";
 import ResellerTransfer from "@/pages/reseller-transfer";
 import ResellerPerformance from "@/pages/reseller-performance";
@@ -76,6 +77,7 @@ function PublicRouter() {
         <Route path="/pricing" component={PricingSimple} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/payment/callback" component={PaymentCallback} />
+        <Route path="/payment/success" component={PaymentSuccess} />
         <Route path="/store/:slug" component={PublicStore} />
         <Route component={NotFound} />
       </Switch>
@@ -211,7 +213,7 @@ function AppContent() {
   const [location] = useLocation();
   
   // Public pages don't need sidebar
-  const publicPaths = ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/pricing", "/checkout", "/payment/callback"];
+  const publicPaths = ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/pricing", "/checkout", "/payment/callback", "/payment/success"];
   const isPublicPage = publicPaths.includes(location) || location.startsWith("/store/");
 
   const sidebarStyle = {
