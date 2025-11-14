@@ -60,6 +60,7 @@ import Bookings from "@/pages/bookings";
 import VendorClaims from "@/pages/vendor-claims";
 import { PaymentClaimsPage } from "@/pages/payment-claims";
 import Notifications from "@/pages/notifications";
+import ComingSoon from "@/pages/coming-soon";
 import PublicStore from "@/pages/public-store";
 import NotFound from "@/pages/not-found";
 
@@ -102,9 +103,9 @@ function AppRouter() {
           <Route path="/deliveries" component={Deliveries} />
           <Route path="/sales" component={Sales} />
           <Route path="/pos" component={POSPage} />
-          <Route path="/customers" component={Customers} />
-          <Route path="/broadcast" component={Broadcast} />
-          <Route path="/vouchers" component={Vouchers} />
+          <Route path="/customers" component={ComingSoon} />
+          <Route path="/broadcast" component={ComingSoon} />
+          <Route path="/vouchers" component={ComingSoon} />
           <Route path="/bookings" component={Bookings} />
           <Route path="/expenses" component={Expenses} />
           <Route path="/claims" component={Claims} />
@@ -114,11 +115,12 @@ function AppRouter() {
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
           <Route path="/subscription" component={Subscription} />
-          <Route path="/store-catalog" component={StoreCatalog} />
+          <Route path="/store-catalog" component={ComingSoon} />
           <Route path="/drive-sync" component={DriveSync} />
-          <Route path="/resellers" component={Resellers} />
-          <Route path="/reseller-transfer" component={ResellerTransfer} />
-          <Route path="/reseller-performance" component={ResellerPerformance} />
+          <Route path="/resellers" component={ComingSoon} />
+          <Route path="/reseller-transfer" component={ComingSoon} />
+          <Route path="/reseller-performance" component={ComingSoon} />
+          <Route path="/pricing-tiers" component={ComingSoon} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
           <Route component={NotFound} />
