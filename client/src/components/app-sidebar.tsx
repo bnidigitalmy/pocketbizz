@@ -34,6 +34,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -136,16 +137,19 @@ const directSalesItems = [
     title: "Pelanggan Setia",
     url: "/customers",
     icon: Award,
+    comingSoon: true,
   },
   {
     title: "Broadcast",
     url: "/broadcast",
     icon: Send,
+    comingSoon: true,
   },
   {
     title: "Voucher",
     url: "/vouchers",
     icon: Ticket,
+    comingSoon: true,
   },
 ];
 
@@ -169,21 +173,25 @@ const resellerItems = [
     title: "Senarai Ejen",
     url: "/resellers",
     icon: Users,
+    comingSoon: true,
   },
   {
     title: "Transfer Stok",
     url: "/reseller-transfer",
     icon: Truck,
+    comingSoon: true,
   },
   {
     title: "Prestasi Ejen",
     url: "/reseller-performance",
     icon: TrendingUp,
+    comingSoon: true,
   },
   {
     title: "Tetapan Tier",
     url: "/pricing-tiers",
     icon: Tag,
+    comingSoon: true,
   },
 ];
 
@@ -193,6 +201,7 @@ const systemItems = [
     title: "Katalog Kedai",
     url: "/store-catalog",
     icon: Globe,
+    comingSoon: true,
   },
   {
     title: "Google Drive",
@@ -385,6 +394,9 @@ export function AppSidebar() {
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {(item as any).comingSoon && (
+                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -431,6 +443,9 @@ export function AppSidebar() {
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {(item as any).comingSoon && (
+                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -454,6 +469,9 @@ export function AppSidebar() {
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {(item as any).comingSoon && (
+                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

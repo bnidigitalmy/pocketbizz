@@ -38,6 +38,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -485,6 +486,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Users className="w-4 h-4" />
                   <span>Pelanggan Setia</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/broadcast">
@@ -494,6 +496,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Megaphone className="w-4 h-4" />
                   <span>Broadcast</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/vouchers">
@@ -503,6 +506,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Ticket className="w-4 h-4" />
                   <span>Voucher</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               
@@ -515,6 +519,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <UserPlus className="w-4 h-4" />
                   <span>Senarai Ejen</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/reseller-transfer">
@@ -524,6 +529,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <RefreshCw className="w-4 h-4" />
                   <span>Transfer Stok</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/reseller-performance">
@@ -533,6 +539,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <TrendingUp className="w-4 h-4" />
                   <span>Prestasi Ejen</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/pricing-tiers">
@@ -542,6 +549,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Tag className="w-4 h-4" />
                   <span>Tetapan Tier</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               
@@ -584,6 +592,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                 )} onClick={() => setShowMoreMenu(false)}>
                   <Globe className="w-4 h-4" />
                   <span>Katalog Kedai</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
               <Link href="/drive-sync">

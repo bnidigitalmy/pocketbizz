@@ -789,7 +789,7 @@ export default function AdminUsers() {
                   <SelectValue placeholder="Pilih plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="trial">Trial (14 hari percuma)</SelectItem>
+                  <SelectItem value="trial">Trial (7 hari percuma)</SelectItem>
                   <SelectItem value="basic">Basic (RM29/bulan)</SelectItem>
                   <SelectItem value="pro">Pro (RM59/bulan)</SelectItem>
                   <SelectItem value="premium">Premium (RM99/bulan)</SelectItem>

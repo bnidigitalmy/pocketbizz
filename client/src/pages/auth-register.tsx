@@ -33,7 +33,7 @@ export default function AuthRegister() {
     onSuccess: () => {
       toast({
         title: "Pendaftaran berjaya!",
-        description: "Trial percuma 14 hari anda bermula sekarang.",
+        description: "Trial percuma 7 hari anda bermula sekarang.",
       });
       
       // Redirect back to pricing page if came from there
@@ -67,7 +67,7 @@ export default function AuthRegister() {
             </div>
           </div>
           <Badge className="mb-4 mx-auto">
-            Trial Percuma 14 Hari
+            Trial Percuma 7 Hari
           </Badge>
           <CardTitle className="text-2xl">Daftar PocketBizz</CardTitle>
           <CardDescription>
@@ -81,7 +81,7 @@ export default function AuthRegister() {
                 Pakej dipilih: <span className="font-semibold text-foreground capitalize">{selectedPlan}</span> ({selectedDuration} bulan)
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Daftar sekarang untuk cuba trial 14 hari, kemudian boleh upgrade ke pakej pilihan anda
+                Daftar sekarang untuk cuba trial percuma 7 hari, kemudian boleh upgrade ke pakej pilihan anda
               </p>
             </div>
           )}

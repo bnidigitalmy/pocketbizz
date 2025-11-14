@@ -140,7 +140,7 @@ export default function Subscription() {
                   {activeSubscription 
                     ? `Active since ${format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy")}`
                     : isOnTrial 
-                      ? "Trial percuma 14 hari"
+                      ? "Trial percuma 7 hari"
                       : "No active subscription"
                   }
                 </CardDescription>

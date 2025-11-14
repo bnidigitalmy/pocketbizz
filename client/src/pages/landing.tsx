@@ -168,7 +168,7 @@ export default function Landing() {
   const faqs = [
     {
       q: "Berapa lama trial percuma?",
-      a: "Trial percuma selama 14 hari dengan semua features (had 10 produk sahaja). Tiada credit card diperlukan untuk trial!",
+      a: "Trial percuma selama 7 hari dengan semua features (had 10 produk sahaja). Tiada credit card diperlukan untuk trial!",
     },
     {
       q: "Boleh cancel bila-bila masa?",
@@ -273,7 +273,7 @@ export default function Landing() {
                 onClick={() => navigate("/auth/register")}
                 data-testid="button-start-trial"
               >
-                Mula Percuma 14 Hari
+                Mula Percuma 7 Hari
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
@@ -877,7 +877,7 @@ export default function Landing() {
               className="text-base sm:text-lg px-8 font-semibold"
               onClick={() => navigate("/auth/register")}
             >
-              Cuba Percuma 14 Hari
+              Cuba Percuma 7 Hari
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <p className="text-sm text-muted-foreground mt-4">
@@ -1064,7 +1064,7 @@ export default function Landing() {
             </h2>
             <p className="text-base sm:text-lg md:text-xl opacity-90 leading-relaxed">
               Join ribuan peniaga Malaysia yang dah guna PocketBizz untuk uruskan perniagaan mereka.
-              Trial percuma 14 hari. Tiada credit card diperlukan.
+              Trial percuma 7 hari. Tiada credit card diperlukan.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <Button

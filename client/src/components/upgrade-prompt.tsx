@@ -94,7 +94,7 @@ export function UpgradePrompt() {
           <AlertDialogDescription className="space-y-3 text-base">
             {isTrialExpired ? (
               <p className="font-medium text-base">
-                Tempoh percubaan 14 hari anda telah tamat. Pilih plan berdasarkan data yang anda dah masukkan:
+                Tempoh percubaan 7 hari anda telah tamat. Pilih plan berdasarkan data yang anda dah masukkan:
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
