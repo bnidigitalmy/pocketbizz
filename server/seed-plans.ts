@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { subscriptionPlans } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Seed subscription plan - Single simple pricing
@@ -36,22 +37,33 @@ async function seedSubscriptionPlans() {
   };
 
   try {
-    // Clear existing plans
-    await db.delete(subscriptionPlans);
-    console.log("✅ Cleared existing subscription plans");
-
-    // Insert single plan
-    await db.insert(subscriptionPlans).values(plan);
-    console.log(`✅ Inserted ${plan.displayName} plan`);
+    // Check if plan already exists (safer than deleting)
+    const existingPlans = await db.select().from(subscriptionPlans);
+    
+    if (existingPlans.length > 0) {
+      console.log("⚠️  Plan already exists, updating instead...");
+      // Update first plan to match our launch config
+      await db.update(subscriptionPlans)
+        .set({
+          ...plan,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscriptionPlans.id, existingPlans[0].id));
+      console.log(`✅ Updated ${plan.displayName} plan`);
+    } else {
+      // Insert new plan
+      await db.insert(subscriptionPlans).values(plan);
+      console.log(`✅ Inserted ${plan.displayName} plan`);
+    }
 
     console.log("\n🎉 Successfully seeded subscription plan!");
     console.log("\n📊 Pricing:");
     console.log("💰 RM27/bulan (RM0.90/hari)");
     console.log("\n💳 Payment Options:");
-    console.log("1 bulan  : RM27.00");
-    console.log("3 bulan  : RM79.00 (save RM2)");
-    console.log("6 bulan  : RM146.00 (save 10% = RM16)");
-    console.log("12 bulan : RM260.00 (save 20% = RM64)");
+    console.log("1 bulan  : RM27");
+    console.log("3 bulan  : RM79 (diskaun 3% dibundarkan)");
+    console.log("6 bulan  : RM146 (diskaun 10% dibundarkan)");
+    console.log("12 bulan : RM259 (diskaun 20% dibundarkan)");
     console.log("\n🎁 7 hari percubaan PERCUMA");
     console.log("✨ Unlimited products & users");
     console.log("🚀 Semua features included");

@@ -13,6 +13,9 @@ import {
   requireVendorClaims,
   requireResellerNetwork,
   requireAdvancedAnalytics,
+  requireLoyaltyPoints,
+  requireWhatsappBroadcast,
+  requirePublicStore,
   getUserPlan,
 } from "./feature-gating";
 import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens } from "@shared/schema";
@@ -133,23 +136,10 @@ async function getUserActiveSubscription(userId: string) {
   return activeSub;
 }
 
-// Helper: Check if user's trial AND grace period have expired
-// Grace period = 7 days after trial ends (total 14 + 7 = 21 days)
+// Helper: Check if user's trial has expired (no grace period)
 function isTrialExpired(user: any): boolean {
-  // No trial date set = not on trial
   if (!user.trialEndsAt) return false;
-  
   const now = new Date();
-  
-  // If user has active paid subscription, trial status doesn't matter
-  // (will be checked separately by getUserActiveSubscription)
-  
-  // If grace period exists, use that as the final deadline
-  if (user.graceEndsAt) {
-    return new Date(user.graceEndsAt) < now;
-  }
-  
-  // Otherwise, just check trial end date
   return new Date(user.trialEndsAt) < now;
 }
 
@@ -309,10 +299,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 7);
       
-      // Calculate grace period end date (3 days after trial ends)
-      const graceEndsAt = new Date(trialEndsAt);
-      graceEndsAt.setDate(graceEndsAt.getDate() + 3);
-      
       // Create user with auto-activated 7-day trial
       const user = await storage.createUser({
         ...body,
@@ -320,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin: 0, // Explicitly prevent privilege escalation
         isOnTrial: 1, // Auto-activate 7-day trial
         trialEndsAt,
-        graceEndsAt, // 3 days grace period after trial
+        // No grace period; strict 7-day trial
         toyyibpayUserCode: null,
       });
       
@@ -646,10 +632,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== SUBSCRIPTION PLANS ====================
   
   // Get all active subscription plans
-  app.get("/api/subscription-plans", async (req, res) => {
+  app.get("/api/subscription-plans", async (_req, res) => {
     try {
+      // Fetch actual active plans from DB and adapt to our single-plan launch display
       const plans = await storage.getSubscriptionPlans();
-      res.json(plans);
+      if (!plans || plans.length === 0) {
+        return res.json([]);
+      }
+      const p = plans[0];
+      const singlePlan = [{
+        // Use real DB id for consistency with billing endpoints
+        id: p.id,
+        name: p.name,
+        displayName: 'PocketBizz Plan',
+        description: 'RM27/bulan (RM0.90 sehari). Trial 7 hari. Diskaun: 3% (3 bulan), 10% (6 bulan), 20% (12 bulan). Jumlah dibundarkan tanpa sen.',
+        monthlyPrice: '27.00',
+        annualPrice: null,
+        currency: 'MYR',
+        features: JSON.stringify([]),
+        // Conservative launch quotas for UI display (server-side gating still authoritative)
+        maxUsers: 1,
+        maxProducts: 100,
+        maxCustomers: 200,
+        maxStockItems: 100,
+        maxVendors: 5,
+        maxResellers: 0,
+        maxDeliveriesPerMonth: 50,
+        storageQuotaMB: 500,
+        whatsappMessagesPerMonth: 0,
+        smsPerMonth: 0,
+        hasVendorClaims: 1,
+        hasResellerNetwork: 0,
+        hasAdvancedAnalytics: 1,
+        hasLoyaltyPoints: 0,
+        hasBookings: 0,
+        hasWhatsappBroadcast: 0,
+        hasSmsBroadcast: 0,
+        hasPublicStore: 0,
+        hasApiAccess: 0,
+        hasCustomDomain: 0,
+        hasPrioritySupport: 0,
+        hasAccountManager: 0,
+        discount6Months: '10.00',
+        discount12Months: '20.00',
+        isActive: 1,
+        sortOrder: 0,
+        createdAt: p.createdAt || new Date(),
+      }];
+      res.json(singlePlan);
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to fetch plans" });
     }
@@ -759,8 +789,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const schema = z.object({
         planId: z.string(),
-        durationMonths: z.number().refine(val => [3, 6, 12].includes(val), {
-          message: "Duration must be 3, 6, or 12 months"
+        durationMonths: z.number().refine(val => [1, 3, 6, 12].includes(val), {
+          message: "Duration must be 1, 3, 6, or 12 months"
         }),
         promoCode: z.string().optional(),
       });
@@ -777,17 +807,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("[CREATE-BILL] Plan found:", plan.displayName);
       
-      // Calculate base price for duration
-      const monthlyPrice = parseFloat(plan.monthlyPrice);
+      // Calculate base price for duration (launch pricing: RM27/month)
+      const monthlyPrice = 27;
       let totalPrice = monthlyPrice * durationMonths;
       
-      // Apply duration discount
-      if (durationMonths === 6) {
-        const discount = parseFloat(plan.discount6Months || "10");
-        totalPrice = totalPrice * (1 - discount / 100);
+      // Apply duration discount (launch: 3%=3m, 10%=6m, 20%=12m)
+      if (durationMonths === 3) {
+        totalPrice = totalPrice * (1 - 3 / 100);
+      } else if (durationMonths === 6) {
+        totalPrice = totalPrice * (1 - 10 / 100);
       } else if (durationMonths === 12) {
-        const discount = parseFloat(plan.discount12Months || "20");
-        totalPrice = totalPrice * (1 - discount / 100);
+        totalPrice = totalPrice * (1 - 20 / 100);
       }
       
       // Check if user has early bird slot (auto-apply 70% discount for first 100 signups)
@@ -832,8 +862,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Ensure minimum price
+      // Ensure minimum price then round to whole MYR (no cents)
       totalPrice = Math.max(totalPrice, 1);
+      totalPrice = Math.round(totalPrice);
       
       // Type assertion for req.user (requireAuth ensures it exists)
       const user = req.user!;
@@ -868,7 +899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create payment bill" });
       }
       
-      // Calculate total discount amount for metadata
+      // Calculate total discount amount for metadata (includes rounding effect)
       const discountAmount = (monthlyPrice * durationMonths) - totalPrice;
       
       // Store bill metadata in pending_bills table for webhook processing
@@ -920,8 +951,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         subscriptionId: z.string().optional(), // If not provided, use active subscription
-        durationMonths: z.number().refine(val => [3, 6, 12].includes(val), {
-          message: "Duration must be 3, 6, or 12 months"
+        durationMonths: z.number().refine(val => [1, 3, 6, 12].includes(val), {
+          message: "Duration must be 1, 3, 6, or 12 months"
         }),
         promoCode: z.string().optional(),
       });
@@ -960,17 +991,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Subscription plan not found" });
       }
       
-      // Calculate base price for duration
-      const monthlyPrice = parseFloat(plan.monthlyPrice);
+      // Calculate base price for duration (launch pricing: RM27/month)
+      const monthlyPrice = 27;
       let totalPrice = monthlyPrice * durationMonths;
       
-      // Apply duration discount
-      if (durationMonths === 6) {
-        const discount = parseFloat(plan.discount6Months || "10");
-        totalPrice = totalPrice * (1 - discount / 100);
+      // Apply duration discount (launch: 3%=3m, 10%=6m, 20%=12m)
+      if (durationMonths === 3) {
+        totalPrice = totalPrice * (1 - 3 / 100);
+      } else if (durationMonths === 6) {
+        totalPrice = totalPrice * (1 - 10 / 100);
       } else if (durationMonths === 12) {
-        const discount = parseFloat(plan.discount12Months || "20");
-        totalPrice = totalPrice * (1 - discount / 100);
+        totalPrice = totalPrice * (1 - 20 / 100);
       }
       
       // Check if user has early bird slot (auto-apply 70% discount for first 100 signups)
@@ -1015,8 +1046,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Ensure minimum price
+      // Ensure minimum price then round to whole MYR (no cents)
       totalPrice = Math.max(totalPrice, 1);
+      totalPrice = Math.round(totalPrice);
       
       // Generate unique order reference
       const orderRef = `REN-${user.id.slice(0, 8)}-${Date.now()}`;
@@ -1048,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create renewal bill" });
       }
       
-      // Calculate total discount amount
+      // Calculate total discount amount (includes rounding effect)
       const discountAmount = (monthlyPrice * durationMonths) - totalPrice;
       
       // Store bill metadata with renewal flag
@@ -2793,6 +2825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate and redeem voucher BEFORE creating sale
       let voucherRedemptionData: any = null;
       if (validated.voucherRedemption) {
+        // Vouchers are disabled for launch
+        return res.status(403).json({ message: "Voucher feature is currently disabled for launch" });
         const { voucherId, customerId, originalAmount, discount } = validated.voucherRedemption;
         
         try {
@@ -3858,7 +3892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update reseller
-  app.patch("/api/resellers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.patch("/api/resellers/:id", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertResellerSchema.partial().parse(req.body);
@@ -3885,7 +3919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete reseller
-  app.delete("/api/resellers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.delete("/api/resellers/:id", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -3906,7 +3940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get reseller stats
-  app.get("/api/resellers/:id/stats", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/resellers/:id/stats", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -3929,7 +3963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== Reseller Transfers Routes ==========
   
   // Get all reseller transfers with pagination
-  app.get("/api/reseller-transfers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/reseller-transfers", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
@@ -3951,7 +3985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get single reseller transfer with items
-  app.get("/api/reseller-transfers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/reseller-transfers/:id", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       const { id } = req.params;
       const transfer = await storage.getResellerTransferById(req.user!.id, id);
@@ -3968,7 +4002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create new reseller transfer with FIFO stock deduction
-  app.post("/api/reseller-transfers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/reseller-transfers", requireAuth, blockExpiredTrial, requireResellerNetwork, async (req, res) => {
     try {
       // Validate request body
       const transferSchema = z.object({
@@ -5125,7 +5159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
   
   // Get customer by phone
-  app.get("/api/loyalty/customer/:phone", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/loyalty/customer/:phone", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const { phone } = req.params;
       const customer = await storage.getCustomerByPhone(req.user!.id, phone);
@@ -5137,7 +5171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new customer
-  app.post("/api/loyalty/customer", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/loyalty/customer", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const customerSchema = z.object({
         name: z.string().min(1),
@@ -5165,7 +5199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all customers
-  app.get("/api/loyalty/customers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/loyalty/customers", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const customers = await storage.getCustomers(req.user!.id);
       res.json(customers);
@@ -5176,7 +5210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get customer points history
-  app.get("/api/loyalty/history/:customerId", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/loyalty/history/:customerId", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const { customerId } = req.params;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -5189,7 +5223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Redeem points
-  app.post("/api/loyalty/redeem", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/loyalty/redeem", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const redeemSchema = z.object({
         customerId: z.string(),
@@ -5218,7 +5252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Get message templates
-  app.get("/api/broadcast/templates", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/broadcast/templates", requireAuth, blockExpiredTrial, requireWhatsappBroadcast, async (req, res) => {
     try {
       const channel = req.query.channel as string | undefined;
       const templates = await storage.getMessageTemplates(req.user!.id, channel);
@@ -5230,7 +5264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create message template
-  app.post("/api/broadcast/templates", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/broadcast/templates", requireAuth, blockExpiredTrial, requireWhatsappBroadcast, async (req, res) => {
     try {
       const templateSchema = z.object({
         name: z.string().min(1),
@@ -5250,7 +5284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update message template
-  app.put("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.put("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, requireWhatsappBroadcast, async (req, res) => {
     try {
       const { id } = req.params;
       const template = await storage.updateMessageTemplate(req.user!.id, id, req.body);
@@ -5262,7 +5296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete message template
-  app.delete("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.delete("/api/broadcast/templates/:id", requireAuth, blockExpiredTrial, requireWhatsappBroadcast, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteMessageTemplate(req.user!.id, id);
@@ -5274,7 +5308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create broadcast campaign
-  app.post("/api/broadcast/campaigns", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/broadcast/campaigns", requireAuth, blockExpiredTrial, requireWhatsappBroadcast, async (req, res) => {
     try {
       const campaignSchema = z.object({
         name: z.string().min(1),
@@ -5407,7 +5441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // VOUCHER SYSTEM ROUTES
   // ========================================
 
-  app.post("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/vouchers", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const voucherSchema = insertCustomerVoucherSchema.extend({
         validFrom: z.string().optional(),
@@ -5438,7 +5472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/vouchers", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/vouchers", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const vouchers = await storage.getVouchers(req.user!.id);
       res.json(vouchers);
@@ -5448,7 +5482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/vouchers/:id", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const voucher = await storage.getVoucherById(req.user!.id, req.params.id);
       if (!voucher) return res.status(404).json({ error: "Voucher not found" });
@@ -5459,7 +5493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.put("/api/vouchers/:id", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const voucher = await storage.updateVoucher(req.user!.id, req.params.id, req.body);
       res.json(voucher);
@@ -5469,7 +5503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/vouchers/:id", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.delete("/api/vouchers/:id", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       await storage.deleteVoucher(req.user!.id, req.params.id);
       res.json({ success: true });
@@ -5479,7 +5513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vouchers/validate", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.post("/api/vouchers/validate", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const { code, customerId, totalAmount } = req.body;
       const result = await storage.validateVoucher(req.user!.id, code, customerId || null, parseFloat(totalAmount));
@@ -5490,7 +5524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/vouchers/:id/usage", requireAuth, blockExpiredTrial, async (req, res) => {
+  app.get("/api/vouchers/:id/usage", requireAuth, blockExpiredTrial, requireLoyaltyPoints, async (req, res) => {
     try {
       const usage = await storage.getVoucherUsageHistory(req.user!.id, req.params.id);
       res.json(usage);
@@ -5897,7 +5931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===================================================================
   
   // Get store settings for current user
-  app.get("/api/store-settings", requireAuth, async (req, res) => {
+  app.get("/api/store-settings", requireAuth, requirePublicStore, async (req, res) => {
     try {
       const settings = await storage.getStoreSettings(req.user!.id);
       res.json(settings || null);
@@ -5908,7 +5942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create store settings
-  app.post("/api/store-settings", requireAuth, async (req, res) => {
+  app.post("/api/store-settings", requireAuth, requirePublicStore, async (req, res) => {
     try {
       const { insertStoreSettingsSchema } = await import("@shared/schema");
       const validatedData = insertStoreSettingsSchema.parse(req.body);
@@ -5930,7 +5964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update store settings
-  app.put("/api/store-settings", requireAuth, async (req, res) => {
+  app.put("/api/store-settings", requireAuth, requirePublicStore, async (req, res) => {
     try {
       const settings = await storage.updateStoreSettings(req.user!.id, req.body);
       res.json(settings);
@@ -5949,7 +5983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete store settings
-  app.delete("/api/store-settings", requireAuth, async (req, res) => {
+  app.delete("/api/store-settings", requireAuth, requirePublicStore, async (req, res) => {
     try {
       await storage.deleteStoreSettings(req.user!.id);
       res.json({ success: true });
@@ -5964,6 +5998,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get public store by slug
   app.get("/api/public/store/:slug", async (req, res) => {
     try {
+      // Public store is disabled for launch
+      return res.status(403).json({ message: "Public store feature is disabled for launch" });
       const { slug } = req.params;
       
       // Get store settings
@@ -6025,6 +6061,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Track product click
   app.post("/api/public/store/:slug/track", async (req, res) => {
     try {
+      // Public store is disabled for launch
+      return res.status(403).json({ message: "Public store feature is disabled for launch" });
       const { slug } = req.params;
       const { eventType, productId } = req.body;
       

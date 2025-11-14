@@ -19,17 +19,17 @@ export async function getUserPlan(userId: string) {
     return {
       id: 'trial',
       displayName: '🎁 Free Trial (Full Access)',
-      // All premium features unlocked during trial!
+      // Launch configuration: some modules disabled globally
       hasVendorClaims: 1,
-      hasResellerNetwork: 1,
+      hasResellerNetwork: 0,
       hasAdvancedAnalytics: 1,
-      hasLoyaltyPoints: 1,
-      hasBookings: 1,
-      hasWhatsappBroadcast: 1,
-      hasSmsBroadcast: 1,
-      hasPublicStore: 1,
+      hasLoyaltyPoints: 0,
+      hasBookings: 0,
+      hasWhatsappBroadcast: 0,
+      hasSmsBroadcast: 0,
+      hasPublicStore: 0,
       hasApiAccess: 1,
-      hasCustomDomain: 1,
+      hasCustomDomain: 0,
       hasPrioritySupport: 0,
       hasAccountManager: 0,
       // Generous limits for trial
@@ -37,7 +37,7 @@ export async function getUserPlan(userId: string) {
       maxCustomers: 500,
       maxStockItems: 200,
       maxVendors: 20,
-      maxResellers: 20,
+      maxResellers: 0,
       maxDeliveriesPerMonth: 200,
       maxUsers: 3,
       storageLimit: 2147483648, // 2GB
@@ -57,6 +57,19 @@ export async function getUserPlan(userId: string) {
   if (activeSub) {
     // Get plan details
     const plan = await storage.getSubscriptionPlanById(activeSub.planId);
+    // Enforce global disables regardless of stored plan config
+    if (plan) {
+      return {
+        ...plan,
+        hasResellerNetwork: 0,
+        hasLoyaltyPoints: 0,
+        hasBookings: 0,
+        hasWhatsappBroadcast: 0,
+        hasSmsBroadcast: 0,
+        hasPublicStore: 0,
+        maxResellers: 0,
+      } as any;
+    }
     return plan;
   }
   
@@ -83,6 +96,8 @@ export async function hasFeatureAccess(
     'reseller_network': 'hasResellerNetwork',
     'advanced_analytics': 'hasAdvancedAnalytics',
     'loyalty_points': 'hasLoyaltyPoints',
+    // Use loyalty_points flag to gate vouchers too (global disable)
+    'vouchers': 'hasLoyaltyPoints',
     'bookings': 'hasBookings',
     'whatsapp_broadcast': 'hasWhatsappBroadcast',
     'sms_broadcast': 'hasSmsBroadcast',
