@@ -20,20 +20,15 @@ export interface BCLWebhookPayload {
     main_data: {
       id: string;
       form_id: number;
-      email: string; // Customer email
-      phone?: string;
-      name?: string;
-      // Custom fields we'll add
-      user_id?: string; // PocketBizz user ID
-      package?: string; // "basic" | "pro" | "premium"
-      duration?: string; // "3" | "6" | "12"
-    };
-    payment_info?: {
-      payment_status: string; // "paid" | "pending"
-      amount: number;
-      currency: string; // "MYR"
-      payment_method?: string;
-      transaction_id?: string;
+      payer_email: string;
+      payer_name?: string;
+      payer_telephone_number?: string;
+      order_number: string;
+      amount: string; // comes as string (e.g. "27.00")
+      is_paid: boolean | number | string; // 1 | true | "1"
+      status?: string; // completed | paid | failed
+      payment_channel?: string; // FPX, etc
+      currency?: string; // MYR
     };
   };
 }
@@ -182,17 +177,13 @@ export async function processBCLWebhook(req: Request, res: Response) {
     }
 
     // Handle payment-failed events
-    if (payload.event === "payment-failed" || paymentInfo.payment_status === "failed") {
+    if (payload.event === "payment-failed" || (mainData.status || "").toLowerCase() === "failed") {
       console.warn("[BCL] Payment failed:", {
         email: mainData.payer_email,
         recordId: webhookData.record_id,
         status: mainData.status,
       });
-      
-      return res.json({ 
-        success: true, 
-        message: "Payment failure logged" 
-      });
+      return res.json({ success: true, message: "Payment failure logged" });
     }
 
     // Process payment-success events only
@@ -201,9 +192,10 @@ export async function processBCLWebhook(req: Request, res: Response) {
       return res.json({ success: true, message: "Event ignored" });
     }
 
-    // Verify payment is actually paid
-    const isPaid = paymentInfo.payment_status === "paid" || paymentInfo.payment_status === "completed";
-    const isPaid = mainData.is_paid === true || mainData.is_paid === 1 || mainData.is_paid === "1";
+    // Verify payment is actually paid (multiple representations)
+    const rawStatus = (mainData.status || "").toLowerCase();
+    const rawIsPaid = String(mainData.is_paid).toLowerCase();
+    const isPaid = ["1","true","paid","completed"].includes(rawIsPaid) || ["paid","completed"].includes(rawStatus);
     
     if (!isPaid && payload.event !== "form-submit") {
       console.warn("[BCL] Payment not confirmed:", {
@@ -221,15 +213,14 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     console.log("[BCL] Payment confirmed as successful");
 
-    // Extract data from BCL's nested format
-    const email = mainData.email;
-    const email = mainData.payer_email;
+    // Extract data from BCL's main_data (fallback to legacy keys if any)
+    const email = mainData.payer_email || (mainData as any).email;
     const name = mainData.payer_name;
     const phone = mainData.payer_telephone_number;
     const amount = parseFloat(mainData.amount || "0");
     const orderNumber = mainData.order_number || webhookData.record_id;
     const currency = mainData.currency || "MYR";
-    const transactionId = mainData.order_number;
+    const transactionId = orderNumber;
 
     console.log("[BCL] Webhook data extracted:", {
       email,
@@ -345,7 +336,7 @@ export async function processBCLWebhook(req: Request, res: Response) {
       subscriptionEndsAt: subscriptionEndsAt,
       totalPaid: amount.toString(), // Use actual amount paid from webhook
       paymentProvider: "bcl_bayarcash",
-      paymentMethod: webhookData.payment_channel || "FPX",
+      paymentMethod: mainData.payment_channel || "FPX",
       externalTransactionId: orderNumber, // Use order_number from webhook (e.g., "LINK-85557")
     } as any).returning();
 
