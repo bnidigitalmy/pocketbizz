@@ -479,7 +479,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               
               {/* Direct Sales */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">JUALAN TERUS</div>
-              <Link href="/customers">
+              <Link href="/customers" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/customers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -489,7 +492,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
-              <Link href="/broadcast">
+              <Link href="/broadcast" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/broadcast" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -499,7 +505,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
-              <Link href="/vouchers">
+              <Link href="/vouchers" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/vouchers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -512,7 +521,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               
               {/* Ejen Reseller */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">EJEN RESELLER</div>
-              <Link href="/resellers">
+              <Link href="/resellers" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/resellers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -522,7 +534,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
-              <Link href="/reseller-transfer">
+              <Link href="/reseller-transfer" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/reseller-transfer" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -532,7 +547,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
-              <Link href="/reseller-performance">
+              <Link href="/reseller-performance" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/reseller-performance" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -542,7 +560,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">Soon</Badge>
                 </button>
               </Link>
-              <Link href="/pricing-tiers">
+              <Link href="/pricing-tiers" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/pricing-tiers" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
@@ -585,7 +606,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               
               {/* Sistem */}
               <div className="font-semibold text-xs text-gray-500 px-3 py-2 mt-4">SISTEM & TETAPAN</div>
-              <Link href="/store-catalog">
+              <Link href="/store-catalog" onClick={(e) => {
+                e.preventDefault();
+                toast({ title: "Segera Hadir", description: "Fungsi ini akan dibuka tidak lama lagi." });
+              }}>
                 <button className={cn(
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/store-catalog" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"

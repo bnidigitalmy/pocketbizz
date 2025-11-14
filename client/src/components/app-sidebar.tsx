@@ -389,7 +389,18 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url} 
-                      onClick={handleMenuClick}
+                      className={(item as any).comingSoon ? "cursor-not-allowed opacity-60" : undefined}
+                      onClick={(e) => {
+                        if ((item as any).comingSoon) {
+                          e.preventDefault();
+                          toast({
+                            title: "Segera Hadir",
+                            description: "Fungsi ini akan dibuka tidak lama lagi.",
+                          });
+                          return;
+                        }
+                        handleMenuClick();
+                      }}
                       data-testid={`link-${item.url.slice(1)}`}
                     >
                       <item.icon className="h-4 w-4" />
@@ -438,7 +449,18 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url} 
-                      onClick={handleMenuClick}
+                      className={(item as any).comingSoon ? "cursor-not-allowed opacity-60" : undefined}
+                      onClick={(e) => {
+                        if ((item as any).comingSoon) {
+                          e.preventDefault();
+                          toast({
+                            title: "Segera Hadir",
+                            description: "Fungsi ini akan dibuka tidak lama lagi.",
+                          });
+                          return;
+                        }
+                        handleMenuClick();
+                      }}
                       data-testid={`link-${item.url.slice(1)}`}
                     >
                       <item.icon className="h-4 w-4" />
@@ -464,7 +486,18 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url} 
-                      onClick={handleMenuClick}
+                      className={(item as any).comingSoon ? "cursor-not-allowed opacity-60" : undefined}
+                      onClick={(e) => {
+                        if ((item as any).comingSoon) {
+                          e.preventDefault();
+                          toast({
+                            title: "Segera Hadir",
+                            description: "Fungsi ini akan dibuka tidak lama lagi.",
+                          });
+                          return;
+                        }
+                        handleMenuClick();
+                      }}
                       data-testid={`link-${item.url.slice(1)}`}
                     >
                       <item.icon className="h-4 w-4" />
