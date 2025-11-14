@@ -151,15 +151,15 @@ export async function processBCLWebhook(req: Request, res: Response) {
     // BCL sends nested structure with main_data
     const webhookData = payload.data || payload;
     const mainData = webhookData.main_data || {};
-    const paymentInfo = webhookData.payment_info || {};
 
     console.log("[BCL] Webhook received:", {
       event: payload.event,
       recordId: webhookData.record_id,
       formTitle: webhookData.form_title,
-      email: mainData.email,
-      hasMainData: !!webhookData.main_data,
-      hasPaymentInfo: !!webhookData.payment_info,
+      email: mainData.payer_email,
+      orderNumber: mainData.order_number,
+      isPaid: mainData.is_paid,
+      status: mainData.status,
     });
 
     // Optional debug snapshot for first live verification (enable with BCL_DEBUG_LOG=1)
@@ -167,12 +167,16 @@ export async function processBCLWebhook(req: Request, res: Response) {
       const snapshot = {
         topLevelKeys: Object.keys(webhookData),
         mainDataKeys: Object.keys(mainData),
-        paymentInfoKeys: Object.keys(paymentInfo),
         recordId: webhookData.record_id,
         formTitle: webhookData.form_title,
-        email: mainData.email,
-        name: mainData.name,
-        phone: mainData.phone,
+        payerEmail: mainData.payer_email,
+        payerName: mainData.payer_name,
+        payerPhone: mainData.payer_telephone_number,
+        orderNumber: mainData.order_number,
+        amount: mainData.amount,
+        isPaid: mainData.is_paid,
+        status: mainData.status,
+        paymentChannel: mainData.payment_channel,
       };
       console.log("[BCL] Payload snapshot:", JSON.stringify(snapshot, null, 2));
     }
@@ -180,9 +184,9 @@ export async function processBCLWebhook(req: Request, res: Response) {
     // Handle payment-failed events
     if (payload.event === "payment-failed" || paymentInfo.payment_status === "failed") {
       console.warn("[BCL] Payment failed:", {
-        email: mainData.email,
+        email: mainData.payer_email,
         recordId: webhookData.record_id,
-        status: paymentInfo.payment_status,
+        status: mainData.status,
       });
       
       return res.json({ 
@@ -199,16 +203,19 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     // Verify payment is actually paid
     const isPaid = paymentInfo.payment_status === "paid" || paymentInfo.payment_status === "completed";
+    const isPaid = mainData.is_paid === true || mainData.is_paid === 1 || mainData.is_paid === "1";
     
     if (!isPaid && payload.event !== "form-submit") {
       console.warn("[BCL] Payment not confirmed:", {
-        paymentStatus: paymentInfo.payment_status,
+        isPaid: mainData.is_paid,
+        status: mainData.status,
         event: payload.event,
       });
       return res.status(400).json({ 
         success: false, 
         error: "Payment not confirmed",
-        paymentStatus: paymentInfo.payment_status,
+        isPaid: mainData.is_paid,
+        status: mainData.status,
       });
     }
 
@@ -216,12 +223,13 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     // Extract data from BCL's nested format
     const email = mainData.email;
-    const name = mainData.name;
-    const phone = mainData.phone;
-    const amount = parseFloat(paymentInfo.amount || mainData.amount || "0");
-    const orderNumber = webhookData.record_id; // BCL uses record_id as order number
-    const currency = paymentInfo.currency || "MYR";
-    const transactionId = paymentInfo.transaction_id;
+    const email = mainData.payer_email;
+    const name = mainData.payer_name;
+    const phone = mainData.payer_telephone_number;
+    const amount = parseFloat(mainData.amount || "0");
+    const orderNumber = mainData.order_number || webhookData.record_id;
+    const currency = mainData.currency || "MYR";
+    const transactionId = mainData.order_number;
 
     console.log("[BCL] Webhook data extracted:", {
       email,
