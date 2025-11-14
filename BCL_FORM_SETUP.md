@@ -47,28 +47,28 @@ Untuk setiap 4 forms:
 - [ ] Form slug: **MESTI** `1-bulan` (lowercase, no spaces)
 - [ ] Amount: RM27.00
 - [ ] Fields: Email (required), Name (required), Mobile Number (required)
-- [ ] **Redirect URL:** `https://pocketbizz-production-f02a.up.railway.app/payment/success?order={order_number}&amount=27`
+- [ ] **Redirect URL:** `https://app.pocketbizz.my/payment/success?order={order_number}&amount=27`
 
 ### Form: 3-bulan (RM79)
 - [ ] Form title: "Langganan 3 Bulan"
 - [ ] Form slug: **MESTI** `3-bulan` (lowercase, no spaces)
 - [ ] Amount: RM79.00
 - [ ] Fields: Email (required), Name (required), Mobile Number (required)
-- [ ] **Redirect URL:** `https://pocketbizz-production-f02a.up.railway.app/payment/success?order={order_number}&amount=79`
+- [ ] **Redirect URL:** `https://app.pocketbizz.my/payment/success?order={order_number}&amount=79`
 
 ### Form: 6-bulan (RM146)
 - [ ] Form title: "Langganan 6 Bulan"
 - [ ] Form slug: **MESTI** `6-bulan` (lowercase, no spaces)
 - [ ] Amount: RM146.00
 - [ ] Fields: Email (required), Name (required), Mobile Number (required)
-- [ ] **Redirect URL:** `https://pocketbizz-production-f02a.up.railway.app/payment/success?order={order_number}&amount=146`
+- [ ] **Redirect URL:** `https://app.pocketbizz.my/payment/success?order={order_number}&amount=146`
 
 ### Form: 12-bulan (RM259)
 - [ ] Form title: "Langganan 12 Bulan"
 - [ ] Form slug: **MESTI** `12-bulan` (lowercase, no spaces)
 - [ ] Amount: RM259.00
 - [ ] Fields: Email (required), Name (required), Mobile Number (required)
-- [ ] **Redirect URL:** `https://pocketbizz-production-f02a.up.railway.app/payment/success?order={order_number}&amount=259`
+- [ ] **Redirect URL:** `https://app.pocketbizz.my/payment/success?order={order_number}&amount=259`
 
 ## Webhook Configuration
 
@@ -129,7 +129,7 @@ Kalau email berbeza → webhook tak jumpa user → payment tak auto-activate.
 ### Redirect After Payment:
 Lepas payment berjaya, BCL akan redirect customer ke:
 ```
-https://pocketbizz-production-f02a.up.railway.app/payment/success?order={order_number}&amount={amount}
+https://app.pocketbizz.my/payment/success?order={order_number}&amount={amount}
 ```
 
 Page ini akan:

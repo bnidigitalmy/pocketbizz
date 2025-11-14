@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function PaymentSuccess() {
@@ -14,14 +14,16 @@ export default function PaymentSuccess() {
   const orderNumber = urlParams.get("order") || urlParams.get("order_number");
   const amount = urlParams.get("amount");
 
-  // Check subscription status
-  const { data: subscriptions, isLoading } = useQuery<any[]>({
+  // Check subscription status (may fail if not logged in - that's OK)
+  const { data: subscriptions, isLoading, error } = useQuery<any[]>({
     queryKey: ["/api/user/subscriptions"],
-    refetchInterval: 2000, // Poll every 2 seconds for first 30 seconds
+    refetchInterval: 2000, // Poll every 2 seconds
     refetchIntervalInBackground: false,
+    retry: false, // Don't retry if 401 - user needs to login
   });
 
   const activeSubscription = subscriptions?.find((s: any) => s.status === "active");
+  const isUnauthorized = error && (error as any).message?.includes("401");
 
   // Auto redirect countdown
   useEffect(() => {
@@ -71,7 +73,23 @@ export default function PaymentSuccess() {
 
           {/* Activation Status */}
           <div className="bg-white rounded-lg p-4">
-            {isLoading ? (
+            {isUnauthorized ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-semibold">Sila Login Untuk Semak Status</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Pembayaran anda telah diterima. Sila login ke akaun anda untuk melihat status aktivasi.
+                </p>
+                <Button
+                  onClick={() => setLocation("/auth/login")}
+                  className="w-full mt-2"
+                >
+                  Login Sekarang
+                </Button>
+              </div>
+            ) : isLoading ? (
               <div className="flex items-center gap-3 text-sm text-gray-600">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Sedang mengaktifkan akaun anda...</span>
@@ -106,20 +124,31 @@ export default function PaymentSuccess() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={() => setLocation("/subscription")}
-              className="flex-1"
-              variant={activeSubscription ? "default" : "outline"}
-            >
-              {activeSubscription ? "Lihat Subscription" : "Semak Status"}
-            </Button>
-            <Button
-              onClick={() => setLocation("/dashboard")}
-              variant="outline"
-              className="flex-1"
-            >
-              Ke Dashboard
-            </Button>
+            {isUnauthorized ? (
+              <Button
+                onClick={() => setLocation("/auth/login")}
+                className="flex-1"
+              >
+                Login Ke Akaun
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => setLocation("/subscription")}
+                  className="flex-1"
+                  variant={activeSubscription ? "default" : "outline"}
+                >
+                  {activeSubscription ? "Lihat Subscription" : "Semak Status"}
+                </Button>
+                <Button
+                  onClick={() => setLocation("/dashboard")}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Ke Dashboard
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Help Text */}
