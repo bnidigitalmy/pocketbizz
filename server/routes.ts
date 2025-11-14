@@ -305,51 +305,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password with strong cost factor
       const hashedPassword = await bcrypt.hash(body.password, 12);
       
-      // Calculate trial end date (14 days from now - Full Access Trial)
+      // Calculate trial end date (7 days from now - Simple Trial)
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
       
-      // Calculate grace period end date (7 days after trial ends)
+      // Calculate grace period end date (3 days after trial ends)
       const graceEndsAt = new Date(trialEndsAt);
-      graceEndsAt.setDate(graceEndsAt.getDate() + 7);
+      graceEndsAt.setDate(graceEndsAt.getDate() + 3);
       
-      // Create user with auto-activated free trial
+      // Create user with auto-activated 7-day trial
       const user = await storage.createUser({
         ...body,
         password: hashedPassword,
         isAdmin: 0, // Explicitly prevent privilege escalation
-        isOnTrial: 1, // Auto-activate 14-day FULL ACCESS trial
+        isOnTrial: 1, // Auto-activate 7-day trial
         trialEndsAt,
-        graceEndsAt, // 7 days grace period after trial
+        graceEndsAt, // 3 days grace period after trial
         toyyibpayUserCode: null,
       });
-      
-      // Track early bird slot (first 100 signups) - atomic slot assignment
-      // TODO: For high-concurrency scenarios, consider using a dedicated counter table
-      // or retry logic to handle unique constraint violations more gracefully
-      try {
-        // Atomic INSERT with auto-calculated slot number using MAX + 1
-        // Only inserts if slot_number <= 100 (enforced in query)
-        await db.execute(sql`
-          INSERT INTO early_bird_tracking (user_id, slot_number, email, has_subscribed, signup_date, created_at)
-          SELECT 
-            ${user.id},
-            COALESCE(MAX(slot_number), 0) + 1,
-            ${user.email},
-            0,
-            NOW(),
-            NOW()
-          FROM early_bird_tracking
-          WHERE (SELECT COUNT(*) FROM early_bird_tracking) < 100
-          HAVING COALESCE(MAX(slot_number), 0) + 1 <= 100
-        `);
-      } catch (earlyBirdError: any) {
-        // Expected errors: unique constraint violation (race condition) or no rows inserted (slots full)
-        // These are safe to ignore - just log for monitoring
-        if (!earlyBirdError.message?.includes('unique') && !earlyBirdError.message?.includes('UNIQUE')) {
-          console.error("Early bird tracking error:", earlyBirdError);
-        }
-      }
       
       // Set session
       req.session.userId = user.id;

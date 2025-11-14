@@ -844,30 +844,21 @@ export class DatabaseStorage implements IStorage {
     // Get items for each delivery with commission breakdown
     const deliveriesWithItems = await Promise.all(
       deliveriesToReturn.map(async (delivery) => {
-        const itemsRaw = await db.select({
-          id: deliveryItems.id,
-          deliveryId: deliveryItems.deliveryId,
-          productId: deliveryItems.productId,
-          productName: deliveryItems.productName,
-          quantity: deliveryItems.quantity,
-          unitPrice: deliveryItems.unitPrice,
-          retailPrice: deliveryItems.retailPrice,
-          totalPrice: deliveryItems.totalPrice,
-          rejectedQty: deliveryItems.rejectedQty,
-          rejectionReason: deliveryItems.rejectionReason,
-          unit: products.unit, // Get unit from products table (may be null if product deleted)
+        const itemsData = await db.select({
+          deliveryItem: deliveryItems,
+          productUnit: products.unit,
         })
-        .from(deliveryItems)
-        .leftJoin(products, eq(deliveryItems.productId, products.id))
-        .where(eq(deliveryItems.deliveryId, delivery.id));
+          .from(deliveryItems)
+          .leftJoin(products, eq(deliveryItems.productId, products.id))
+          .where(eq(deliveryItems.deliveryId, delivery.id));
         
         // Calculate gross, rejected, net amounts
         let grossAmount = 0;
         let rejectedAmount = 0;
         
-        itemsRaw.forEach(item => {
-          const itemGross = (item.quantity || 0) * parseFloat(item.unitPrice || '0');
-          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice || '0');
+        itemsData.forEach(({ deliveryItem }) => {
+          const itemGross = deliveryItem.quantity * parseFloat(deliveryItem.unitPrice);
+          const itemRejected = (deliveryItem.rejectedQty || 0) * parseFloat(deliveryItem.unitPrice);
           
           grossAmount += itemGross;
           rejectedAmount += itemRejected;
@@ -878,9 +869,9 @@ export class DatabaseStorage implements IStorage {
         const claimableAmount = netAmount - commission;
         
         // Calculate per-item commission and claimable amounts
-        const itemsWithBreakdown = itemsRaw.map(item => {
-          const itemGross = (item.quantity || 0) * parseFloat(item.unitPrice || '0');
-          const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice || '0');
+        const itemsWithBreakdown = itemsData.map(({ deliveryItem, productUnit }) => {
+          const itemGross = deliveryItem.quantity * parseFloat(deliveryItem.unitPrice);
+          const itemRejected = (deliveryItem.rejectedQty || 0) * parseFloat(deliveryItem.unitPrice);
           const itemNet = itemGross - itemRejected;
           
           // Proportionally distribute commission based on item's net amount
@@ -888,17 +879,8 @@ export class DatabaseStorage implements IStorage {
           const itemClaimable = itemNet - itemCommission;
           
           return {
-            id: item.id,
-            deliveryId: item.deliveryId,
-            productId: item.productId,
-            productName: item.productName,
-            quantity: item.quantity || 0,
-            unitPrice: item.unitPrice,
-            retailPrice: item.retailPrice,
-            totalPrice: item.totalPrice,
-            rejectedQty: item.rejectedQty || 0,
-            rejectionReason: item.rejectionReason,
-            unit: item.unit || 'unit', // Fallback if product has no unit or deleted
+            ...deliveryItem,
+            unit: productUnit || 'pcs', // Add unit from product, default to 'pcs'
             itemGross: itemGross.toFixed(2),
             itemRejected: itemRejected.toFixed(2),
             itemNet: itemNet.toFixed(2),
@@ -931,16 +913,21 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(deliveries.id, id), eq(deliveries.userId, userId)));
     if (!delivery) return undefined;
     
-    const items = await db.select().from(deliveryItems)
+    const itemsData = await db.select({
+      deliveryItem: deliveryItems,
+      productUnit: products.unit,
+    })
+      .from(deliveryItems)
+      .leftJoin(products, eq(deliveryItems.productId, products.id))
       .where(eq(deliveryItems.deliveryId, id));
     
     // Calculate gross, rejected, net amounts, and commission
     let grossAmount = 0;
     let rejectedAmount = 0;
     
-    items.forEach(item => {
-      const itemGross = item.quantity * parseFloat(item.unitPrice);
-      const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+    itemsData.forEach(({ deliveryItem }) => {
+      const itemGross = deliveryItem.quantity * parseFloat(deliveryItem.unitPrice);
+      const itemRejected = (deliveryItem.rejectedQty || 0) * parseFloat(deliveryItem.unitPrice);
       
       grossAmount += itemGross;
       rejectedAmount += itemRejected;
@@ -951,9 +938,9 @@ export class DatabaseStorage implements IStorage {
     const claimableAmount = netAmount - commission;
     
     // Calculate per-item commission and claimable amounts
-    const itemsWithBreakdown = items.map(item => {
-      const itemGross = item.quantity * parseFloat(item.unitPrice);
-      const itemRejected = (item.rejectedQty || 0) * parseFloat(item.unitPrice);
+    const itemsWithBreakdown = itemsData.map(({ deliveryItem, productUnit }) => {
+      const itemGross = deliveryItem.quantity * parseFloat(deliveryItem.unitPrice);
+      const itemRejected = (deliveryItem.rejectedQty || 0) * parseFloat(deliveryItem.unitPrice);
       const itemNet = itemGross - itemRejected;
       
       // Proportionally distribute commission based on item's net amount
@@ -961,7 +948,8 @@ export class DatabaseStorage implements IStorage {
       const itemClaimable = itemNet - itemCommission;
       
       return {
-        ...item,
+        ...deliveryItem,
+        unit: productUnit || 'pcs', // Add unit from product, default to 'pcs'
         itemGross: itemGross.toFixed(2),
         itemRejected: itemRejected.toFixed(2),
         itemNet: itemNet.toFixed(2),
