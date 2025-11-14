@@ -30,10 +30,12 @@ export default function Subscription() {
 
   const { data: subscriptions, isLoading } = useQuery<any[]>({
     queryKey: ["/api/user/subscriptions"],
+    refetchInterval: 5000, // Auto-refresh every 5 seconds to catch new payments
   });
 
   const { data: planLimits } = useQuery({
     queryKey: ["/api/user/plan-limits"],
+    refetchInterval: 5000, // Auto-refresh limits too
   });
 
   const user = userData?.user;
@@ -128,18 +130,9 @@ export default function Subscription() {
   return (
     <div className="container mx-auto p-6 max-w-6xl space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Subscription</h1>
-          <p className="text-muted-foreground">Urus langganan dan upgrade pakej anda</p>
-        </div>
-        <Button 
-          onClick={() => setLocation("/pricing")}
-          variant="default"
-        >
-          <TrendingUp className="mr-2 h-4 w-4" />
-          Upgrade Plan
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">Subscription</h1>
+        <p className="text-muted-foreground">Urus langganan anda</p>
       </div>
 
       {/* Expiring Soon Alert */}
@@ -153,14 +146,11 @@ export default function Subscription() {
               </h3>
               <p className="text-sm text-orange-700">
                 {isOnTrial 
-                  ? `Trial percuma anda akan tamat dalam ${daysRemaining} hari. Upgrade sekarang untuk terus guna PocketBizz!`
-                  : `Langganan anda akan tamat dalam ${daysRemaining} hari. Renew sekarang untuk elak gangguan.`
+                  ? `Trial percuma anda akan tamat dalam ${daysRemaining} hari. Pilih pakej untuk teruskan.`
+                  : `Langganan anda akan tamat dalam ${daysRemaining} hari. Renew sekarang.`
                 }
               </p>
             </div>
-            <Button onClick={() => setLocation("/pricing")} variant="default">
-              {isOnTrial ? "Upgrade Now" : "Renew Now"}
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -275,29 +265,63 @@ export default function Subscription() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               {isOnTrial 
-                ? "Trial aktif. Pilih tempoh langganan untuk teruskan."
-                : "Tiada langganan aktif. Pilih tempoh dan bayar untuk aktifkan."
+                ? "Trial aktif. Pilih tempoh langganan untuk teruskan selepas trial tamat."
+                : "Tiada langganan aktif. Pilih tempoh dan bayar untuk aktifkan akaun."
               }
             </div>
 
             {/* Quick duration options */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
-              {[1,3,6,12].map((m) => (
-                <Button
-                  key={m}
-                  variant={m === 6 || m === 12 ? "default" : "outline"}
-                  className="w-full flex-col py-4"
-                  onClick={() => handlePay(m as 1|3|6|12)}
-                >
-                  <span className="text-sm font-medium">{m} Bulan</span>
-                  <span className="text-lg font-bold">RM {PRICES[m as 1|3|6|12]}</span>
-                </Button>
-              ))}
+              {[1,3,6,12].map((m) => {
+                const savings = m === 3 ? "Jimat 3%" : m === 6 ? "Jimat 10%" : m === 12 ? "Jimat 20%" : null;
+                return (
+                  <Button
+                    key={m}
+                    variant={m === 12 ? "default" : "outline"}
+                    className="w-full flex-col h-auto py-4 relative"
+                    onClick={() => handlePay(m as 1|3|6|12)}
+                  >
+                    {savings && (
+                      <Badge className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2">
+                        {savings}
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">{m} Bulan</span>
+                    <span className="text-xl font-bold mt-1">RM{PRICES[m as 1|3|6|12]}</span>
+                    {m === 1 && <span className="text-xs text-muted-foreground mt-1">RM27/bulan</span>}
+                    {m === 3 && <span className="text-xs text-muted-foreground mt-1">RM26/bulan</span>}
+                    {m === 6 && <span className="text-xs text-muted-foreground mt-1">RM24/bulan</span>}
+                    {m === 12 && <span className="text-xs text-muted-foreground mt-1">RM22/bulan</span>}
+                  </Button>
+                );
+              })}
             </div>
 
-            <div className="text-xs text-muted-foreground text-center w-full">
-              Bayaran diproses melalui BCL.my. <strong>Pastikan gunakan email yang sama ({user?.email})</strong> semasa isi borang pembayaran. Akaun anda akan aktif secara automatik selepas pembayaran berjaya.
+            <div className="text-xs text-muted-foreground text-center w-full space-y-1">
+              <p className="font-semibold text-orange-600">
+                ⚠️ PENTING: Gunakan email yang sama ({user?.email}) semasa isi borang pembayaran
+              </p>
+              <p>Bayaran diproses melalui BCL.my. Akaun akan aktif automatik lepas pembayaran berjaya.</p>
             </div>
+          </CardFooter>
+        )}
+
+        {activeSubscription && (
+          <CardFooter className="flex gap-3">
+            <Button 
+              onClick={() => handlePay(activeSubscription.durationMonths as 1|3|6|12)} 
+              variant="default"
+              className="flex-1"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Renew ({activeSubscription.durationMonths} Bulan)
+            </Button>
+            <Button 
+              onClick={() => setLocation("/settings")} 
+              variant="outline"
+            >
+              Settings
+            </Button>
           </CardFooter>
         )}
       </Card>
@@ -379,28 +403,6 @@ export default function Subscription() {
           </CardContent>
         </Card>
       )}
-
-      {/* Action Buttons */}
-      <div className="flex gap-4">
-        <Button 
-          onClick={() => setLocation("/pricing")} 
-          variant="default"
-          className="flex-1"
-        >
-          <TrendingUp className="mr-2 h-4 w-4" />
-          {activeSubscription ? "Upgrade Plan" : "Choose a Plan"}
-        </Button>
-        {activeSubscription && (
-          <Button 
-            onClick={() => setLocation("/pricing?renew=true")} 
-            variant="outline"
-            className="flex-1"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Renew Subscription
-          </Button>
-        )}
-      </div>
     </div>
   );
 }
