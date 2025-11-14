@@ -146,40 +146,41 @@ export async function processBCLWebhook(req: Request, res: Response) {
       console.warn("[BCL] No signature provided - accepting for testing");
     }
 
-    const payload = req.body as BCLWebhookPayload;
+    const payload = req.body;
+
+    // BCL sends data in flat structure under `data`, not nested in main_data/payment_info
+    const webhookData = payload.data || {};
 
     console.log("[BCL] Webhook received:", {
       event: payload.event,
-      formId: payload.data?.form_id,
-      email: payload.data?.main_data?.email,
-      recordId: payload.data?.record_id,
+      orderNumber: webhookData.order_number,
+      email: webhookData.payer_email,
+      status: webhookData.status,
+      isPaid: webhookData.is_paid,
     });
 
     // Optional debug snapshot for first live verification (enable with BCL_DEBUG_LOG=1)
     if (process.env.BCL_DEBUG_LOG === '1') {
       const snapshot = {
-        formSlug: payload.data?.form_slug,
-        paymentStatus: payload.data?.payment_info?.payment_status,
-        amount: payload.data?.payment_info?.amount,
-        currency: payload.data?.payment_info?.currency,
-        mainDataKeys: Object.keys(payload.data?.main_data || {}),
-        paymentInfoKeys: Object.keys(payload.data?.payment_info || {}),
+        allDataKeys: Object.keys(webhookData),
+        paymentChannel: webhookData.payment_channel,
+        amount: webhookData.amount,
+        currency: webhookData.currency,
+        status: webhookData.status,
+        isPaid: webhookData.is_paid,
+        email: webhookData.payer_email,
+        orderNumber: webhookData.order_number,
       };
-      console.log("[BCL] Payload snapshot:", snapshot);
+      console.log("[BCL] Payload snapshot:", JSON.stringify(snapshot, null, 2));
     }
 
-    // Handle payment-failed events (for logging and notifications)
-    if (payload.event === "payment-failed") {
+    // Handle payment-failed events
+    if (payload.event === "payment-failed" || webhookData.status === "failed") {
       console.warn("[BCL] Payment failed:", {
-        email: payload.data?.main_data?.email,
-        userId: payload.data?.main_data?.user_id,
-        formSlug: payload.data?.form_slug,
-        recordId: payload.data?.record_id,
-        reason: payload.data?.payment_info?.payment_status || "Unknown",
+        email: webhookData.payer_email,
+        orderNumber: webhookData.order_number,
+        status: webhookData.status,
       });
-      
-      // TODO: Send email notification to user about failed payment
-      // TODO: Log to analytics for tracking conversion rates
       
       return res.json({ 
         success: true, 
@@ -187,39 +188,46 @@ export async function processBCLWebhook(req: Request, res: Response) {
       });
     }
 
-    // Process both form-submit and payment-success events
-    if (payload.event !== "form-submit" && payload.event !== "payment-success") {
+    // Process payment-success events only
+    if (payload.event !== "payment-success" && payload.event !== "form-submit") {
       console.log("[BCL] Ignoring event:", payload.event);
       return res.json({ success: true, message: "Event ignored" });
     }
 
-    // For payment-success events, verify payment status
-    if (payload.event === "payment-success") {
-      const paymentStatus = payload.data?.payment_info?.payment_status;
-      if (paymentStatus !== "paid") {
-        console.warn("[BCL] Payment not completed:", paymentStatus);
-        return res.status(400).json({ 
-          success: false, 
-          error: "Payment not completed",
-          paymentStatus 
-        });
-      }
-      console.log("[BCL] Payment confirmed as successful");
+    // Verify payment is actually paid
+    const isPaid = webhookData.is_paid === true || webhookData.is_paid === 1 || webhookData.is_paid === "1";
+    const isCompleted = webhookData.status === "completed" || webhookData.status === "success";
+    
+    if (!isPaid && !isCompleted) {
+      console.warn("[BCL] Payment not confirmed:", {
+        isPaid: webhookData.is_paid,
+        status: webhookData.status,
+      });
+      return res.status(400).json({ 
+        success: false, 
+        error: "Payment not confirmed",
+        status: webhookData.status,
+        isPaid: webhookData.is_paid,
+      });
     }
 
-    // Extract data
-    const formId = payload.data.form_id;
-    const formSlug = payload.data.form_slug;
-    const email = payload.data.main_data.email;
-    const name = payload.data.main_data.name;
-    const phone = payload.data.main_data.phone;
+    console.log("[BCL] Payment confirmed as successful");
 
-    console.log("[BCL] Webhook data received:", {
-      formId,
-      formSlug,
+    // Extract data from BCL's actual format
+    const email = webhookData.payer_email;
+    const name = webhookData.payer_name;
+    const phone = webhookData.payer_telephone_number;
+    const amount = parseFloat(webhookData.amount || "0");
+    const orderNumber = webhookData.order_number;
+    const currency = webhookData.currency || "MYR";
+
+    console.log("[BCL] Webhook data extracted:", {
       email,
       name,
       phone,
+      amount,
+      currency,
+      orderNumber,
     });
 
     // Email is required (primary identifier)
@@ -227,26 +235,36 @@ export async function processBCLWebhook(req: Request, res: Response) {
       console.error("[BCL] Missing email in webhook payload");
       return res.status(400).json({ 
         success: false, 
-        error: "Email is required" 
+        error: "Email is required",
+        hint: "Webhook payload must include payer_email field"
       });
     }
 
-    // Get package config - try form slug first, then form ID
+    // Determine package based on amount paid (since BCL doesn't send form_slug)
     let packageConfig: { package: string; planName: string; months: number; price: number; } | undefined;
     
-    if (formSlug && BCL_FORM_CONFIG[formSlug]) {
-      packageConfig = BCL_FORM_CONFIG[formSlug];
-      console.log("[BCL] Matched form slug:", formSlug);
-    } else if (BCL_PACKAGE_CONFIG[formId]) {
-      packageConfig = BCL_PACKAGE_CONFIG[formId];
-      console.log("[BCL] Matched form ID:", formId);
+    // Match by amount (with small tolerance for rounding)
+    const amountTolerance = 2; // RM2 tolerance
+    if (Math.abs(amount - 27) <= amountTolerance) {
+      packageConfig = BCL_FORM_CONFIG["1-bulan"];
+      console.log("[BCL] Matched amount RM", amount, "to 1-month plan");
+    } else if (Math.abs(amount - 79) <= amountTolerance) {
+      packageConfig = BCL_FORM_CONFIG["3-bulan"];
+      console.log("[BCL] Matched amount RM", amount, "to 3-month plan");
+    } else if (Math.abs(amount - 146) <= amountTolerance) {
+      packageConfig = BCL_FORM_CONFIG["6-bulan"];
+      console.log("[BCL] Matched amount RM", amount, "to 6-month plan");
+    } else if (Math.abs(amount - 259) <= amountTolerance) {
+      packageConfig = BCL_FORM_CONFIG["12-bulan"];
+      console.log("[BCL] Matched amount RM", amount, "to 12-month plan");
     }
 
     if (!packageConfig) {
-      console.error("[BCL] Unknown form - formId:", formId, "formSlug:", formSlug);
+      console.error("[BCL] Could not determine package from amount:", amount);
+      console.error("[BCL] Expected amounts: RM27, RM79, RM146, or RM259");
       return res.status(400).json({ 
         success: false, 
-        error: `Unknown form. FormID: ${formId}, Slug: ${formSlug}` 
+        error: `Unknown package amount: RM${amount}. Expected: RM27, RM79, RM146, or RM259` 
       });
     }
 
@@ -301,9 +319,10 @@ export async function processBCLWebhook(req: Request, res: Response) {
       durationMonths: packageConfig.months,
       subscriptionStartsAt: now,
       subscriptionEndsAt: subscriptionEndsAt,
-      totalPaid: packageConfig.price.toString(),
+      totalPaid: amount.toString(), // Use actual amount paid from webhook
       paymentProvider: "bcl_bayarcash",
-      externalTransactionId: payload.data.record_id,
+      paymentMethod: webhookData.payment_channel || "FPX",
+      externalTransactionId: orderNumber, // Use order_number from webhook (e.g., "LINK-85557")
     } as any).returning();
 
     console.log("[BCL] Subscription created:", subscription.id);
