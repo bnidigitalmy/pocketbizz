@@ -148,38 +148,41 @@ export async function processBCLWebhook(req: Request, res: Response) {
 
     const payload = req.body;
 
-    // BCL sends data in flat structure under `data`, not nested in main_data/payment_info
-    const webhookData = payload.data || {};
+    // BCL sends nested structure with main_data
+    const webhookData = payload.data || payload;
+    const mainData = webhookData.main_data || {};
+    const paymentInfo = webhookData.payment_info || {};
 
     console.log("[BCL] Webhook received:", {
       event: payload.event,
-      orderNumber: webhookData.order_number,
-      email: webhookData.payer_email,
-      status: webhookData.status,
-      isPaid: webhookData.is_paid,
+      recordId: webhookData.record_id,
+      formTitle: webhookData.form_title,
+      email: mainData.email,
+      hasMainData: !!webhookData.main_data,
+      hasPaymentInfo: !!webhookData.payment_info,
     });
 
     // Optional debug snapshot for first live verification (enable with BCL_DEBUG_LOG=1)
     if (process.env.BCL_DEBUG_LOG === '1') {
       const snapshot = {
-        allDataKeys: Object.keys(webhookData),
-        paymentChannel: webhookData.payment_channel,
-        amount: webhookData.amount,
-        currency: webhookData.currency,
-        status: webhookData.status,
-        isPaid: webhookData.is_paid,
-        email: webhookData.payer_email,
-        orderNumber: webhookData.order_number,
+        topLevelKeys: Object.keys(webhookData),
+        mainDataKeys: Object.keys(mainData),
+        paymentInfoKeys: Object.keys(paymentInfo),
+        recordId: webhookData.record_id,
+        formTitle: webhookData.form_title,
+        email: mainData.email,
+        name: mainData.name,
+        phone: mainData.phone,
       };
       console.log("[BCL] Payload snapshot:", JSON.stringify(snapshot, null, 2));
     }
 
     // Handle payment-failed events
-    if (payload.event === "payment-failed" || webhookData.status === "failed") {
+    if (payload.event === "payment-failed" || paymentInfo.payment_status === "failed") {
       console.warn("[BCL] Payment failed:", {
-        email: webhookData.payer_email,
-        orderNumber: webhookData.order_number,
-        status: webhookData.status,
+        email: mainData.email,
+        recordId: webhookData.record_id,
+        status: paymentInfo.payment_status,
       });
       
       return res.json({ 
@@ -195,31 +198,30 @@ export async function processBCLWebhook(req: Request, res: Response) {
     }
 
     // Verify payment is actually paid
-    const isPaid = webhookData.is_paid === true || webhookData.is_paid === 1 || webhookData.is_paid === "1";
-    const isCompleted = webhookData.status === "completed" || webhookData.status === "success";
+    const isPaid = paymentInfo.payment_status === "paid" || paymentInfo.payment_status === "completed";
     
-    if (!isPaid && !isCompleted) {
+    if (!isPaid && payload.event !== "form-submit") {
       console.warn("[BCL] Payment not confirmed:", {
-        isPaid: webhookData.is_paid,
-        status: webhookData.status,
+        paymentStatus: paymentInfo.payment_status,
+        event: payload.event,
       });
       return res.status(400).json({ 
         success: false, 
         error: "Payment not confirmed",
-        status: webhookData.status,
-        isPaid: webhookData.is_paid,
+        paymentStatus: paymentInfo.payment_status,
       });
     }
 
     console.log("[BCL] Payment confirmed as successful");
 
-    // Extract data from BCL's actual format
-    const email = webhookData.payer_email;
-    const name = webhookData.payer_name;
-    const phone = webhookData.payer_telephone_number;
-    const amount = parseFloat(webhookData.amount || "0");
-    const orderNumber = webhookData.order_number;
-    const currency = webhookData.currency || "MYR";
+    // Extract data from BCL's nested format
+    const email = mainData.email;
+    const name = mainData.name;
+    const phone = mainData.phone;
+    const amount = parseFloat(paymentInfo.amount || mainData.amount || "0");
+    const orderNumber = webhookData.record_id; // BCL uses record_id as order number
+    const currency = paymentInfo.currency || "MYR";
+    const transactionId = paymentInfo.transaction_id;
 
     console.log("[BCL] Webhook data extracted:", {
       email,
@@ -228,6 +230,7 @@ export async function processBCLWebhook(req: Request, res: Response) {
       amount,
       currency,
       orderNumber,
+      transactionId,
     });
 
     // Email is required (primary identifier)
@@ -236,27 +239,40 @@ export async function processBCLWebhook(req: Request, res: Response) {
       return res.status(400).json({ 
         success: false, 
         error: "Email is required",
-        hint: "Webhook payload must include payer_email field"
+        hint: "Webhook payload must include email in main_data"
       });
     }
 
-    // Determine package based on amount paid (since BCL doesn't send form_slug)
+    // Determine package based on form_title or amount
     let packageConfig: { package: string; planName: string; months: number; price: number; } | undefined;
     
-    // Match by amount (with small tolerance for rounding)
-    const amountTolerance = 2; // RM2 tolerance
-    if (Math.abs(amount - 27) <= amountTolerance) {
-      packageConfig = BCL_FORM_CONFIG["1-bulan"];
-      console.log("[BCL] Matched amount RM", amount, "to 1-month plan");
-    } else if (Math.abs(amount - 79) <= amountTolerance) {
-      packageConfig = BCL_FORM_CONFIG["3-bulan"];
-      console.log("[BCL] Matched amount RM", amount, "to 3-month plan");
-    } else if (Math.abs(amount - 146) <= amountTolerance) {
-      packageConfig = BCL_FORM_CONFIG["6-bulan"];
-      console.log("[BCL] Matched amount RM", amount, "to 6-month plan");
-    } else if (Math.abs(amount - 259) <= amountTolerance) {
-      packageConfig = BCL_FORM_CONFIG["12-bulan"];
-      console.log("[BCL] Matched amount RM", amount, "to 12-month plan");
+    // Try to extract duration from form_title (e.g., "Langganan 3 Bulan" → 3)
+    const formTitle = webhookData.form_title || "";
+    const durationMatch = formTitle.match(/(\d+)\s*bulan/i);
+    
+    if (durationMatch) {
+      const months = parseInt(durationMatch[1]);
+      const formKey = `${months}-bulan`;
+      packageConfig = BCL_FORM_CONFIG[formKey];
+      console.log("[BCL] Matched by form title:", { formTitle, months, formKey });
+    }
+    
+    // Fallback: Match by amount if form title didn't work
+    if (!packageConfig && amount > 0) {
+      const amountTolerance = 2; // RM2 tolerance
+      if (Math.abs(amount - 27) <= amountTolerance) {
+        packageConfig = BCL_FORM_CONFIG["1-bulan"];
+        console.log("[BCL] Matched amount RM", amount, "to 1-month plan");
+      } else if (Math.abs(amount - 79) <= amountTolerance) {
+        packageConfig = BCL_FORM_CONFIG["3-bulan"];
+        console.log("[BCL] Matched amount RM", amount, "to 3-month plan");
+      } else if (Math.abs(amount - 146) <= amountTolerance) {
+        packageConfig = BCL_FORM_CONFIG["6-bulan"];
+        console.log("[BCL] Matched amount RM", amount, "to 6-month plan");
+      } else if (Math.abs(amount - 259) <= amountTolerance) {
+        packageConfig = BCL_FORM_CONFIG["12-bulan"];
+        console.log("[BCL] Matched amount RM", amount, "to 12-month plan");
+      }
     }
 
     if (!packageConfig) {
