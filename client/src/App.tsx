@@ -116,7 +116,6 @@ function AppRouter() {
           <Route path="/subscription" component={Subscription} />
           <Route path="/store-catalog" component={StoreCatalog} />
           <Route path="/drive-sync" component={DriveSync} />
-          <Route path="/pricing-tiers" component={PricingTiers} />
           <Route path="/resellers" component={Resellers} />
           <Route path="/reseller-transfer" component={ResellerTransfer} />
           <Route path="/reseller-performance" component={ResellerPerformance} />
