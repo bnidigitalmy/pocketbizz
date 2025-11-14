@@ -155,6 +155,19 @@ export async function processBCLWebhook(req: Request, res: Response) {
       recordId: payload.data?.record_id,
     });
 
+    // Optional debug snapshot for first live verification (enable with BCL_DEBUG_LOG=1)
+    if (process.env.BCL_DEBUG_LOG === '1') {
+      const snapshot = {
+        formSlug: payload.data?.form_slug,
+        paymentStatus: payload.data?.payment_info?.payment_status,
+        amount: payload.data?.payment_info?.amount,
+        currency: payload.data?.payment_info?.currency,
+        mainDataKeys: Object.keys(payload.data?.main_data || {}),
+        paymentInfoKeys: Object.keys(payload.data?.payment_info || {}),
+      };
+      console.log("[BCL] Payload snapshot:", snapshot);
+    }
+
     // Handle payment-failed events (for logging and notifications)
     if (payload.event === "payment-failed") {
       console.warn("[BCL] Payment failed:", {

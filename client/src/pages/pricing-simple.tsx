@@ -2,9 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 export default function PricingSimple() {
   const [, setLocation] = useLocation();
+  const { data: userData } = useQuery<{ user?: any }>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+  const isLoggedIn = Boolean(userData?.user);
 
   const features = [
     "Pengurusan stok & inventori",
@@ -113,6 +119,18 @@ export default function PricingSimple() {
             >
               Mula Percubaan Percuma 7 Hari
             </Button>
+
+            {isLoggedIn && (
+              <div className="mt-3 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/subscription")}
+                >
+                  Pilih durasi lain di Subscription
+                </Button>
+              </div>
+            )}
 
             <p className="text-center text-sm text-gray-500 mt-4">
               Daftar sekarang dan cuba PERCUMA selama 7 hari.<br />
