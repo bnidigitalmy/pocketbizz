@@ -43,73 +43,34 @@ export interface BCLWebhookPayload {
  * Maps BCL.my form slugs to PocketBizz subscription plans
  */
 export const BCL_FORM_CONFIG = {
-  // BASIC Package
-  "basic-3-bulan": { 
-    package: "basic", 
-    planName: "Basic Plan", 
-    months: 3, 
-    price: 117,
-    url: "https://bnidigital.bcl.my/form/basic-3-bulan"
+  // Single PocketBizz plan (standard) with duration options
+  "1-bulan": {
+    package: "standard",
+    planName: "PocketBizz",
+    months: 1,
+    price: 27,
+    url: "https://bnidigital.bcl.my/form/1-bulan",
   },
-  "basic-6-bulan": { 
-    package: "basic", 
-    planName: "Basic Plan", 
-    months: 6, 
-    price: 210,
-    url: "https://bnidigital.bcl.my/form/basic-6-bulan"
+  "3-bulan": {
+    package: "standard",
+    planName: "PocketBizz",
+    months: 3,
+    price: 79,
+    url: "https://bnidigital.bcl.my/form/3-bulan",
   },
-  "basic-12-bulan": { 
-    package: "basic", 
-    planName: "Basic Plan", 
-    months: 12, 
-    price: 374,
-    url: "https://bnidigital.bcl.my/form/basic-12-bulan"
+  "6-bulan": {
+    package: "standard",
+    planName: "PocketBizz",
+    months: 6,
+    price: 146,
+    url: "https://bnidigital.bcl.my/form/6-bulan",
   },
-  
-  // PRO Package
-  "pro-3-bulan": { 
-    package: "pro", 
-    planName: "Pro Plan", 
-    months: 3, 
-    price: 267,
-    url: "https://bnidigital.bcl.my/form/pro-3-bulan"
-  },
-  "pro-6-bulan": { 
-    package: "pro", 
-    planName: "Pro Plan", 
-    months: 6, 
-    price: 480,
-    url: "https://bnidigital.bcl.my/form/pro-6-bulan"
-  },
-  "pro-12-bulan": { 
-    package: "pro", 
-    planName: "Pro Plan", 
-    months: 12, 
-    price: 854,
-    url: "https://bnidigital.bcl.my/form/pro-12-bulan"
-  },
-  
-  // PREMIUM Package
-  "premium-3-bulan": { 
-    package: "premium", 
-    planName: "Premium Plan", 
-    months: 3, 
-    price: 477,
-    url: "https://bnidigital.bcl.my/form/premium-3-bulan"
-  },
-  "premium-6-bulan": { 
-    package: "premium", 
-    planName: "Premium Plan", 
-    months: 6, 
-    price: 858,
-    url: "https://bnidigital.bcl.my/form/premium-6-bulan"
-  },
-  "premium-12-bulan": { 
-    package: "premium", 
-    planName: "Premium Plan", 
-    months: 12, 
-    price: 1526,
-    url: "https://bnidigital.bcl.my/form/premium-12-bulan"
+  "12-bulan": {
+    package: "standard",
+    planName: "PocketBizz",
+    months: 12,
+    price: 259,
+    url: "https://bnidigital.bcl.my/form/12-bulan",
   },
 } as Record<string, {
   package: string;

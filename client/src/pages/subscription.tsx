@@ -88,6 +88,48 @@ export default function Subscription() {
     );
   }
 
+  // BCL.my single-plan payment form URLs
+  const BCL_SINGLE_PLAN_URL: Record<1|3|6|12, string> = {
+    1: "https://bnidigital.bcl.my/form/1-bulan",
+    3: "https://bnidigital.bcl.my/form/3-bulan",
+    6: "https://bnidigital.bcl.my/form/6-bulan",
+    12: "https://bnidigital.bcl.my/form/12-bulan",
+  } as const;
+
+  // Calculated prices per duration (whole MYR)
+  const PRICES: Record<1|3|6|12, number> = {
+    1: 27,
+    3: 79,
+    6: 146,
+    12: 259,
+  } as const;
+
+  const handlePay = (months: 1|3|6|12) => {
+    const url = BCL_SINGLE_PLAN_URL[months];
+    if (!url) return;
+
+    // If not logged in (rare on this page), send to register
+    if (!user) {
+      const params = new URLSearchParams({
+        plan: 'standard',
+        duration: months.toString(),
+        returnTo: '/subscription',
+      });
+      setLocation(`/auth/register?${params.toString()}`);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      email: user.email,
+      user_id: user.id,
+      name: user.name || '',
+      package: 'standard',
+      duration: months.toString(),
+    });
+
+    window.location.href = `${url}?${params.toString()}`;
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl space-y-6">
       {/* Page Header */}
@@ -234,17 +276,33 @@ export default function Subscription() {
         </CardContent>
 
         {!activeSubscription && (
-          <CardFooter className="bg-muted/50 flex items-center justify-between">
+          <CardFooter className="bg-muted/50 flex-col items-stretch gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               {isOnTrial 
-                ? "Upgrade to unlock unlimited features"
-                : "Subscribe to continue using PocketBizz"
+                ? "Trial aktif. Pilih tempoh langganan untuk teruskan."
+                : "Tiada langganan aktif. Pilih tempoh dan bayar untuk aktifkan."
               }
             </div>
-            <Button onClick={() => setLocation("/pricing")}>
-              Choose Plan
-            </Button>
+
+            {/* Quick duration options */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+              {[1,3,6,12].map((m) => (
+                <Button
+                  key={m}
+                  variant={m === 6 || m === 12 ? "default" : "outline"}
+                  className="w-full flex-col py-4"
+                  onClick={() => handlePay(m as 1|3|6|12)}
+                >
+                  <span className="text-sm font-medium">{m} Bulan</span>
+                  <span className="text-lg font-bold">RM {PRICES[m as 1|3|6|12]}</span>
+                </Button>
+              ))}
+            </div>
+
+            <div className="text-xs text-muted-foreground text-center w-full">
+              Bayaran diproses melalui BCL.my. Akaun anda akan aktif secara automatik selepas pembayaran berjaya.
+            </div>
           </CardFooter>
         )}
       </Card>
