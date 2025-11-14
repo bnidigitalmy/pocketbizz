@@ -74,8 +74,10 @@ Untuk setiap 4 forms:
 
 ### Webhook URL
 ```
-https://your-domain.com/api/webhooks/bcl
+https://app.pocketbizz.my/api/webhooks/bcl
 ```
+
+**IMPORTANT:** Kena set EXACT URL ini dalam BCL.my Dashboard → Settings → Webhooks
 
 ### Webhook Secret
 Set dalam BCL.my dashboard dan tambah dalam Railway environment variables:
@@ -194,7 +196,7 @@ curl -X POST http://localhost:5000/api/webhooks/bcl/test \
 - [ ] 4 forms created dengan correct slugs: `1-bulan`, `3-bulan`, `6-bulan`, `12-bulan` (lowercase, exact match)
 - [ ] Each form has correct amount (RM27, RM79, RM146, RM259)
 - [ ] Each form has 3 basic fields: Email (required), Name (required), Mobile Number (required)
-- [ ] Webhook URL configured dalam BCL dashboard: `https://your-domain.com/api/webhooks/bcl`
+- [ ] Webhook URL configured dalam BCL dashboard: `https://app.pocketbizz.my/api/webhooks/bcl`
 - [ ] Webhook events enabled: Payment Success, Form Submit
 - [ ] Webhook secret added to Railway env vars: `BCL_WEBHOOK_SECRET`
 - [ ] Test payment completed successfully
