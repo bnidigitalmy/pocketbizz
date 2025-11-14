@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 export default function PricingSimple() {
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
 
   const features = [
     "Pengurusan stok & inventori",
@@ -25,7 +25,7 @@ export default function PricingSimple() {
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-blue-600">PocketBizz</h1>
-          <Button variant="outline" onClick={() => navigate("/auth/login")}>
+          <Button variant="outline" onClick={() => setLocation("/auth/login")}>
             Log Masuk
           </Button>
         </div>
@@ -73,11 +73,43 @@ export default function PricingSimple() {
               ))}
             </div>
 
+            {/* Payment Options */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h4 className="font-semibold text-blue-900 mb-3">💳 Pilihan Bayaran:</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-700">1 bulan</span>
+                  <span className="font-semibold">RM27</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">3 bulan</span>
+                  <div className="text-right">
+                    <span className="font-semibold">RM79</span>
+                    <span className="text-xs text-green-600 ml-2">(save RM2)</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">6 bulan</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-green-700">RM146</span>
+                    <span className="text-xs text-green-600 ml-2">(save RM16)</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">12 bulan</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-green-700">RM260</span>
+                    <span className="text-xs text-green-600 ml-2">(save RM64)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* CTA Button */}
             <Button 
               size="lg" 
               className="w-full text-lg py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              onClick={() => navigate("/auth/register")}
+              onClick={() => setLocation("/auth/register")}
             >
               Mula Percubaan Percuma 7 Hari
             </Button>

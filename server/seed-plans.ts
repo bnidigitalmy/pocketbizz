@@ -13,8 +13,8 @@ async function seedSubscriptionPlans() {
     displayName: "PocketBizz",
     description: "Sehari hanya RM0.90 - lebih murah dari teh tarik!",
     monthlyPrice: "27.00",
-    discount6Months: "0.00",
-    discount12Months: "0.00",
+    discount6Months: "10.00",  // 10% discount untuk 6 bulan
+    discount12Months: "20.00", // 20% discount untuk 12 bulan
     currency: "MYR",
     features: JSON.stringify([
       "Pengurusan stok & inventori",
@@ -47,7 +47,12 @@ async function seedSubscriptionPlans() {
     console.log("\n🎉 Successfully seeded subscription plan!");
     console.log("\n📊 Pricing:");
     console.log("💰 RM27/bulan (RM0.90/hari)");
-    console.log("🎁 7 hari percubaan PERCUMA");
+    console.log("\n💳 Payment Options:");
+    console.log("1 bulan  : RM27.00");
+    console.log("3 bulan  : RM79.00 (save RM2)");
+    console.log("6 bulan  : RM146.00 (save 10% = RM16)");
+    console.log("12 bulan : RM260.00 (save 20% = RM64)");
+    console.log("\n🎁 7 hari percubaan PERCUMA");
     console.log("✨ Unlimited products & users");
     console.log("🚀 Semua features included");
 
