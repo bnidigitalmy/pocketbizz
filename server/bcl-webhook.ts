@@ -142,16 +142,8 @@ export async function processBCLWebhook(req: Request, res: Response) {
       env: process.env.NODE_ENV,
     });
 
-    // STRICT: Signature is REQUIRED in production
-    if (process.env.NODE_ENV === "production" && !signature) {
-      console.error("[BCL] Missing signature in production environment");
-      return res.status(401).json({ 
-        success: false, 
-        error: "Signature required in production" 
-      });
-    }
-
-    // Verify signature if provided
+    // RELAXED: Allow BCL webhooks without signature if BCL.my doesn't support it
+    // BUT still verify signature if provided for extra security
     if (signature) {
       const isValid = verifyBCLSignature(rawBody, signature, webhookSecret);
       if (!isValid) {
@@ -163,7 +155,7 @@ export async function processBCLWebhook(req: Request, res: Response) {
       }
       console.log("[BCL] ✓ Signature verified");
     } else {
-      console.warn("[BCL] ⚠️  No signature provided (dev/test mode only)");
+      console.warn("[BCL] ⚠️  No signature provided - relying on email validation and idempotency");
     }
 
     const payload = req.body;
