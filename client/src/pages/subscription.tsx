@@ -116,13 +116,17 @@ export default function Subscription() {
       return;
     }
 
-    // Route to ToyyibPay checkout page using our billing flow
-    // Requires a subscription plan to exist; fallback to pricing if not found
-    if (defaultPlan?.id) {
-      setLocation(`/checkout?planId=${defaultPlan.id}&duration=${months}`);
-    } else {
-      // No plan found — guide user to pricing to retry
-      setLocation("/pricing");
+    // Redirect to BCL.my payment forms (duration-based)
+    const BCL_FORM_URLS: Record<1|3|6|12, string> = {
+      1: "https://bnidigital.bcl.my/form/1-bulan",
+      3: "https://bnidigital.bcl.my/form/3-bulan",
+      6: "https://bnidigital.bcl.my/form/6-bulan",
+      12: "https://bnidigital.bcl.my/form/12-bulan",
+    } as const;
+
+    const url = BCL_FORM_URLS[months];
+    if (url) {
+      window.location.href = url;
     }
   };
 
