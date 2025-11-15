@@ -214,11 +214,6 @@ const systemItems = [
     icon: Crown,
   },
   {
-    title: "Pricing Plans",
-    url: "/pricing",
-    icon: CreditCard,
-  },
-  {
     title: "Tetapan",
     url: "/settings",
     icon: Settings,
