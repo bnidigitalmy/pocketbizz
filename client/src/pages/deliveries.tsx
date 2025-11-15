@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,10 @@ export default function Deliveries() {
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("pending");
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [createdDelivery, setCreatedDelivery] = useState<any>(null);
+  
+  // Prevent concurrent submissions
+  const isSubmittingRef = useRef(false);
+  
   const { toast } = useToast();
 
   const { 
@@ -166,39 +170,52 @@ export default function Deliveries() {
 
   const createMutation = useMutation({
     mutationFn: async (data: DeliveryFormValues & { force?: boolean }) => {
-      // Transform data: ensure quantity and rejectedQty are numbers
-      const transformedData = {
-        ...data,
-        items: data.items.map(item => ({
-          ...item,
-          quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity,
-          rejectedQty: typeof item.rejectedQty === 'string' ? parseInt(item.rejectedQty as string, 10) : (item.rejectedQty || 0),
-        })),
-      };
-      
-      console.log('[Delivery] Creating delivery...', transformedData);
-      
-      const response = await fetch("/api/deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(transformedData),
-        credentials: "include",
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        
-        // Handle duplicate request gracefully (user clicked multiple times)
-        if (response.status === 409 && error.code === 'DUPLICATE_REQUEST') {
-          console.log('[Delivery] Duplicate request detected, ignoring...');
-          // Return a dummy response - the first request will handle success
-          return { isDuplicate: true };
-        }
-        
-        throw new Error(error.error || "Gagal merekod penghantaran");
+      // Prevent concurrent submissions
+      if (isSubmittingRef.current) {
+        console.log('[Delivery] Already submitting, ignoring duplicate call');
+        return { isDuplicate: true };
       }
       
-      return response.json();
+      isSubmittingRef.current = true;
+      
+      try {
+        // Transform data: ensure quantity and rejectedQty are numbers
+        const transformedData = {
+          ...data,
+          items: data.items.map(item => ({
+            ...item,
+            quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity,
+            rejectedQty: typeof item.rejectedQty === 'string' ? parseInt(item.rejectedQty as string, 10) : (item.rejectedQty || 0),
+          })),
+        };
+        
+        console.log('[Delivery] Creating delivery...', transformedData);
+        
+        const response = await fetch("/api/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(transformedData),
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          
+          // Handle duplicate request gracefully (user clicked multiple times)
+          if (response.status === 409 && error.code === 'DUPLICATE_REQUEST') {
+            console.log('[Delivery] Duplicate request detected, ignoring...');
+            // Return a dummy response - the first request will handle success
+            return { isDuplicate: true };
+          }
+          
+          throw new Error(error.error || "Gagal merekod penghantaran");
+        }
+        
+        return response.json();
+      } finally {
+        // Reset flag after request completes (success or error)
+        isSubmittingRef.current = false;
+      }
     },
     onSuccess: async (data, variables) => {
       // Skip if this was a duplicate request
