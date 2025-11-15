@@ -19,7 +19,7 @@ import {
   requirePublicStore,
   getUserPlan,
 } from "./feature-gating";
-import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens } from "@shared/schema";
+import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens, adminActivityLogs } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
