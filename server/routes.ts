@@ -4803,6 +4803,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update subscription" });
     }
   });
+
+  // Admin: Manual subscription activation (backup from BCL payment)
+  app.post("/api/admin/subscriptions/manual-activate", requireAdmin, async (req, res) => {
+    try {
+      const { userId, planId, durationMonths, notes } = req.body;
+
+      // Validate duration options (1, 3, 6, 12 months)
+      if (![1, 3, 6, 12].includes(durationMonths)) {
+        return res.status(400).json({ error: "Invalid duration. Must be 1, 3, 6, or 12 months" });
+      }
+
+      // Get user and plan
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const plan = await storage.getSubscriptionPlanById(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      // Calculate subscription dates
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + durationMonths);
+
+      // Calculate total amount (monthly price × duration)
+      const monthlyPrice = parseFloat(plan.monthlyPrice || '0');
+      const totalAmount = monthlyPrice * durationMonths;
+
+      // Create subscription
+      const subscription = await storage.createUserSubscription({
+        userId,
+        planId,
+        planName: plan.name,
+        status: 'active',
+        subscriptionStartsAt: startDate,
+        subscriptionEndsAt: endDate,
+        totalPaid: totalAmount.toFixed(2),
+        durationMonths,
+        paymentProvider: 'manual_admin',
+        activationSource: 'manual_admin',
+        metadata: JSON.stringify({ 
+          activatedBy: req.user!.email,
+          adminNotes: notes || '',
+          activatedAt: new Date().toISOString()
+        }),
+      });
+
+      // Disable trial if active
+      if (user.isOnTrial === 1) {
+        await storage.updateUser(userId, { isOnTrial: 0 });
+      }
+
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'manual_subscription_activate',
+        targetUserId: userId,
+        details: `Manually activated ${plan.name} for ${durationMonths} months (${user.email})${notes ? ` - Notes: ${notes}` : ''}`,
+        createdAt: new Date(),
+      });
+
+      res.json({ 
+        success: true, 
+        subscription,
+        message: `Successfully activated ${plan.name} for ${user.email} (${durationMonths} months)`
+      });
+    } catch (error) {
+      console.error("Manual subscription activation error:", error);
+      res.status(500).json({ error: "Failed to activate subscription" });
+    }
+  });
+
+  // Admin: Extend existing subscription
+  app.patch("/api/admin/subscriptions/:subscriptionId/extend", requireAdmin, async (req, res) => {
+    try {
+      const { subscriptionId } = req.params;
+      const { extensionMonths, notes } = req.body;
+
+      // Validate extension duration
+      if (![1, 3, 6, 12].includes(extensionMonths)) {
+        return res.status(400).json({ error: "Invalid extension. Must be 1, 3, 6, or 12 months" });
+      }
+
+      // Get existing subscription
+      const subscriptions = await storage.getAllUserSubscriptions();
+      const subscription = subscriptions.find(s => s.id === subscriptionId);
+      
+      if (!subscription) {
+        return res.status(404).json({ error: "Subscription not found" });
+      }
+
+      // Get user
+      const user = await storage.getUserById(subscription.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Calculate new end date (extend from current end date, not from today)
+      const currentEndDate = new Date(subscription.subscriptionEndsAt);
+      const newEndDate = new Date(currentEndDate);
+      newEndDate.setMonth(newEndDate.getMonth() + extensionMonths);
+
+      // Get plan for pricing
+      const plan = await storage.getSubscriptionPlanById(subscription.planId);
+      const monthlyPrice = plan ? parseFloat(plan.monthlyPrice || '0') : 0;
+      const extensionAmount = monthlyPrice * extensionMonths;
+      const newTotalPaid = parseFloat(subscription.totalPaid || '0') + extensionAmount;
+
+      // Update subscription
+      const updated = await storage.updateUserSubscription(subscriptionId, {
+        subscriptionEndsAt: newEndDate,
+        totalPaid: newTotalPaid.toFixed(2),
+        status: 'active', // Reactivate if it was expired
+        durationMonths: subscription.durationMonths + extensionMonths,
+        metadata: JSON.stringify({
+          ...JSON.parse(subscription.metadata || '{}'),
+          lastExtension: {
+            extendedBy: req.user!.email,
+            extensionMonths,
+            extensionAmount,
+            adminNotes: notes || '',
+            extendedAt: new Date().toISOString()
+          }
+        }),
+      });
+
+      // Log admin action
+      await db.insert(adminActivityLogs).values({
+        adminId: req.user!.id,
+        action: 'manual_subscription_extend',
+        targetUserId: subscription.userId,
+        details: `Extended subscription by ${extensionMonths} months for ${user.email} (${subscription.planName})${notes ? ` - Notes: ${notes}` : ''}`,
+        createdAt: new Date(),
+      });
+
+      res.json({ 
+        success: true, 
+        subscription: updated,
+        message: `Successfully extended subscription by ${extensionMonths} months. New end date: ${newEndDate.toLocaleDateString()}`
+      });
+    } catch (error) {
+      console.error("Subscription extension error:", error);
+      res.status(500).json({ error: "Failed to extend subscription" });
+    }
+  });
+
+  // Admin: Get all subscriptions with user details
+  app.get("/api/admin/subscriptions", requireAdmin, async (req, res) => {
+    try {
+      const allSubscriptions = await storage.getAllUserSubscriptions();
+      const allUsers = await storage.getAllUsers();
+      
+      // Create user map for quick lookup
+      const userMap = new Map(allUsers.map(u => [u.id, u]));
+      
+      // Enrich subscriptions with user info
+      const enrichedSubscriptions = allSubscriptions.map(sub => {
+        const user = userMap.get(sub.userId);
+        return {
+          ...sub,
+          userEmail: user?.email,
+          userName: user?.fullName,
+          isExpired: new Date(sub.subscriptionEndsAt) < new Date(),
+        };
+      });
+
+      // Sort by creation date (newest first)
+      enrichedSubscriptions.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      res.json(enrichedSubscriptions);
+    } catch (error) {
+      console.error("Admin subscriptions list error:", error);
+      res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+  });
   
   // Admin: Reset user password
   app.post("/api/admin/users/:userId/reset-password", requireAdmin, async (req, res) => {

@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, TrendingUp, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, DollarSign, TrendingUp, UserCheck, Settings, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { containerVariants, itemVariants } from "@/lib/motion";
+import { useLocation } from "wouter";
 
 interface AdminStats {
   users: {
@@ -23,6 +25,8 @@ interface AdminStats {
 }
 
 export default function AdminDashboard() {
+  const [, navigate] = useLocation();
+  
   const { data: stats, isLoading } = useQuery<AdminStats>({ 
     queryKey: ['/api/admin/stats'],
   });
@@ -91,10 +95,24 @@ export default function AdminDashboard() {
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Pantau prestasi sistem dan pengguna PocketBizz
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Pantau prestasi sistem dan pengguna PocketBizz
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/admin/users")}>
+              <Users className="w-4 h-4 mr-2" />
+              Manage Users
+            </Button>
+            <Button onClick={() => navigate("/admin/subscriptions")}>
+              <CreditCard className="w-4 h-4 mr-2" />
+              Subscriptions
+            </Button>
+          </div>
+        </div>
       </motion.div>
 
       {/* Stats Cards */}

@@ -54,6 +54,7 @@ import ResellerTransfer from "@/pages/reseller-transfer";
 import ResellerPerformance from "@/pages/reseller-performance";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminUsers from "@/pages/admin-users";
+import AdminSubscriptions from "@/pages/admin-subscriptions";
 import Customers from "@/pages/customers";
 import Broadcast from "@/pages/broadcast";
 import Vouchers from "@/pages/vouchers";
@@ -125,6 +126,7 @@ function AppRouter() {
           <Route path="/pricing-tiers" component={ComingSoon} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
+          <Route path="/admin/subscriptions" component={AdminSubscriptions} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>
