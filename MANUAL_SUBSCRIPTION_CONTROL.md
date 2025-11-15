@@ -3,6 +3,14 @@
 ## Overview
 Backup system untuk activate dan extend langganan pengguna secara manual bila automatic payment BCL.my ada masalah.
 
+### Package Pricing (Fixed Rates)
+- **1 Bulan**: RM27 (RM27/bulan)
+- **3 Bulan**: RM79 (RM26.33/bulan) - Save 3%
+- **6 Bulan**: RM146 (RM24.33/bulan) - Save 10%
+- **12 Bulan**: RM259 (RM21.58/bulan) - Save 20%
+
+System ini guna **package pricing** yang tetap, bukan monthly price × duration.
+
 ## Features Implemented
 
 ### 1. Backend API Endpoints
@@ -36,6 +44,7 @@ Activate subscription baru untuk pengguna secara manual.
 - Validates duration (must be 1, 3, 6, or 12 months)
 - Sets `activationSource` to `manual_admin`
 - Stores admin notes in metadata
+- **Uses package pricing**: RM27 (1m), RM79 (3m), RM146 (6m), RM259 (12m)
 
 ---
 
@@ -106,7 +115,8 @@ List semua subscriptions dengan user details.
 - ✅ "Activate New Subscription" button
 - ✅ "Extend" button untuk setiap subscription
 - ✅ Duration options: 1, 3, 6, 12 bulan
-- ✅ Auto-calculate total amount
+- ✅ **Package pricing display** dengan per-month rate & discount %
+- ✅ Auto-calculate total amount (RM27/79/146/259)
 - ✅ Admin notes field untuk record payment details
 
 ---
@@ -120,10 +130,15 @@ List semua subscriptions dengan user details.
 3. Select user dari dropdown
 4. Choose subscription plan
 5. Select duration (1, 3, 6, or 12 months)
-6. Add notes: "Bank transfer RM237 received 15/11/2025 - Ref: FT251115XXXXX"
-7. Click **"Activate Subscription"**
-8. System will:
-   - Create active subscription
+   - **1 Bulan**: RM27
+   - **3 Bulan**: RM79 (Save 3%)
+   - **6 Bulan**: RM146 (Save 10%)
+   - **12 Bulan**: RM259 (Save 20%)
+6. System akan auto-show package price & per-month rate
+7. Add notes: "Bank transfer RM79 received 15/11/2025 - Ref: FT251115XXXXX"
+8. Click **"Activate Subscription"**
+9. System will:
+   - Create active subscription dengan correct package price
    - Turn off trial mode
    - Log admin action
    - Show success message
@@ -136,11 +151,12 @@ List semua subscriptions dengan user details.
 2. Find customer's subscription (use search bar)
 3. Click **"Extend"** button
 4. Select extension duration (1, 3, 6, or 12 months)
-5. Add notes: "Renewal payment RM237 via Maybank2u"
+   - System will show extension price & new end date
+5. Add notes: "Renewal payment RM79 (3 months) via Maybank2u"
 6. Click **"Extend Subscription"**
 7. System will:
    - Extend from current end date (not today!)
-   - Update total paid amount
+   - Add package price to total paid
    - Reactivate if expired
    - Log extension details
 
@@ -150,6 +166,12 @@ List semua subscriptions dengan user details.
 
 ### ✅ Duration Options
 Only accept: **1, 3, 6, or 12 months**
+
+**Package Pricing:**
+- 1 month = RM27 (no discount)
+- 3 months = RM79 (save RM2, 3% off)
+- 6 months = RM146 (save RM16, 10% off)
+- 12 months = RM259 (save RM65, 20% off)
 
 ### ✅ Audit Trail
 All manual activations & extensions are logged in `admin_activity_logs`:

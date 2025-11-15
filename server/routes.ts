@@ -4769,6 +4769,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + (durationMonths || 1));
         
+        // Package pricing
+        const PACKAGE_PRICES: Record<number, number> = {
+          1: 27,
+          3: 79,
+          6: 146,
+          12: 259,
+        };
+        const totalPaid = PACKAGE_PRICES[durationMonths || 1] || 27;
+        
         const subscription = await storage.createUserSubscription({
           userId,
           planId,
@@ -4776,7 +4785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'active',
           subscriptionStartsAt: startDate,
           subscriptionEndsAt: endDate,
-          totalPaid: (parseFloat(plan.monthlyPrice) * (durationMonths || 1)).toFixed(2),
+          totalPaid: totalPaid.toFixed(2),
           durationMonths: durationMonths || 1,
           paymentProvider: 'manual',
         });
@@ -4830,9 +4839,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + durationMonths);
 
-      // Calculate total amount (monthly price × duration)
-      const monthlyPrice = parseFloat(plan.monthlyPrice || '0');
-      const totalAmount = monthlyPrice * durationMonths;
+      // Package pricing (matching subscription.tsx)
+      const PACKAGE_PRICES: Record<number, number> = {
+        1: 27,
+        3: 79,
+        6: 146,
+        12: 259,
+      };
+      const totalAmount = PACKAGE_PRICES[durationMonths] || 0;
 
       // Create subscription
       const subscription = await storage.createUserSubscription({
@@ -4908,10 +4922,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newEndDate = new Date(currentEndDate);
       newEndDate.setMonth(newEndDate.getMonth() + extensionMonths);
 
-      // Get plan for pricing
-      const plan = await storage.getSubscriptionPlanById(subscription.planId);
-      const monthlyPrice = plan ? parseFloat(plan.monthlyPrice || '0') : 0;
-      const extensionAmount = monthlyPrice * extensionMonths;
+      // Package pricing for extension
+      const PACKAGE_PRICES: Record<number, number> = {
+        1: 27,
+        3: 79,
+        6: 146,
+        12: 259,
+      };
+      const extensionAmount = PACKAGE_PRICES[extensionMonths] || 0;
       const newTotalPaid = parseFloat(subscription.totalPaid || '0') + extensionAmount;
 
       // Update subscription

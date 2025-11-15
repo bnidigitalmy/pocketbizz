@@ -68,6 +68,26 @@ interface Plan {
   monthlyPrice: string;
 }
 
+// Package pricing constants (matching subscription.tsx)
+const PACKAGE_PRICES: Record<number, number> = {
+  1: 27,
+  3: 79,
+  6: 146,
+  12: 259,
+} as const;
+
+// Calculate per-month rate
+const getPerMonthRate = (duration: number): number => {
+  return PACKAGE_PRICES[duration] / duration;
+};
+
+// Calculate discount percentage
+const getDiscount = (duration: number): number => {
+  const baseMonthly = PACKAGE_PRICES[1];
+  const packageRate = getPerMonthRate(duration);
+  return Math.round(((baseMonthly - packageRate) / baseMonthly) * 100);
+};
+
 export default function AdminSubscriptions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showActivateDialog, setShowActivateDialog] = useState(false);
@@ -424,12 +444,15 @@ export default function AdminSubscriptions() {
 
             {selectedPlanId && (
               <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="text-sm font-medium text-blue-900">Total Amount</div>
+                <div className="text-sm font-medium text-blue-900">Package Price</div>
                 <div className="text-2xl font-bold text-blue-700">
-                  RM {(parseFloat(plans.find(p => p.id === selectedPlanId)?.monthlyPrice || '0') * parseInt(activateDuration)).toFixed(2)}
+                  RM {PACKAGE_PRICES[parseInt(activateDuration)]}
                 </div>
                 <div className="text-xs text-blue-600 mt-1">
-                  RM {plans.find(p => p.id === selectedPlanId)?.monthlyPrice} × {activateDuration} month{parseInt(activateDuration) > 1 ? 's' : ''}
+                  RM {getPerMonthRate(parseInt(activateDuration)).toFixed(2)}/month
+                  {getDiscount(parseInt(activateDuration)) > 0 && (
+                    <span className="ml-2 font-semibold text-green-600">💰 Save {getDiscount(parseInt(activateDuration))}%</span>
+                  )}
                 </div>
               </div>
             )}
@@ -502,6 +525,19 @@ export default function AdminSubscriptions() {
                     <SelectItem value="12">12 Bulan</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm font-medium text-blue-900">Extension Price</div>
+                <div className="text-2xl font-bold text-blue-700">
+                  RM {PACKAGE_PRICES[parseInt(extendDuration)]}
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  RM {getPerMonthRate(parseInt(extendDuration)).toFixed(2)}/month
+                  {getDiscount(parseInt(extendDuration)) > 0 && (
+                    <span className="ml-2 font-semibold text-green-600">💰 Save {getDiscount(parseInt(extendDuration))}%</span>
+                  )}
+                </div>
               </div>
 
               <div className="p-3 bg-green-50 rounded-lg border border-green-200">
