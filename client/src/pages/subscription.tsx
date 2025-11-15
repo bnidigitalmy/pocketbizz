@@ -38,6 +38,12 @@ export default function Subscription() {
     refetchInterval: 5000, // Auto-refresh limits too
   });
 
+  // Fetch subscription plans to obtain the default plan id (used for checkout)
+  const { data: plans } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
+  const defaultPlan = plans?.[0];
+
   const user = userData?.user;
   const activeSubscription = subscriptions?.find((s: any) => s.status === "active");
   const isOnTrial = user?.isOnTrial === 1;
@@ -90,14 +96,6 @@ export default function Subscription() {
     );
   }
 
-  // BCL.my single-plan payment form URLs
-  const BCL_SINGLE_PLAN_URL: Record<1|3|6|12, string> = {
-    1: "https://bnidigital.bcl.my/form/1-bulan",
-    3: "https://bnidigital.bcl.my/form/3-bulan",
-    6: "https://bnidigital.bcl.my/form/6-bulan",
-    12: "https://bnidigital.bcl.my/form/12-bulan",
-  } as const;
-
   // Calculated prices per duration (whole MYR)
   const PRICES: Record<1|3|6|12, number> = {
     1: 27,
@@ -107,9 +105,6 @@ export default function Subscription() {
   } as const;
 
   const handlePay = (months: 1|3|6|12) => {
-    const url = BCL_SINGLE_PLAN_URL[months];
-    if (!url) return;
-
     // If not logged in, redirect to register
     if (!user) {
       const params = new URLSearchParams({
@@ -121,10 +116,14 @@ export default function Subscription() {
       return;
     }
 
-    // BCL.my doesn't support hidden fields or URL param persistence
-    // User will need to enter their email manually in the form
-    // Webhook will match by email to activate subscription
-    window.location.href = url;
+    // Route to ToyyibPay checkout page using our billing flow
+    // Requires a subscription plan to exist; fallback to pricing if not found
+    if (defaultPlan?.id) {
+      setLocation(`/checkout?planId=${defaultPlan.id}&duration=${months}`);
+    } else {
+      // No plan found — guide user to pricing to retry
+      setLocation("/pricing");
+    }
   };
 
   return (

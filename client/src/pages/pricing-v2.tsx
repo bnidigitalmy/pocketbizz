@@ -104,39 +104,19 @@ export default function PricingV2() {
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     const isLoggedIn = userData?.user && !isAuthError;
     
-    const planName = plan.name as 'basic' | 'pro' | 'premium';
-    const bclFormUrl = BCL_FORM_URLS[planName]?.[selectedDuration];
-    
-    if (!bclFormUrl) {
-      console.error('No BCL.my form URL found for:', planName, selectedDuration);
-      return;
-    }
-    
     if (!isLoggedIn) {
       const params = new URLSearchParams({
         plan: plan.name,
         duration: selectedDuration.toString(),
-        returnTo: '/pricing-v2',
+        returnTo: '/subscription',
       });
       
       window.location.href = `/auth/register?${params.toString()}`;
       return;
     }
     
-    const userEmail = userData.user.email;
-    const userId = userData.user.id;
-    const userName = userData.user.name || '';
-    
-    const urlParams = new URLSearchParams({
-      email: userEmail,
-      user_id: userId,
-      name: userName,
-      package: plan.name,
-      duration: selectedDuration.toString(),
-    });
-    
-    const formUrlWithParams = `${bclFormUrl}?${urlParams.toString()}`;
-    window.location.href = formUrlWithParams;
+    // Unified 4-duration flow: send users to Subscription page
+    setLocation('/subscription');
   };
 
   const planIcons = {

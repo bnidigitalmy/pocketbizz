@@ -78,7 +78,16 @@ export async function setupTestApp() {
   return app;
 }
 
-app.use(express.json());
+// Capture raw body for HMAC signature verification (e.g., BCL.my webhooks)
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    try {
+      req.rawBody = buf.toString('utf8');
+    } catch {
+      // ignore
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: false }));
 
 // Trust proxy for Replit deployment (required for secure cookies behind proxy)
@@ -188,10 +197,10 @@ if (process.env.NODE_ENV !== 'test') {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  // Windows environments may not support the non-standard reusePort option; remove for compatibility
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
   });

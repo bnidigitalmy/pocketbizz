@@ -12,6 +12,7 @@
     "db:backup": "node scripts/backup-database.js",
     "db:verify": "node scripts/verify-database.js",
     "db:seed-pricing": "tsx scripts/seed-pricing-plans.js",
+    "seed:plans": "tsx server/seed-plans.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

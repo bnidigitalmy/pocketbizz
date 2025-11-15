@@ -131,9 +131,16 @@ export async function processBCLWebhook(req: Request, res: Response) {
       });
     }
 
-    // Get raw body for signature verification
-    const rawBody = JSON.stringify(req.body);
+    // Get raw body for signature verification (prefer rawBody captured by express.json verify)
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
     const signature = req.headers["x-bcl-signature"] as string;
+
+    // Lightweight diagnostics (safe): do not log secrets, just presence/length
+    console.log("[BCL] Incoming webhook: ", {
+      hasSignature: Boolean(signature),
+      rawLength: typeof rawBody === 'string' ? rawBody.length : 0,
+      env: process.env.NODE_ENV,
+    });
 
     // STRICT: Signature is REQUIRED in production
     if (process.env.NODE_ENV === "production" && !signature) {
@@ -187,10 +194,12 @@ export async function processBCLWebhook(req: Request, res: Response) {
       return res.json({ success: true, message: "Payment failure logged" });
     }
 
-    // STRICT: Only accept payment-success events
-    if (payload.event !== "payment-success") {
-      console.log("[BCL] Ignoring non-payment event:", payload.event);
-      return res.json({ success: true, message: "Event ignored (not payment-success)" });
+    // Accept either explicit payment-success or form-submit that is paid
+    const isPaymentEvent =
+      payload.event === "payment-success" || payload.event === "form-submit";
+    if (!isPaymentEvent) {
+      console.log("[BCL] Ignoring unrelated event:", payload.event);
+      return res.json({ success: true, message: "Event ignored (not a payment event)" });
     }
 
     // STRICT: Verify payment status is actually completed/paid

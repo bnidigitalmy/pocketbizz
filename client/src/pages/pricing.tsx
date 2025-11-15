@@ -76,15 +76,6 @@ export default function Pricing() {
     const isLoggedIn = userData?.user && !isAuthError;
     console.log('isLoggedIn:', isLoggedIn);
     
-    // Get BCL.my form URL
-    const planName = plan.name as 'basic' | 'pro' | 'premium';
-    const bclFormUrl = BCL_FORM_URLS[planName]?.[selectedDuration];
-    
-    if (!bclFormUrl) {
-      console.error('No BCL.my form URL found for:', planName, selectedDuration);
-      return;
-    }
-    
     if (!isLoggedIn) {
       console.log('User not logged in, redirecting to register page');
       // Redirect to register page with plan info
@@ -92,36 +83,15 @@ export default function Pricing() {
       const params = new URLSearchParams({
         plan: plan.name,
         duration: selectedDuration.toString(),
-        returnTo: '/pricing',
+        returnTo: '/subscription',
       });
       
       window.location.href = `/auth/register?${params.toString()}`;
       return;
     }
     
-    // User is logged in, redirect to BCL.my payment form
-    console.log('Redirecting to BCL.my form:', bclFormUrl);
-    
-    // Pre-fill email and userId in BCL.my form (via URL params)
-    const userEmail = userData.user.email;
-    const userId = userData.user.id;
-    const userName = userData.user.name || '';
-    
-    // Build URL with all user data
-    const urlParams = new URLSearchParams({
-      email: userEmail,
-      user_id: userId,
-      name: userName,
-      package: plan.name,
-      duration: selectedDuration.toString(),
-    });
-    
-    const formUrlWithParams = `${bclFormUrl}?${urlParams.toString()}`;
-    
-    console.log('Opening BCL.my form with params:', formUrlWithParams);
-    
-    // Open BCL.my form
-    window.location.href = formUrlWithParams;
+    // User is logged in – redirect to unified Subscription page (4-duration model)
+    setLocation('/subscription');
   };
 
   const planIcons = {
