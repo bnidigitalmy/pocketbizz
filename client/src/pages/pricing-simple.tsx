@@ -104,8 +104,8 @@ export default function PricingSimple() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">12 bulan</span>
                   <div className="text-right">
-                    <span className="font-semibold text-green-700">RM260</span>
-                    <span className="text-xs text-green-600 ml-2">(save RM64)</span>
+                    <span className="font-semibold text-green-700">RM259</span>
+                    <span className="text-xs text-green-600 ml-2">(save RM65)</span>
                   </div>
                 </div>
               </div>

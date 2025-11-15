@@ -76,12 +76,13 @@ export default function Subscription() {
     return "No Active Plan";
   };
 
-  // Get plan color
+  // Get plan color (single PocketBizz plan with consistent branding)
   const getPlanColor = () => {
     const planName = getPlanName().toLowerCase();
-    if (planName.includes("premium")) return "text-purple-600 bg-purple-100";
-    if (planName.includes("pro")) return "text-blue-600 bg-blue-100";
-    if (planName.includes("basic")) return "text-green-600 bg-green-100";
+    if (planName.includes("pocketbizz") || planName.includes("trial")) {
+      return "text-blue-600 bg-blue-100";
+    }
+    if (planName.includes("grace")) return "text-orange-600 bg-orange-100";
     return "text-gray-600 bg-gray-100";
   };
 
