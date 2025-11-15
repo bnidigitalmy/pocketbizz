@@ -9,7 +9,9 @@ import {
   timestamp, 
   date,
   pgEnum,
-  json
+  json,
+  unique,
+  index
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -74,7 +76,7 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "partial",
 export const expenseCategoryEnum = pgEnum("expense_category", ["bahan", "minyak", "upah", "plastik", "lain"]);
 export const commissionTypeEnum = pgEnum("commission_type", ["fixed_range", "percentage"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["tunai", "online", "kredit"]); // Cash, Online, Credit
-export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete", "expired"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing", "incomplete", "expired", "superseded"]);
 export const promoCodeTypeEnum = pgEnum("promo_code_type", ["percentage", "fixed_amount"]);
 export const billingStatusEnum = pgEnum("billing_status", ["succeeded", "failed", "pending", "refunded"]);
 export const resellerPaymentStatusEnum = pgEnum("reseller_payment_status", ["paid", "pending"]);
@@ -1029,10 +1031,21 @@ export const userSubscriptions = pgTable("user_subscriptions", {
   toyyibpayBillCode: text("toyyibpay_bill_code"), // ToyyibPay bill reference
   paymentMethod: text("payment_method"), // FPX, card, e-wallet, etc.
   paymentProvider: text("payment_provider"), // "toyyibpay", "bcl_bayarcash", "manual", etc.
-  externalTransactionId: text("external_transaction_id"), // Transaction ID from payment provider
+  externalTransactionId: text("external_transaction_id"), // Transaction ID from payment provider (UNIQUE for idempotency)
+  activationSource: text("activation_source").default("webhook_bcl"), // webhook_bcl, manual_admin, webhook_toyyibpay
+  previousSubscriptionId: varchar("previous_subscription_id"), // Link to previous subscription if extending
   metadata: text("metadata"), // JSON for additional data
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Unique constraint for idempotency - prevent duplicate transaction processing
+    uniqueExternalTransaction: unique("unique_external_transaction_id").on(table.externalTransactionId),
+    // Index for faster lookups
+    userIdIdx: index("user_subscriptions_user_id_idx").on(table.userId),
+    statusIdx: index("user_subscriptions_status_idx").on(table.status),
+    externalTxIdx: index("user_subscriptions_external_tx_idx").on(table.externalTransactionId),
+  };
 });
 
 // Promo Codes Table

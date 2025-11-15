@@ -4,6 +4,13 @@ import { db } from "./db";
 import { users, userSubscriptions, subscriptionPlans } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
+import { 
+  activateSubscription, 
+  extractPackageFromFormTitle,
+  extractPackageFromAmount,
+  getPackageConfig,
+  type PackageSlug,
+} from "./subscription-service";
 
 /**
  * BCL.my Webhook Payload Structure
@@ -110,6 +117,7 @@ export function verifyBCLSignature(
 
 /**
  * Process BCL.my webhook and activate subscription
+ * ENHANCED: Strict validation, idempotency, trial termination, billing audit
  */
 export async function processBCLWebhook(req: Request, res: Response) {
   try {
@@ -127,6 +135,15 @@ export async function processBCLWebhook(req: Request, res: Response) {
     const rawBody = JSON.stringify(req.body);
     const signature = req.headers["x-bcl-signature"] as string;
 
+    // STRICT: Signature is REQUIRED in production
+    if (process.env.NODE_ENV === "production" && !signature) {
+      console.error("[BCL] Missing signature in production environment");
+      return res.status(401).json({ 
+        success: false, 
+        error: "Signature required in production" 
+      });
+    }
+
     // Verify signature if provided
     if (signature) {
       const isValid = verifyBCLSignature(rawBody, signature, webhookSecret);
@@ -137,8 +154,9 @@ export async function processBCLWebhook(req: Request, res: Response) {
           error: "Invalid signature" 
         });
       }
+      console.log("[BCL] ✓ Signature verified");
     } else {
-      console.warn("[BCL] No signature provided - accepting for testing");
+      console.warn("[BCL] ⚠️  No signature provided (dev/test mode only)");
     }
 
     const payload = req.body;
@@ -154,28 +172,10 @@ export async function processBCLWebhook(req: Request, res: Response) {
       formTitle: webhookData.form_title,
       email: mainData.payer_email,
       orderNumber: mainData.order_number,
+      amount: mainData.amount,
       isPaid: mainData.is_paid,
       status: mainData.status,
     });
-
-    // Optional debug snapshot for first live verification (enable with BCL_DEBUG_LOG=1)
-    if (process.env.BCL_DEBUG_LOG === '1') {
-      const snapshot = {
-        topLevelKeys: Object.keys(webhookData),
-        mainDataKeys: Object.keys(mainData),
-        recordId: webhookData.record_id,
-        formTitle: webhookData.form_title,
-        payerEmail: mainData.payer_email,
-        payerName: mainData.payer_name,
-        payerPhone: mainData.payer_telephone_number,
-        orderNumber: mainData.order_number,
-        amount: mainData.amount,
-        isPaid: mainData.is_paid,
-        status: mainData.status,
-        paymentChannel: mainData.payment_channel,
-      };
-      console.log("[BCL] Payload snapshot:", JSON.stringify(snapshot, null, 2));
-    }
 
     // Handle payment-failed events
     if (payload.event === "payment-failed" || statusStr === "failed") {
@@ -187,18 +187,17 @@ export async function processBCLWebhook(req: Request, res: Response) {
       return res.json({ success: true, message: "Payment failure logged" });
     }
 
-    // Process payment-success events only
-    if (payload.event !== "payment-success" && payload.event !== "form-submit") {
-      console.log("[BCL] Ignoring event:", payload.event);
-      return res.json({ success: true, message: "Event ignored" });
+    // STRICT: Only accept payment-success events
+    if (payload.event !== "payment-success") {
+      console.log("[BCL] Ignoring non-payment event:", payload.event);
+      return res.json({ success: true, message: "Event ignored (not payment-success)" });
     }
 
-    // Verify payment is actually paid (multiple representations)
-    const rawStatus = statusStr;
+    // STRICT: Verify payment status is actually completed/paid
     const rawIsPaid = String((mainData as any).is_paid ?? "").toLowerCase();
-    const isPaid = ["1","true","paid","completed"].includes(rawIsPaid) || ["paid","completed"].includes(rawStatus);
+    const isPaid = ["1","true","paid","completed"].includes(rawIsPaid) || ["paid","completed"].includes(statusStr);
     
-    if (!isPaid && payload.event !== "form-submit") {
+    if (!isPaid) {
       console.warn("[BCL] Payment not confirmed:", {
         isPaid: mainData.is_paid,
         status: mainData.status,
@@ -212,26 +211,27 @@ export async function processBCLWebhook(req: Request, res: Response) {
       });
     }
 
-    console.log("[BCL] Payment confirmed as successful");
+    console.log("[BCL] ✓ Payment confirmed as successful");
 
-    // Extract data from BCL's main_data (fallback to legacy keys if any)
+    // Extract data from BCL's main_data
     const email = mainData.payer_email || (mainData as any).email;
     const name = mainData.payer_name;
     const phone = mainData.payer_telephone_number;
     const amount = parseFloat(mainData.amount || "0");
     const orderNumber = mainData.order_number || webhookData.record_id;
     const currency = mainData.currency || "MYR";
+    const paymentChannel = mainData.payment_channel || "FPX";
     const transactionId = orderNumber;
+    const formTitle = webhookData.form_title || "";
 
-    console.log("[BCL] Webhook data extracted:", {
-      email,
-      name,
-      phone,
-      amount,
-      currency,
-      orderNumber,
-      transactionId,
-    });
+    // STRICT: Validate currency
+    if (currency !== "MYR") {
+      console.error("[BCL] Invalid currency:", currency);
+      return res.status(400).json({
+        success: false,
+        error: `Invalid currency: ${currency}. Only MYR accepted.`,
+      });
+    }
 
     // Email is required (primary identifier)
     if (!email) {
@@ -243,122 +243,103 @@ export async function processBCLWebhook(req: Request, res: Response) {
       });
     }
 
-    // Determine package based on form_title or amount
-    let packageConfig: { package: string; planName: string; months: number; price: number; } | undefined;
+    console.log("[BCL] Webhook data extracted:", {
+      email,
+      name,
+      phone,
+      amount,
+      currency,
+      orderNumber,
+      transactionId,
+      formTitle,
+      paymentChannel,
+    });
+
+    // Determine package slug (STRICT: form_title first, then exact amount match)
+    let packageSlug = extractPackageFromFormTitle(formTitle);
     
-    // Try to extract duration from form_title (e.g., "Langganan 3 Bulan" → 3)
-    const formTitle = webhookData.form_title || "";
-    const durationMatch = formTitle.match(/(\d+)\s*bulan/i);
-    
-    if (durationMatch) {
-      const months = parseInt(durationMatch[1]);
-      const formKey = `${months}-bulan`;
-      packageConfig = BCL_FORM_CONFIG[formKey];
-      console.log("[BCL] Matched by form title:", { formTitle, months, formKey });
-    }
-    
-    // Fallback: Match by amount if form title didn't work
-    if (!packageConfig && amount > 0) {
-      const amountTolerance = 2; // RM2 tolerance
-      if (Math.abs(amount - 27) <= amountTolerance) {
-        packageConfig = BCL_FORM_CONFIG["1-bulan"];
-        console.log("[BCL] Matched amount RM", amount, "to 1-month plan");
-      } else if (Math.abs(amount - 79) <= amountTolerance) {
-        packageConfig = BCL_FORM_CONFIG["3-bulan"];
-        console.log("[BCL] Matched amount RM", amount, "to 3-month plan");
-      } else if (Math.abs(amount - 146) <= amountTolerance) {
-        packageConfig = BCL_FORM_CONFIG["6-bulan"];
-        console.log("[BCL] Matched amount RM", amount, "to 6-month plan");
-      } else if (Math.abs(amount - 259) <= amountTolerance) {
-        packageConfig = BCL_FORM_CONFIG["12-bulan"];
-        console.log("[BCL] Matched amount RM", amount, "to 12-month plan");
-      }
+    if (!packageSlug) {
+      console.log("[BCL] Could not extract from form_title, trying amount match...");
+      packageSlug = extractPackageFromAmount(amount);
     }
 
-    if (!packageConfig) {
-      console.error("[BCL] Could not determine package from amount:", amount);
-      console.error("[BCL] Expected amounts: RM27, RM79, RM146, or RM259");
+    if (!packageSlug) {
+      console.error("[BCL] Could not determine package from form_title or amount:", {
+        formTitle,
+        amount,
+      });
       return res.status(400).json({ 
         success: false, 
-        error: `Unknown package amount: RM${amount}. Expected: RM27, RM79, RM146, or RM259` 
+        error: `Unable to determine package. Form: "${formTitle}", Amount: RM${amount}`,
+        hint: "Expected amounts: RM27, RM79, RM146, or RM259"
       });
     }
 
-    console.log("[BCL] Processing payment for:", {
-      email,
-      package: packageConfig.package,
+    const packageConfig = getPackageConfig(packageSlug);
+    console.log("[BCL] ✓ Package identified:", {
+      slug: packageSlug,
       months: packageConfig.months,
       price: packageConfig.price,
     });
 
-    // Find user by email (BCL forms don't support hidden fields, so email is primary identifier)
-    console.log("[BCL] Looking up user by email:", email);
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
+    // Activate or extend subscription using service layer
+    console.log("[BCL] Activating subscription via service layer...");
+    const result = await activateSubscription({
+      email,
+      packageSlug,
+      amount,
+      transactionId,
+      paymentMethod: paymentChannel,
+      paymentChannel,
+      activationSource: "webhook_bcl",
+      metadata: {
+        formTitle,
+        recordId: webhookData.record_id,
+        payerName: name,
+        payerPhone: phone,
+        webhookEvent: payload.event,
+      },
     });
 
-    if (!user) {
-      console.error("[BCL] User not found with email:", email);
-      return res.status(404).json({ 
-        success: false, 
-        error: "User not found. Please register at PocketBizz first with this email address.",
-        email,
-        hint: "Make sure you register using the same email address before making payment"
-      });
-    }
-
-    console.log("[BCL] User matched successfully:", user.id, user.email);
-
-    // Find subscription plan by name
-    const plan = await db.query.subscriptionPlans.findFirst({
-      where: eq(subscriptionPlans.name, packageConfig.package),
+    console.log("[BCL] ✓ Subscription activation result:", {
+      isNewSubscription: result.isNewSubscription,
+      wasOnTrial: result.wasOnTrial,
+      userId: result.user.id,
+      subscriptionId: result.subscription.id,
+      previousEndsAt: result.previousEndsAt,
+      newEndsAt: result.newEndsAt,
+      extendedMonths: result.extendedMonths,
     });
 
-    if (!plan) {
-      console.error("[BCL] Plan not found:", packageConfig.package);
-      return res.status(400).json({ 
-        success: false, 
-        error: `Plan not found: ${packageConfig.package}` 
-      });
-    }
-
-    // Calculate subscription dates
-    const now = new Date();
-    const subscriptionEndsAt = new Date(now);
-    subscriptionEndsAt.setMonth(subscriptionEndsAt.getMonth() + packageConfig.months);
-
-    // Create subscription record
-    const [subscription] = await db.insert(userSubscriptions).values({
-      userId: user.id,
-      planId: plan.id,
-      planName: plan.displayName,
-      durationMonths: packageConfig.months,
-      subscriptionStartsAt: now,
-      subscriptionEndsAt: subscriptionEndsAt,
-      totalPaid: amount.toString(), // Use actual amount paid from webhook
-      paymentProvider: "bcl_bayarcash",
-      paymentMethod: mainData.payment_channel || "FPX",
-      externalTransactionId: orderNumber, // Use order_number from webhook (e.g., "LINK-85557")
-    } as any).returning();
-
-    console.log("[BCL] Subscription created:", subscription.id);
-
-    console.log("[BCL] User subscription activated successfully");
-
-    // Return success
+    // Return enhanced response
     return res.json({
       success: true,
-      message: "Subscription activated successfully",
+      message: result.message,
       data: {
-        userId: user.id,
-        subscriptionId: subscription.id,
-        plan: plan.displayName,
-        endsAt: subscriptionEndsAt.toISOString(),
+        userId: result.user.id,
+        email: result.user.email,
+        subscriptionId: result.subscription.id,
+        plan: packageConfig.planName,
+        isNewSubscription: result.isNewSubscription,
+        wasOnTrial: result.wasOnTrial,
+        previousEndsAt: result.previousEndsAt?.toISOString(),
+        newEndsAt: result.newEndsAt.toISOString(),
+        extendedMonths: result.extendedMonths,
+        totalMonths: result.subscription.durationMonths,
       },
     });
 
   } catch (error) {
     console.error("[BCL] Webhook processing error:", error);
+    
+    // Enhanced error logging
+    if (error instanceof Error) {
+      console.error("[BCL] Error details:", {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -374,25 +355,26 @@ export async function testBCLWebhook(req: Request, res: Response) {
     return res.status(403).json({ error: "Not available in production" });
   }
 
-  const { email, formId, package: pkg, months, price } = req.body;
+  const { email, months, amount } = req.body;
+  const packageSlug = `${months || 3}-bulan` as PackageSlug;
 
   const testPayload: BCLWebhookPayload = {
-    event: "form-submit",
+    event: "payment-success",
     data: {
-      form_id: formId || 999,
-      form_slug: "test-form",
-      form_title: "Test Payment Form",
+      form_id: 999,
+      form_slug: packageSlug,
+      form_title: `Langganan ${months || 3} Bulan`,
       record_type: "Transaction",
       record_id: `TEST-${Date.now()}`,
       main_data: {
         id: crypto.randomUUID(),
-        form_id: formId || 999,
+        form_id: 999,
         payer_email: email || "test@example.com",
         payer_name: "Test User",
         payer_telephone_number: "0123456789",
         order_number: `TEST-${Date.now()}`,
-        amount: String(price || 117),
-        is_paid: 1,
+        amount: String(amount || 79),
+        is_paid: "1",
         status: "completed",
         payment_channel: "FPX",
         currency: "MYR",
@@ -402,7 +384,58 @@ export async function testBCLWebhook(req: Request, res: Response) {
 
   // Mock the request
   req.body = testPayload;
-  req.headers["x-bcl-signature"] = "test-signature-bypass";
+
+  return processBCLWebhook(req, res);
+}
+
+/**
+ * Test endpoint to simulate a SIGNED BCL.my webhook (development only)
+ * This computes the HMAC signature using `BCL_WEBHOOK_SECRET` and calls
+ * `processBCLWebhook` with the `x-bcl-signature` header attached.
+ */
+export async function testBCLWebhookSigned(req: Request, res: Response) {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Not available in production" });
+  }
+
+  const webhookSecret = process.env.BCL_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return res.status(500).json({ error: "BCL_WEBHOOK_SECRET not configured" });
+  }
+
+  const { email, months, amount } = req.body;
+  const packageSlug = `${months || 3}-bulan` as PackageSlug;
+
+  const payload: BCLWebhookPayload = {
+    event: "payment-success",
+    data: {
+      form_id: 999,
+      form_slug: packageSlug,
+      form_title: `Langganan ${months || 3} Bulan`,
+      record_type: "Transaction",
+      record_id: `TEST-${Date.now()}`,
+      main_data: {
+        id: crypto.randomUUID(),
+        form_id: 999,
+        payer_email: email || "test@example.com",
+        payer_name: "Test User",
+        payer_telephone_number: "0123456789",
+        order_number: `TEST-${Date.now()}`,
+        amount: String(amount || 79),
+        is_paid: "1",
+        status: "completed",
+        payment_channel: "FPX",
+        currency: "MYR",
+      },
+    },
+  };
+
+  // Assign body and attach header
+  req.body = payload;
+  const raw = JSON.stringify(payload);
+  const sig = crypto.createHmac("sha256", webhookSecret).update(raw).digest("hex");
+  // set header
+  (req.headers as any)["x-bcl-signature"] = sig;
 
   return processBCLWebhook(req, res);
 }

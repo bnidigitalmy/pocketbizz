@@ -165,16 +165,16 @@ export default function Subscription() {
                 <CardTitle className="text-2xl">{getPlanName()}</CardTitle>
                 <CardDescription>
                   {activeSubscription 
-                    ? `Active since ${format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy")}`
+                    ? `Bermula ${format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy", { locale: ms })}`
                     : isOnTrial 
                       ? "Trial percuma 7 hari"
-                      : "No active subscription"
+                      : "Tiada langganan aktif"
                   }
                 </CardDescription>
               </div>
             </div>
             <Badge className={getPlanColor()}>
-              {activeSubscription ? "Active" : isOnTrial ? "Trial" : graceEndsAt ? "Grace Period" : "Inactive"}
+              {activeSubscription ? "Aktif" : isOnTrial ? "Trial" : graceEndsAt ? "Grace Period" : "Tidak Aktif"}
             </Badge>
           </div>
         </CardHeader>
@@ -184,10 +184,10 @@ export default function Subscription() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {activeSubscription ? "Subscription Period" : isOnTrial ? "Trial Period" : "Grace Period"}
+                {activeSubscription ? "Tempoh Langganan" : isOnTrial ? "Tempoh Trial" : "Grace Period"}
               </span>
               <span className="font-semibold">
-                {daysRemaining > 0 ? `${daysRemaining} days remaining` : "Expired"}
+                {daysRemaining > 0 ? `${daysRemaining} hari lagi` : "Tamat tempoh"}
               </span>
             </div>
             <Progress 
@@ -197,20 +197,36 @@ export default function Subscription() {
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {activeSubscription 
-                  ? format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy")
-                  : user?.createdAt ? format(new Date(user.createdAt), "dd MMM yyyy") : "-"
+                  ? format(new Date(activeSubscription.subscriptionStartsAt), "dd MMM yyyy", { locale: ms })
+                  : user?.createdAt ? format(new Date(user.createdAt), "dd MMM yyyy", { locale: ms }) : "-"
                 }
               </span>
               <span>
                 {activeSubscription 
-                  ? format(new Date(activeSubscription.subscriptionEndsAt), "dd MMM yyyy")
-                  : trialEndsAt ? format(trialEndsAt, "dd MMM yyyy") 
-                  : graceEndsAt ? format(graceEndsAt, "dd MMM yyyy")
+                  ? format(new Date(activeSubscription.subscriptionEndsAt), "dd MMM yyyy", { locale: ms })
+                  : trialEndsAt ? format(trialEndsAt, "dd MMM yyyy", { locale: ms }) 
+                  : graceEndsAt ? format(graceEndsAt, "dd MMM yyyy", { locale: ms })
                   : "-"
                 }
               </span>
             </div>
           </div>
+
+          {/* Show extension notice if subscription was extended */}
+          {activeSubscription?.previousSubscriptionId && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-green-900">Langganan Dipanjangkan</p>
+                  <p className="text-green-700">
+                    Tempoh langganan anda telah dilanjutkan sebanyak {activeSubscription.durationMonths} bulan. 
+                    Terima kasih kerana terus menyokong PocketBizz!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Separator />
 

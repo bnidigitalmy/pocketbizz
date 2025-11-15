@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { db } from "./db";
 import { cache } from "./cache";
+import { processBCLWebhook, testBCLWebhook, testBCLWebhookSigned } from "./bcl-webhook";
 import {
   enforceProductLimit,
   enforceVendorLimit,
@@ -252,6 +253,21 @@ async function requireProPlan(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // ==================== WEBHOOK ROUTES (NO AUTH REQUIRED) ====================
+  // Webhooks must be registered BEFORE loadUser middleware
+  // Payment gateways don't send session cookies
+  
+  app.post("/api/webhooks/bcl", processBCLWebhook);
+  
+  // Test endpoint for simulating BCL.my webhooks (dev only)
+  if (process.env.NODE_ENV !== "production") {
+    app.post("/api/webhooks/bcl/test", testBCLWebhook);
+    // Dev-only signed test (uses BCL_WEBHOOK_SECRET)
+    if (process.env.NODE_ENV !== "production") {
+      app.post("/api/webhooks/bcl/test-signed", testBCLWebhookSigned);
+    }
+  }
   
   // Load user for all requests
   app.use(loadUser);

@@ -73,7 +73,8 @@ if (process.env.SENTRY_DSN) {
 }
 
 // Export helper for tests so they can import the app without starting the server
-export function setupTestApp() {
+export async function setupTestApp() {
+  await registerRoutes(app);
   return app;
 }
 
