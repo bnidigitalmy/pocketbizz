@@ -96,7 +96,6 @@ export default function AdminSubscriptions() {
   
   // Activate form state
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedPlanId, setSelectedPlanId] = useState("");
   const [activateDuration, setActivateDuration] = useState("3");
   const [activateNotes, setActivateNotes] = useState("");
   
@@ -138,9 +137,15 @@ export default function AdminSubscriptions() {
   // Manual activation mutation
   const activateMutation = useMutation({
     mutationFn: async () => {
+      // Auto-use first plan (we only have 1 plan now)
+      const defaultPlan = plans[0];
+      if (!defaultPlan) {
+        throw new Error("No subscription plan available");
+      }
+      
       const response = await apiRequest('POST', '/api/admin/subscriptions/manual-activate', {
         userId: selectedUserId,
-        planId: selectedPlanId,
+        planId: defaultPlan.id,
         durationMonths: parseInt(activateDuration),
         notes: activateNotes,
       });
@@ -200,7 +205,6 @@ export default function AdminSubscriptions() {
 
   const resetActivateForm = () => {
     setSelectedUserId("");
-    setSelectedPlanId("");
     setActivateDuration("3");
     setActivateNotes("");
   };
@@ -411,51 +415,41 @@ export default function AdminSubscriptions() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="plan">Subscription Plan</Label>
-              <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose plan..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.displayName} - RM {plan.monthlyPrice}/month
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <div className="text-sm font-medium text-gray-700">Plan</div>
+              <div className="text-lg font-bold">PocketBizz</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Single plan with duration-based pricing (1, 3, 6, or 12 months)
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration</Label>
+              <Label htmlFor="duration">Duration Package</Label>
               <Select value={activateDuration} onValueChange={setActivateDuration}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 Bulan</SelectItem>
-                  <SelectItem value="3">3 Bulan</SelectItem>
-                  <SelectItem value="6">6 Bulan</SelectItem>
-                  <SelectItem value="12">12 Bulan</SelectItem>
+                  <SelectItem value="1">1 Bulan - RM27</SelectItem>
+                  <SelectItem value="3">3 Bulan - RM79 (Save 3%)</SelectItem>
+                  <SelectItem value="6">6 Bulan - RM146 (Save 10%)</SelectItem>
+                  <SelectItem value="12">12 Bulan - RM259 (Save 20%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {selectedPlanId && (
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="text-sm font-medium text-blue-900">Package Price</div>
-                <div className="text-2xl font-bold text-blue-700">
-                  RM {PACKAGE_PRICES[parseInt(activateDuration)]}
-                </div>
-                <div className="text-xs text-blue-600 mt-1">
-                  RM {getPerMonthRate(parseInt(activateDuration)).toFixed(2)}/month
-                  {getDiscount(parseInt(activateDuration)) > 0 && (
-                    <span className="ml-2 font-semibold text-green-600">💰 Save {getDiscount(parseInt(activateDuration))}%</span>
-                  )}
-                </div>
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-sm font-medium text-blue-900">Package Price</div>
+              <div className="text-2xl font-bold text-blue-700">
+                RM {PACKAGE_PRICES[parseInt(activateDuration)]}
               </div>
-            )}
+              <div className="text-xs text-blue-600 mt-1">
+                RM {getPerMonthRate(parseInt(activateDuration)).toFixed(2)}/month
+                {getDiscount(parseInt(activateDuration)) > 0 && (
+                  <span className="ml-2 font-semibold text-green-600">💰 Save {getDiscount(parseInt(activateDuration))}%</span>
+                )}
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="notes">Admin Notes (Optional)</Label>
@@ -475,7 +469,7 @@ export default function AdminSubscriptions() {
             </Button>
             <Button 
               onClick={() => activateMutation.mutate()}
-              disabled={!selectedUserId || !selectedPlanId || activateMutation.isPending}
+              disabled={!selectedUserId || activateMutation.isPending}
             >
               {activateMutation.isPending ? "Activating..." : "Activate Subscription"}
             </Button>
@@ -513,16 +507,16 @@ export default function AdminSubscriptions() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="extend-duration">Extension Duration</Label>
+                <Label htmlFor="extend-duration">Extension Package</Label>
                 <Select value={extendDuration} onValueChange={setExtendDuration}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 Bulan</SelectItem>
-                    <SelectItem value="3">3 Bulan</SelectItem>
-                    <SelectItem value="6">6 Bulan</SelectItem>
-                    <SelectItem value="12">12 Bulan</SelectItem>
+                    <SelectItem value="1">1 Bulan - RM27</SelectItem>
+                    <SelectItem value="3">3 Bulan - RM79 (Save 3%)</SelectItem>
+                    <SelectItem value="6">6 Bulan - RM146 (Save 10%)</SelectItem>
+                    <SelectItem value="12">12 Bulan - RM259 (Save 20%)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

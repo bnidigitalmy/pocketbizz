@@ -3,13 +3,15 @@
 ## Overview
 Backup system untuk activate dan extend langganan pengguna secara manual bila automatic payment BCL.my ada masalah.
 
-### Package Pricing (Fixed Rates)
+### Pricing Model
+**Single Plan**: PocketBizz (all features included)  
+**Duration-based Packages**:
 - **1 Bulan**: RM27 (RM27/bulan)
 - **3 Bulan**: RM79 (RM26.33/bulan) - Save 3%
 - **6 Bulan**: RM146 (RM24.33/bulan) - Save 10%
 - **12 Bulan**: RM259 (RM21.58/bulan) - Save 20%
 
-System ini guna **package pricing** yang tetap, bukan monthly price × duration.
+System ini guna **package pricing** yang tetap, sama seperti BCL.my payment forms.
 
 ## Features Implemented
 
@@ -128,8 +130,8 @@ List semua subscriptions dengan user details.
 1. Navigate to `/admin/subscriptions`
 2. Click **"Activate New Subscription"**
 3. Select user dari dropdown
-4. Choose subscription plan
-5. Select duration (1, 3, 6, or 12 months)
+4. Plan auto-selected: **PocketBizz** (single plan model)
+5. Choose duration package:
    - **1 Bulan**: RM27
    - **3 Bulan**: RM79 (Save 3%)
    - **6 Bulan**: RM146 (Save 10%)
