@@ -65,11 +65,18 @@ export async function activateSubscription(
     throw new Error(`Invalid package slug: ${params.packageSlug}`);
   }
 
-  // Strict amount validation (no tolerance)
-  if (Math.abs(params.amount - packageConfig.price) > 0.01) {
+  // Amount validation with tolerance for BCL.my discounts
+  // Allow amounts that are <= expected price (discounts/promos OK)
+  // But reject if amount is MORE than expected (fraud protection)
+  if (params.amount > packageConfig.price + 0.01) {
     throw new Error(
-      `Amount mismatch: expected RM${packageConfig.price}, got RM${params.amount}`
+      `Amount exceeds package price: expected max RM${packageConfig.price}, got RM${params.amount}`
     );
+  }
+  
+  // Log if discounted payment detected
+  if (params.amount < packageConfig.price - 0.01) {
+    console.log(`[Subscription] 💰 Discounted payment detected: RM${params.amount} (normal: RM${packageConfig.price})`);
   }
 
   return await db.transaction(async (tx) => {
