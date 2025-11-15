@@ -2708,6 +2708,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Delivery creation error:", error);
+      
+      // Handle duplicate invoice number (concurrent requests)
+      if (error.code === '23505' && error.constraint === 'deliveries_invoice_number_unique') {
+        return res.status(409).json({ 
+          error: "Penghantaran sedang diproses. Sila tunggu sebentar.",
+          code: "DUPLICATE_REQUEST"
+        });
+      }
+      
       if (error.message) {
         res.status(400).json({ error: error.message });
       } else {

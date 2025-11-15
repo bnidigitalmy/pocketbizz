@@ -182,16 +182,31 @@ export default function Deliveries() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(transformedData),
+        credentials: "include",
       });
       
       if (!response.ok) {
         const error = await response.json();
+        
+        // Handle duplicate request gracefully (user clicked multiple times)
+        if (response.status === 409 && error.code === 'DUPLICATE_REQUEST') {
+          console.log('[Delivery] Duplicate request detected, ignoring...');
+          // Return a dummy response - the first request will handle success
+          return { isDuplicate: true };
+        }
+        
         throw new Error(error.error || "Gagal merekod penghantaran");
       }
       
       return response.json();
     },
     onSuccess: async (data, variables) => {
+      // Skip if this was a duplicate request
+      if (data.isDuplicate) {
+        console.log('[Delivery] Skipping duplicate success handler');
+        return;
+      }
+      
       // Save last selected vendor for smart defaults
       try {
         if (variables.vendorId) {
