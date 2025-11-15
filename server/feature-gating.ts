@@ -77,6 +77,20 @@ export async function getUserPlan(userId: string) {
 }
 
 /**
+ * Lightweight limits accessor used by /api/user/plan-limits
+ * Normalizes absent plan (trial/none) with conservative defaults.
+ */
+export async function getPlanLimits(userId: string) {
+  const plan = await getUserPlan(userId);
+  return {
+    maxProducts: plan?.maxProducts ?? 10,
+    maxStockItems: plan?.maxStockItems ?? 20,
+    // Use deliveries per month as proxy for transaction-like activity
+    maxTransactions: (plan as any)?.maxDeliveriesPerMonth ?? 50,
+  };
+}
+
+/**
  * Check if user has access to a specific feature
  */
 export async function hasFeatureAccess(
