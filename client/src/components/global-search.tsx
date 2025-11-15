@@ -10,13 +10,13 @@ import {
 } from "@/components/ui/command";
 import { 
   Search, 
-  Cake, 
   Store, 
   Package, 
   DollarSign, 
   Truck,
   Clock
 } from "lucide-react";
+import { PocketBizzIcon } from "@/components/pocketbizz-logo";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 
@@ -30,7 +30,7 @@ interface SearchResult {
 }
 
 const iconMap: Record<string, any> = {
-  Cake,
+  Product: PocketBizzIcon,
   Store,
   Package,
   DollarSign,

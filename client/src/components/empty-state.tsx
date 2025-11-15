@@ -9,10 +9,10 @@ import {
   DollarSign,
   Receipt,
   BarChart3,
-  Cake,
   ChefHat,
   type LucideIcon
 } from "lucide-react";
+import { PocketBizzIcon } from "@/components/pocketbizz-logo";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -34,7 +34,6 @@ const iconMap: Record<string, LucideIcon> = {
   DollarSign,
   Receipt,
   BarChart3,
-  Cake,
   ChefHat,
 };
 
@@ -97,15 +96,18 @@ export function EmptyState({
 
 // Preset empty states for common scenarios
 export const EmptyStates = {
-  Products: (onAdd?: () => void) => (
-    <EmptyState
-      icon={Cake}
-      title="Belum Ada Produk"
-      description="Jom tambah produk pertama untuk mulakan perniagaan anda. Masukkan resepi dan kos untuk pengiraan automatik."
-      actionLabel="Tambah Produk Pertama"
-      onAction={onAdd}
-    />
-  ),
+  Products: (onAdd?: () => void) => {
+    const ProductIcon = () => <PocketBizzIcon className="h-12 w-12 text-muted-foreground" size={48} />;
+    return (
+      <EmptyState
+        icon={ProductIcon as any}
+        title="Belum Ada Produk"
+        description="Jom tambah produk pertama untuk mulakan perniagaan anda. Masukkan resepi dan kos untuk pengiraan automatik."
+        actionLabel="Tambah Produk Pertama"
+        onAction={onAdd}
+      />
+    );
+  },
   
   Stock: (onAdd?: () => void) => (
     <EmptyState

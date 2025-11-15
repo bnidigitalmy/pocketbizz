@@ -22,7 +22,6 @@ import {
   UserPlus,
   RefreshCw,
   TrendingUp,
-  Cake,
   DollarSign,
   Tag,
   Banknote,
@@ -33,6 +32,7 @@ import {
   Settings,
   LogOut
 } from "lucide-react";
+import { PocketBizzIcon } from "@/components/pocketbizz-logo";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -291,10 +291,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   onClick={() => setShowQuickAdd(false)}
                 >
                   <div className="font-medium flex items-center gap-2">
-                    <Cake className="w-5 h-5 text-orange-600" />
+                    <PocketBizzIcon className="w-5 h-5 text-orange-600" size={20} />
                     <span>Tempahan Baru</span>
                   </div>
-                  <div className="text-sm text-gray-600 ml-7">Customer tempah kek/desert</div>
+                  <div className="text-sm text-gray-600 ml-7">Customer tempah produk</div>
                 </button>
               </Link>
               <Link href="/stock">
@@ -379,7 +379,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   "w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 text-sm",
                   location === "/products" ? "bg-orange-50 text-orange-700" : "hover:bg-orange-50/50"
                 )} onClick={() => setShowMoreMenu(false)}>
-                  <Cake className="w-4 h-4" />
+                  <PocketBizzIcon className="w-4 h-4" size={16} />
                   <span>Produk & Resepi</span>
                 </button>
               </Link>

@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Cake,
   ChefHat,
   Package,
   Box,
@@ -30,6 +29,7 @@ import {
   AlertTriangle,
   Globe,
 } from "lucide-react";
+import { PocketBizzLogo, PocketBizzIcon } from "@/components/pocketbizz-logo";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -49,6 +49,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+// Icon wrapper for PocketBizzIcon to work with menu system
+const ProductsIconWrapper = (props: any) => <PocketBizzIcon className={props.className} size={16} />;
+
 // Overview
 const overviewItems = [
   {
@@ -63,7 +66,7 @@ const stockManagementItems = [
   {
     title: "Produk & Resepi",
     url: "/products",
-    icon: Cake,
+    icon: ProductsIconWrapper,
   },
   {
     title: "Produksi",
@@ -295,7 +298,7 @@ export function AppSidebar() {
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Cake className="h-6 w-6 text-primary-foreground" />
+            <PocketBizzLogo className="h-6 w-6 text-primary-foreground" size={24} />
           </div>
           <div>
             <h2 className="text-lg font-semibold">PocketBizz</h2>
