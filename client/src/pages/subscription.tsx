@@ -327,18 +327,38 @@ export default function Subscription() {
         )}
 
         {activeSubscription && (
-          <CardFooter className="flex gap-3">
-            <Button 
-              onClick={() => handlePay(activeSubscription.durationMonths as 1|3|6|12)} 
-              variant="default"
-              className="flex-1"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Renew ({activeSubscription.durationMonths} Bulan)
-            </Button>
+          <CardFooter className="flex-col gap-4">
+            <div className="w-full">
+              <p className="text-sm text-muted-foreground mb-3">Pilih tempoh untuk perbaharui langganan:</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[1,3,6,12].map((m) => {
+                  const savings = m === 3 ? "Jimat 3%" : m === 6 ? "Jimat 10%" : m === 12 ? "Jimat 20%" : null;
+                  const isCurrentDuration = m === activeSubscription.durationMonths;
+                  return (
+                    <Button
+                      key={m}
+                      variant={isCurrentDuration ? "default" : "outline"}
+                      className="flex-col h-auto py-4 relative"
+                      onClick={() => handlePay(m as 1|3|6|12)}
+                    >
+                      {savings && (
+                        <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
+                          {savings}
+                        </span>
+                      )}
+                      <RefreshCw className="h-4 w-4 mb-1" />
+                      <span className="text-xs">{m} Bulan</span>
+                      <span className="text-lg font-bold mt-1">RM{PRICES[m as 1|3|6|12]}</span>
+                      {isCurrentDuration && <span className="text-xs text-muted-foreground mt-1">Current</span>}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
             <Button 
               onClick={() => setLocation("/settings")} 
               variant="outline"
+              className="w-full"
             >
               Settings
             </Button>
