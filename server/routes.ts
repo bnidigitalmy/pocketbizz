@@ -3630,7 +3630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user plan limits and usage
   app.get("/api/user/plan-limits", requireAuth, async (req, res) => {
     try {
-      const { products: productsTable, stock, sales } = await import("@shared/schema");
+      const { products: productsTable, stockItems, sales } = await import("@shared/schema");
       const { eq, count } = await import("drizzle-orm");
       
       // Get current usage
@@ -3641,8 +3641,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [stockCount] = await db
         .select({ count: count() })
-        .from(stock)
-        .where(eq(stock.userId, req.user!.id));
+        .from(stockItems)
+        .where(eq(stockItems.userId, req.user!.id));
 
       const [transactionsCount] = await db
         .select({ count: count() })
