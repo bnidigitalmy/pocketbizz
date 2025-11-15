@@ -2707,15 +2707,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         vendorAddress: vendor?.address,
       });
     } catch (error: any) {
-      console.error("Delivery creation error:", error);
-      
       // Handle duplicate invoice number (concurrent requests)
+      // This is expected when user clicks multiple times - don't log error
       if (error.code === '23505' && error.constraint === 'deliveries_invoice_number_unique') {
         return res.status(409).json({ 
           error: "Penghantaran sedang diproses. Sila tunggu sebentar.",
           code: "DUPLICATE_REQUEST"
         });
       }
+      
+      // Log other errors only
+      console.error("Delivery creation error:", error);
       
       if (error.message) {
         res.status(400).json({ error: error.message });

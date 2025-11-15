@@ -101,7 +101,7 @@ export function AIGreetingWidget() {
       insights.push({
         type: "success",
         icon: <Sparkles className="h-4 w-4" />,
-        message: `RM${todayProduction.toFixed(0)} produksi hari ini. Teruskan!`,
+        message: `${todayProduction.toFixed(0)} unit produksi hari ini. Teruskan!`,
       });
     }
 

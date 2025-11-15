@@ -904,10 +904,10 @@ export default function Deliveries() {
                 <DialogFooter>
                   <Button 
                     type="submit" 
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || form.formState.isSubmitting}
                     data-testid="button-submit-delivery"
                   >
-                    {createMutation.isPending ? "Menyimpan..." : "Simpan Penghantaran"}
+                    {createMutation.isPending || form.formState.isSubmitting ? "Menyimpan..." : "Simpan Penghantaran"}
                   </Button>
                 </DialogFooter>
               </form>
