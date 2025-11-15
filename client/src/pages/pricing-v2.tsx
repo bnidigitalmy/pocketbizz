@@ -190,7 +190,7 @@ export default function PricingV2() {
   const calculateROI = () => {
     if (!trialImpact) return null;
     
-    const monthlyInvestment = 210; // Average BASIC plan
+    const monthlyInvestment = 210; // Average monthly cost (based on package rates)
     const monthlySavings = (trialImpact.stats.weeklyTimeSaved * 4 * 25) + // Time saved @ RM25/hour
                           trialImpact.stats.wastePreventionEstimate;
     

@@ -261,19 +261,22 @@ export default function AdminUsers() {
   });
 
   const handleActivateSubscription = () => {
-    if (!selectedUser || !selectedPlan) {
+    if (!selectedUser) {
       toast({
         title: "Error",
-        description: "Please select a plan",
+        description: "No user selected",
         variant: "destructive",
       });
       return;
     }
 
+    // Auto-use first plan (we only have 1 plan)
+    const defaultPlanId = plansData?.[0]?.id || 'default';
+
     manageMutation.mutate({
       userId: selectedUser.id,
       action: 'activate',
-      planId: selectedPlan,
+      planId: defaultPlanId,
       duration: parseInt(durationMonths),
     });
   };
@@ -517,9 +520,9 @@ export default function AdminUsers() {
       <Dialog open={showManageDialog} onOpenChange={setShowManageDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Urus Subscription</DialogTitle>
+            <DialogTitle>Manage Subscription</DialogTitle>
             <DialogDescription>
-              Aktifkan atau batalkan subscription untuk {selectedUser?.name}
+              Activate or cancel subscription for {selectedUser?.name}
             </DialogDescription>
           </DialogHeader>
 
@@ -532,33 +535,25 @@ export default function AdminUsers() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="plan-select">Select Plan</Label>
-              <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                <SelectTrigger id="plan-select" data-testid="select-plan">
-                  <SelectValue placeholder="Pilih plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(plansData as any[])?.map((plan: any) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.displayName} - RM {plan.monthlyPrice}/bulan
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <div className="text-sm font-medium text-gray-700">Plan</div>
+              <div className="text-lg font-bold">PocketBizz</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Single plan with duration packages
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration-select">Tempoh (Bulan)</Label>
+              <Label htmlFor="duration-select">Duration Package</Label>
               <Select value={durationMonths} onValueChange={setDurationMonths}>
                 <SelectTrigger id="duration-select" data-testid="select-duration">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 Bulan</SelectItem>
-                  <SelectItem value="3">3 Bulan</SelectItem>
-                  <SelectItem value="6">6 Bulan</SelectItem>
-                  <SelectItem value="12">12 Bulan</SelectItem>
+                  <SelectItem value="1">1 Bulan - RM27</SelectItem>
+                  <SelectItem value="3">3 Bulan - RM79 (Save 3%)</SelectItem>
+                  <SelectItem value="6">6 Bulan - RM146 (Save 10%)</SelectItem>
+                  <SelectItem value="12">12 Bulan - RM259 (Save 20%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -577,7 +572,7 @@ export default function AdminUsers() {
             )}
             <Button
               onClick={handleActivateSubscription}
-              disabled={!selectedPlan || manageMutation.isPending}
+              disabled={manageMutation.isPending}
               data-testid="button-activate-subscription"
             >
               {manageMutation.isPending ? (
@@ -776,40 +771,38 @@ export default function AdminUsers() {
       <Dialog open={showChangePlanDialog} onOpenChange={setShowChangePlanDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tukar Subscription Plan</DialogTitle>
+            <DialogTitle>Activate/Change Subscription</DialogTitle>
             <DialogDescription>
-              Tukar plan untuk {selectedUser?.email}. Current plan: <strong>{selectedUser?.currentPlan}</strong>
+              Change subscription for {selectedUser?.email}. Current: <strong>{selectedUser?.currentPlan}</strong>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <div className="text-sm font-medium text-gray-700">Plan</div>
+              <div className="text-lg font-bold">PocketBizz</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Single plan with duration-based pricing
+              </div>
+            </div>
+            
             <div className="space-y-2">
-              <Label>Plan Baru</Label>
+              <Label>Duration Package</Label>
               <Select value={selectedPlan} onValueChange={setSelectedPlan}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih plan" />
+                  <SelectValue placeholder="Choose duration..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="trial">Trial (7 hari percuma)</SelectItem>
-                  <SelectItem value="basic">Basic (RM29/bulan)</SelectItem>
-                  <SelectItem value="pro">Pro (RM59/bulan)</SelectItem>
-                  <SelectItem value="premium">Premium (RM99/bulan)</SelectItem>
+                  <SelectItem value="1">1 Bulan - RM27</SelectItem>
+                  <SelectItem value="3">3 Bulan - RM79 (Save 3%)</SelectItem>
+                  <SelectItem value="6">6 Bulan - RM146 (Save 10%)</SelectItem>
+                  <SelectItem value="12">12 Bulan - RM259 (Save 20%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Tempoh (bulan)</Label>
-              <Input
-                type="number"
-                min="1"
-                max="12"
-                value={durationMonths}
-                onChange={(e) => setDurationMonths(e.target.value)}
-                placeholder="1"
-              />
-            </div>
+            
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                💡 Plan akan bertukar dengan serta-merta dan subscription akan dilanjutkan mengikut tempoh yang dipilih.
+                💡 Subscription will be activated/updated immediately for the selected duration.
               </p>
             </div>
           </div>
@@ -820,20 +813,20 @@ export default function AdminUsers() {
             <Button
               onClick={() => selectedUser && changePlanMutation.mutate({
                 userId: selectedUser.id,
-                planId: selectedPlan,
-                durationMonths: parseInt(durationMonths)
+                planId: plansData?.[0]?.id || 'default',
+                durationMonths: parseInt(selectedPlan || '1')
               })}
               disabled={changePlanMutation.isPending || !selectedPlan}
             >
               {changePlanMutation.isPending ? (
                 <>
                   <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Menukar...
+                  Updating...
                 </>
               ) : (
                 <>
                   <ShieldAlert className="h-4 w-4 mr-2" />
-                  Tukar Plan
+                  Update Subscription
                 </>
               )}
             </Button>
