@@ -47,7 +47,6 @@ export default function POSPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
-  const [thermalFormat, setThermalFormat] = useState<"58mm" | "80mm">("80mm");
   
   // Voucher states
   const [voucherCode, setVoucherCode] = useState("");
@@ -472,13 +471,11 @@ export default function POSPage() {
     }
   };
 
-  // Handle Thermal Print
+  // Handle Thermal Print (80mm default - auto-adjusts to printer)
   const handleThermalPrint = () => {
     if (!lastReceipt || !saleDetails) return;
 
-    const doc = thermalFormat === "58mm" 
-      ? generateThermalReceipt58mm(lastReceipt, saleDetails.items, businessProfile)
-      : generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+    const doc = generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
 
     if (doc) {
       doc.autoPrint();
@@ -486,26 +483,24 @@ export default function POSPage() {
       
       toast({
         title: "Cetak Resit Thermal",
-        description: `Format ${thermalFormat} dibuka`,
+        description: "Resit dibuka untuk dicetak",
       });
     }
   };
 
-  // Download Thermal Receipt
+  // Download Thermal Receipt (80mm)
   const handleDownloadThermal = () => {
     if (!lastReceipt || !saleDetails) return;
 
-    const doc = thermalFormat === "58mm" 
-      ? generateThermalReceipt58mm(lastReceipt, saleDetails.items, businessProfile)
-      : generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+    const doc = generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
 
     if (doc) {
-      const filename = `resit-${lastReceipt.receiptNumber}-${thermalFormat}.pdf`;
+      const filename = `resit-${lastReceipt.receiptNumber}-thermal.pdf`;
       doc.save(filename);
       
       toast({
         title: "Muat Turun Berjaya",
-        description: `Resit ${thermalFormat} dimuat turun`,
+        description: "Resit thermal dimuat turun",
       });
     }
   };
@@ -1055,36 +1050,13 @@ export default function POSPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">JUMLAH:</span>
                   <span className="text-2xl font-bold text-primary">
-                    RM {parseFloat(lastReceipt.totalAmount).toFixed(2)}
+                    RM {(parseFloat(lastReceipt.totalAmount || '0') || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
 
               <div className="border-t pt-4 text-center text-sm text-muted-foreground">
                 Terima kasih!
-              </div>
-
-              {/* Thermal Printer Format Selection */}
-              <div className="border-t pt-4 space-y-3">
-                <Label className="text-sm font-semibold">Format Printer Thermal</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    data-testid="button-select-58mm"
-                    onClick={() => setThermalFormat("58mm")}
-                    variant={thermalFormat === "58mm" ? "default" : "outline"}
-                    className="h-10"
-                  >
-                    58mm
-                  </Button>
-                  <Button
-                    data-testid="button-select-80mm"
-                    onClick={() => setThermalFormat("80mm")}
-                    variant={thermalFormat === "80mm" ? "default" : "outline"}
-                    className="h-10"
-                  >
-                    80mm
-                  </Button>
-                </div>
               </div>
 
               {/* Action Buttons - Simplified */}
@@ -1097,7 +1069,7 @@ export default function POSPage() {
                   className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
                   <Printer className="w-5 h-5 md:w-4 md:h-4" />
-                  Cetak ({thermalFormat})
+                  Cetak Resit
                 </Button>
 
                 <Button
