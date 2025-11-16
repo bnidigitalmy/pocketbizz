@@ -63,12 +63,6 @@ export default function POSPage() {
     queryKey: ["/api/business-profile"],
   });
 
-  // Fetch sale details with items when receipt is shown
-  const { data: saleDetails } = useQuery<any>({
-    queryKey: ["/api/sales", lastReceipt?.id],
-    enabled: !!lastReceipt?.id && showReceipt,
-  });
-
   // Customer lookup mutation
   const lookupCustomerMutation = useMutation({
     mutationFn: async (phone: string) => {
@@ -220,7 +214,12 @@ export default function POSPage() {
         description: message,
       });
       
-      setLastReceipt(sale);
+      // Store complete receipt data with items and totals
+      setLastReceipt({
+        ...sale,
+        items: cart, // Store cart items for receipt
+        totalAmount: finalTotal.toFixed(2), // Ensure totalAmount is set
+      });
       setShowReceipt(true);
       
       // Clear cart and customer
@@ -473,9 +472,9 @@ export default function POSPage() {
 
   // Handle Thermal Print (80mm default - auto-adjusts to printer)
   const handleThermalPrint = () => {
-    if (!lastReceipt || !saleDetails) return;
+    if (!lastReceipt || !lastReceipt.items) return;
 
-    const doc = generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+    const doc = generateThermalReceipt80mm(lastReceipt, lastReceipt.items, businessProfile);
 
     if (doc) {
       doc.autoPrint();
@@ -507,10 +506,10 @@ export default function POSPage() {
 
   // Handle WhatsApp Share
   const handleWhatsAppShare = () => {
-    if (!lastReceipt || !saleDetails) return;
+    if (!lastReceipt || !lastReceipt.items) return;
 
-    const items = (saleDetails.items || [])
-      .map((item: any) => `- ${item.productName} x${item.quantity} = RM${parseFloat(item.totalPrice).toFixed(2)}`)
+    const items = (lastReceipt.items || [])
+      .map((item: any) => `- ${item.productName} x${item.quantity} = RM${(item.quantity * parseFloat(item.price)).toFixed(2)}`)
       .join('\n');
 
     const message = `*RESIT JUALAN*\n\n` +
@@ -1065,7 +1064,7 @@ export default function POSPage() {
                   data-testid="button-print-thermal"
                   onClick={handleThermalPrint}
                   variant="default"
-                  disabled={!saleDetails}
+                  disabled={!lastReceipt || !lastReceipt.items}
                   className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
                   <Printer className="w-5 h-5 md:w-4 md:h-4" />
@@ -1076,7 +1075,7 @@ export default function POSPage() {
                   data-testid="button-whatsapp-share"
                   onClick={handleWhatsAppShare}
                   variant="default"
-                  disabled={!saleDetails}
+                  disabled={!lastReceipt || !lastReceipt.items}
                   className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
                   <Share2 className="w-5 h-5 md:w-4 md:h-4" />
