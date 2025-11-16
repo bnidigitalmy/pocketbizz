@@ -153,7 +153,7 @@ import {
   type InsertStoreAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, inArray, like } from "drizzle-orm";
+import { eq, desc, and, gte, lte, gt, asc, sql, inArray, like } from "drizzle-orm";
 
 export interface IStorage {
   // Products
