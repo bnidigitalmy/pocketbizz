@@ -217,7 +217,11 @@ export default function POSPage() {
       // Store complete receipt data with items and totals
       setLastReceipt({
         ...sale,
-        items: cart, // Store cart items for receipt
+        items: cart.map(item => ({
+          ...item,
+          unitPrice: item.unitPrice.toString(),
+          totalPrice: item.totalPrice.toString(),
+        })), // Ensure strings for PDF generator
         totalAmount: finalTotal.toFixed(2), // Ensure totalAmount is set
       });
       setShowReceipt(true);
@@ -509,8 +513,8 @@ export default function POSPage() {
     if (!lastReceipt || !lastReceipt.items) return;
 
     const items = (lastReceipt.items || [])
-      .map((item: any) => `- ${item.productName} x${item.quantity} = RM${(item.quantity * parseFloat(item.price)).toFixed(2)}`)
-      .join('\n');
+      .map((item: any) => `${item.productName}\n  ${item.quantity} x RM${parseFloat(item.unitPrice).toFixed(2)} = RM${(item.quantity * parseFloat(item.unitPrice)).toFixed(2)}`)
+      .join('\n\n');
 
     const message = `*RESIT JUALAN*\n\n` +
       `No: ${lastReceipt.receiptNumber}\n` +
@@ -1044,6 +1048,28 @@ export default function POSPage() {
                   <span className="font-medium capitalize">{lastReceipt.paymentMethod}</span>
                 </div>
               </div>
+
+              {/* Items List */}
+              {lastReceipt.items && lastReceipt.items.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-sm font-semibold mb-2">Item Dibeli:</p>
+                  <div className="space-y-2">
+                    {lastReceipt.items.map((item: any, index: number) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.productName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.quantity} x RM {parseFloat(item.unitPrice).toFixed(2)}
+                          </p>
+                        </div>
+                        <span className="font-medium">
+                          RM {(item.quantity * parseFloat(item.unitPrice)).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
