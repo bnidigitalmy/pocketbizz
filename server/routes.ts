@@ -2664,6 +2664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           productName: z.string(),
           quantity: z.number(),
           unitPrice: z.string(),
+          retailPrice: z.string().optional(), // Retail price for invoice reference
           rejectedQty: z.number().optional(),
           rejectionReason: z.string().optional(),
         })),
@@ -2677,23 +2678,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productName: item.productName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        retailPrice: item.retailPrice || "0", // Retail price for reference
         totalPrice: (item.quantity * parseFloat(item.unitPrice)).toFixed(2),
         rejectedQty: item.rejectedQty || 0,
         rejectionReason: item.rejectionReason || null,
         deliveryId: "", // Will be set in storage
       }));
       
-      // Deduct from finished goods batches using FIFO
-      for (const item of items) {
-        const deductionResult = await storage.deductFromBatches(req.user!.id, item.productId, item.quantity);
-        if (!deductionResult.success) {
-          return res.status(400).json({ 
-            error: `Stok siap tidak mencukupi untuk ${item.productName}. Diperlukan: ${item.quantity}`,
-            details: deductionResult
-          });
-        }
-      }
-      
+      // FIFO deduction now handled inside createDelivery transaction to prevent race conditions
       const newDelivery = await storage.createDelivery(req.user!.id, deliveryData, deliveryItems);
       
       // Fetch full delivery with items and vendor details for invoice dialog

@@ -1022,6 +1022,41 @@ export class DatabaseStorage implements IStorage {
       // Acquire advisory lock for this user+date (automatically released at transaction end)
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
       
+      // CRITICAL: Deduct FIFO batches FIRST within same transaction to prevent duplicate stock deductions
+      for (const item of items) {
+        // Lock stock items for update to prevent concurrent modifications
+        const stockItems = await tx
+          .select()
+          .from(stocks)
+          .where(and(
+            eq(stocks.userId, userId),
+            eq(stocks.productId, item.productId),
+            gt(stocks.remainingQty, 0)
+          ))
+          .orderBy(asc(stocks.createdAt)) // FIFO
+          .for('update'); // Row-level lock
+        
+        let remainingToDeduct = item.quantity;
+        
+        for (const stock of stockItems) {
+          if (remainingToDeduct <= 0) break;
+          
+          const deductQty = Math.min(stock.remainingQty, remainingToDeduct);
+          
+          await tx
+            .update(stocks)
+            .set({ remainingQty: stock.remainingQty - deductQty })
+            .where(eq(stocks.id, stock.id));
+          
+          remainingToDeduct -= deductQty;
+        }
+        
+        // Check if we deducted enough
+        if (remainingToDeduct > 0) {
+          throw new Error(`Stok siap tidak mencukupi untuk ${item.productName}. Diperlukan: ${item.quantity}`);
+        }
+      }
+      
       // Now safely find the latest invoice number for this date FOR THIS USER
       const latestInvoice = await tx
         .select()

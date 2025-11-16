@@ -191,27 +191,65 @@ export default function Deliveries() {
         
         console.log('[Delivery] Creating delivery...', transformedData);
         
-        const response = await fetch("/api/deliveries", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(transformedData),
-          credentials: "include",
-        });
+        // Retry mechanism for handling concurrent requests
+        let attempts = 0;
+        const maxAttempts = 3;
+        let lastError: any = null;
         
-        if (!response.ok) {
-          const error = await response.json();
+        while (attempts < maxAttempts) {
+          attempts++;
           
-          // Handle duplicate request gracefully (user clicked multiple times)
-          if (response.status === 409 && error.code === 'DUPLICATE_REQUEST') {
-            console.log('[Delivery] Duplicate request detected, ignoring...');
-            // Return a dummy response - the first request will handle success
-            return { isDuplicate: true };
+          try {
+            const response = await fetch("/api/deliveries", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(transformedData),
+              credentials: "include",
+            });
+            
+            if (response.ok) {
+              // Success!
+              const data = await response.json();
+              console.log('[Delivery] Created successfully', data);
+              return data;
+            }
+            
+            const error = await response.json();
+            
+            // Handle duplicate request - might be from concurrent click or race condition
+            if (response.status === 409 && error.code === 'DUPLICATE_REQUEST') {
+              console.log(`[Delivery] Duplicate detected on attempt ${attempts}, waiting...`);
+              
+              // If this is not the last attempt, wait and retry
+              if (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Exponential backoff
+                continue;
+              }
+              
+              // Last attempt - just ignore
+              console.log('[Delivery] Final attempt was duplicate, ignoring...');
+              return { isDuplicate: true };
+            }
+            
+            // Other errors - throw to be handled below
+            lastError = error;
+            break;
+            
+          } catch (fetchError) {
+            console.error(`[Delivery] Attempt ${attempts} failed:`, fetchError);
+            lastError = fetchError;
+            
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+              continue;
+            }
           }
-          
-          throw new Error(error.error || "Gagal merekod penghantaran");
         }
         
-        return response.json();
+        // If we get here, all attempts failed
+        if (lastError) {
+          throw new Error(lastError.error || "Gagal merekod penghantaran");
+        }
       } finally {
         // Reset flag after request completes (success or error)
         isSubmittingRef.current = false;
