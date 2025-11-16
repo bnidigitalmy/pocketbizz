@@ -1,0 +1,17 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1ED9C0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00B8D4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Icon: Rounded square with smile -->
+  <rect x="4" y="8" width="44" height="44" rx="12" fill="url(#logoGradient)"/>
+  <path d="M16 32 Q26 38 36 32" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+  
+  <!-- Text: PocketBizz -->
+  <text x="58" y="38" font-family="Poppins, sans-serif" font-size="24" font-weight="700" fill="#2D3748">
+    Pocket<tspan fill="url(#logoGradient)">Bizz</tspan>
+  </text>
+</svg>

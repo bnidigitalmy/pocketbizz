@@ -297,13 +297,11 @@ export function AppSidebar() {
           rel="noopener noreferrer"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <PocketBizzLogo className="h-6 w-6 text-primary-foreground" size={24} />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold">PocketBizz</h2>
-            <p className="text-xs text-muted-foreground">Business Manager</p>
-          </div>
+          <img 
+            src="/logo.svg" 
+            alt="PocketBizz" 
+            className="h-10 w-auto"
+          />
         </a>
       </SidebarHeader>
 

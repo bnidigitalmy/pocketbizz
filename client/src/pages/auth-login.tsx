@@ -52,9 +52,11 @@ export default function AuthLogin() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Package className="h-6 w-6 text-primary" />
-            </div>
+            <img 
+              src="/logo.svg" 
+              alt="PocketBizz" 
+              className="h-16 w-auto"
+            />
           </div>
           <CardTitle className="text-2xl">Log Masuk ke PocketBizz</CardTitle>
           <CardDescription>
