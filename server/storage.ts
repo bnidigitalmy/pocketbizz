@@ -1008,18 +1008,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDelivery(userId: string, delivery: InsertDelivery, items: InsertDeliveryItem[]): Promise<Delivery> {
-    // Use transaction with advisory lock to prevent race conditions in invoice number generation
+    // Use transaction with advisory lock (global per date) + retry loop to ensure unique invoice numbers across ALL users
     return await db.transaction(async (tx) => {
-      // Format: INV-YYYYMMDD-XXXX
+      // Format: INV-YYYYMMDD-XXXX (global sequence per date, not per user)
       const date = new Date(delivery.deliveryDate);
       const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
-      
-      // Use PostgreSQL advisory lock to serialize invoice generation per date per user
-      // Combine user hash + date for unique lock ID per user
-      const userHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const lockId = parseInt(dateStr) * 1000000 + (userHash % 1000000);
-      
-      // Acquire advisory lock for this user+date (automatically released at transaction end)
+
+      // Global advisory lock per date only (serialize across all users)
+      const lockId = parseInt(dateStr); // Simple integer ID for the date
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
       
       // CRITICAL: Deduct FIFO batches FIRST within same transaction to prevent duplicate stock deductions
@@ -1057,36 +1053,51 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Now safely find the latest invoice number for this date FOR THIS USER
-      const latestInvoice = await tx
-        .select()
-        .from(deliveries)
-        .where(and(
-          eq(deliveries.userId, userId),
-          sql`${deliveries.invoiceNumber} LIKE ${'INV-' + dateStr + '-%'}`
-        ))
-        .orderBy(desc(deliveries.invoiceNumber))
-        .limit(1);
-      
-      let sequenceNumber = 1;
-      if (latestInvoice.length > 0 && latestInvoice[0].invoiceNumber) {
-        // Extract sequence number from INV-YYYYMMDD-XXXX
-        const parts = latestInvoice[0].invoiceNumber.split('-');
-        if (parts.length === 3) {
-          sequenceNumber = parseInt(parts[2]) + 1;
+      // Retry loop in case of rare race (extra safety even with advisory lock)
+      let attempts = 0;
+      const maxAttempts = 5;
+      let newDelivery: Delivery | undefined;
+
+      while (attempts < maxAttempts && !newDelivery) {
+        attempts++;
+        // Find latest invoice number for this DATE (global, not scoped to user)
+        const latestInvoice = await tx
+          .select()
+          .from(deliveries)
+          .where(sql`${deliveries.invoiceNumber} LIKE ${'INV-' + dateStr + '-%'} `)
+          .orderBy(desc(deliveries.invoiceNumber))
+          .limit(1);
+
+        let sequenceNumber = 1;
+        if (latestInvoice.length > 0 && latestInvoice[0].invoiceNumber) {
+          const parts = latestInvoice[0].invoiceNumber.split('-');
+            if (parts.length === 3) {
+              sequenceNumber = parseInt(parts[2]) + 1;
+            }
+        }
+
+        const sequenceStr = sequenceNumber.toString().padStart(4, '0');
+        const invoiceNumber = `INV-${dateStr}-${sequenceStr}`;
+
+        try {
+          const inserted = await tx.insert(deliveries).values({
+            ...delivery,
+            userId,
+            invoiceNumber,
+          }).returning();
+          newDelivery = inserted[0];
+        } catch (err: any) {
+          // Unique constraint hit: another transaction slipped in; retry
+          if (err.code === '23505' && err.constraint === 'deliveries_invoice_number_unique') {
+            continue; // loop again
+          }
+          throw err; // other errors propagate
         }
       }
-      
-      // Format sequence number with leading zeros (4 digits)
-      const sequenceStr = sequenceNumber.toString().padStart(4, '0');
-      const invoiceNumber = `INV-${dateStr}-${sequenceStr}`;
-      
-      // Insert delivery with generated invoice number
-      const [newDelivery] = await tx.insert(deliveries).values({
-        ...delivery,
-        userId,
-        invoiceNumber,
-      }).returning();
+
+      if (!newDelivery) {
+        throw new Error('Gagal menjana invoice unik selepas beberapa percubaan. Sila cuba semula.');
+      }
       
       // Insert delivery items
       if (items.length > 0) {
