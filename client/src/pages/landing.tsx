@@ -28,7 +28,6 @@ import type { User } from "@shared/schema";
 import heroImage from "@assets/stock_images/small_business_owner_9704c9ed.jpg";
 import dashboardImage from "@assets/stock_images/business_dashboard_a_ffb04572.jpg";
 import ColorThemeSwitcher from "@/components/ColorThemeSwitcher";
-import { PocketBizzLogo } from "@/components/pocketbizz-logo";
 
 export default function Landing() {
   const [, navigate] = useLocation();
@@ -199,7 +198,8 @@ export default function Landing() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            <PocketBizzLogo size={100} />
+            <Package className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            <span className="text-lg sm:text-xl font-bold">PocketBizz</span>
           </div>
           
           {/* Desktop Navigation */}

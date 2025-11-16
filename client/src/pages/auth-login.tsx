@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Eye, EyeOff } from "lucide-react";
-import { PocketBizzLogo } from "@/components/pocketbizz-logo";
+import { Package, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AuthLogin() {
   const [, navigate] = useLocation();
@@ -52,10 +51,12 @@ export default function AuthLogin() {
     <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-6">
-            <PocketBizzLogo size={140} />
+          <div className="flex justify-center mb-4">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Package className="h-6 w-6 text-primary" />
+            </div>
           </div>
-          <CardTitle className="text-2xl">Log Masuk</CardTitle>
+          <CardTitle className="text-2xl">Log Masuk ke PocketBizz</CardTitle>
           <CardDescription>
             Masukkan email dan password anda untuk log masuk
           </CardDescription>
