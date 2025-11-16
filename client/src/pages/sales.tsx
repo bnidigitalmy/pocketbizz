@@ -225,7 +225,7 @@ export default function SalesListPage() {
                     <SelectItem value="semua">Semua</SelectItem>
                     <SelectItem value="tunai">Tunai</SelectItem>
                     <SelectItem value="online">Online</SelectItem>
-                    <SelectItem value="kredit">Kredit</SelectItem>
+                    <SelectItem value="qr">QR Code</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

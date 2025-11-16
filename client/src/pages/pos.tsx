@@ -43,7 +43,7 @@ export default function POSPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "online" | "qr" | "kredit">("tunai");
+  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "online" | "qr">("tunai");
   const [searchQuery, setSearchQuery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
@@ -896,12 +896,6 @@ export default function POSPage() {
                             Online Transfer
                           </span>
                         </SelectItem>
-                        <SelectItem value="kredit" data-testid="option-kredit">
-                          <span className="flex items-center gap-2">
-                            <Receipt className="w-4 h-4" />
-                            Kredit
-                          </span>
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -934,6 +928,48 @@ export default function POSPage() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             Sila upload QR code di halaman Tetapan
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Online Transfer Bank Info Display */}
+                  {paymentMethod === "online" && (
+                    <div className="bg-muted/50 p-4 rounded-lg border">
+                      {businessProfile?.bankName && businessProfile?.accountNumber ? (
+                        <div className="space-y-2">
+                          <p className="text-sm text-center text-muted-foreground font-medium">
+                            Maklumat Akaun Bank
+                          </p>
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Bank:</span>
+                              <span className="font-medium">{businessProfile.bankName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">No. Akaun:</span>
+                              <span className="font-medium font-mono">{businessProfile.accountNumber}</span>
+                            </div>
+                            {businessProfile.accountName && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Nama:</span>
+                                <span className="font-medium">{businessProfile.accountName}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-center text-muted-foreground mt-3">
+                            Selepas pembayaran, tekan butang "Proses Jualan"
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <CreditCard className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground">
+                            Maklumat bank belum disediakan
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sila isi maklumat bank di halaman Tetapan
                           </p>
                         </div>
                       )}
@@ -1051,7 +1087,7 @@ export default function POSPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons - Simplified */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button
                   data-testid="button-print-thermal"
@@ -1065,33 +1101,9 @@ export default function POSPage() {
                 </Button>
 
                 <Button
-                  data-testid="button-download-thermal"
-                  onClick={handleDownloadThermal}
-                  variant="outline"
-                  disabled={!saleDetails}
-                  className="flex items-center justify-center gap-2 h-12 md:h-10"
-                >
-                  <Download className="w-5 h-5 md:w-4 md:h-4" />
-                  Muat Turun ({thermalFormat})
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Button
-                  data-testid="button-print-a4"
-                  onClick={handlePrint}
-                  variant="outline"
-                  disabled={!saleDetails}
-                  className="flex items-center justify-center gap-2 h-12 md:h-10"
-                >
-                  <Receipt className="w-5 h-5 md:w-4 md:h-4" />
-                  A4
-                </Button>
-
-                <Button
                   data-testid="button-whatsapp-share"
                   onClick={handleWhatsAppShare}
-                  variant="outline"
+                  variant="default"
                   disabled={!saleDetails}
                   className="flex items-center justify-center gap-2 h-12 md:h-10"
                 >
