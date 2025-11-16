@@ -6,9 +6,20 @@
     </linearGradient>
   </defs>
   
-  <!-- Rounded square background -->
-  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#iconGradient)"/>
+  <!-- Pocket/Pouch shape -->
+  <path d="M 6 12 
+           C 6 8 10 4 14 4
+           L 34 4
+           C 38 4 42 8 42 12
+           L 42 32
+           C 42 40 34 44 24 44
+           C 14 44 6 40 6 32
+           Z" 
+        fill="url(#iconGradient)"/>
   
-  <!-- Smile icon -->
-  <path d="M14 28 Q24 34 34 28" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Smile inside pocket -->
+  <path d="M 16 26 Q 24 32 32 26" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+  
+  <!-- Pocket opening hint -->
+  <path d="M 18 6 L 18 10 M 30 6 L 30 10" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
 </svg>
