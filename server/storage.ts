@@ -3607,8 +3607,8 @@ export class DatabaseStorage implements IStorage {
       
       // Get sales and deliveries for the month
       const salesData = await db.select({
-        totalRevenue: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)`,
-        totalProfit: sql<number>`COALESCE(SUM(${sales.profitAmount}), 0)`,
+        totalRevenue: sql<number>`COALESCE(SUM(${sales.totalAmount}::decimal), 0)`,
+        totalProfit: sql<number>`COALESCE(SUM(${sales.profitAmount}::decimal), 0)`,
         salesCount: sql<number>`COUNT(*)`
       })
         .from(sales)
@@ -3619,8 +3619,7 @@ export class DatabaseStorage implements IStorage {
         ));
       
       const deliveriesData = await db.select({
-        totalRevenue: sql<number>`COALESCE(SUM(${deliveries.totalAmount}), 0)`,
-        totalProfit: sql<number>`COALESCE(SUM(${deliveries.profitAmount}), 0)`,
+        totalRevenue: sql<number>`COALESCE(SUM(${deliveries.totalAmount}::decimal), 0)`,
         deliveryCount: sql<number>`COUNT(*)`
       })
         .from(deliveries)
@@ -3631,7 +3630,7 @@ export class DatabaseStorage implements IStorage {
         ));
       
       const actualRevenue = Number(salesData[0]?.totalRevenue || 0) + Number(deliveriesData[0]?.totalRevenue || 0);
-      const actualProfit = Number(salesData[0]?.totalProfit || 0) + Number(deliveriesData[0]?.totalProfit || 0);
+      const actualProfit = Number(salesData[0]?.totalProfit || 0); // Only sales have profit tracking
       const actualSalesVolume = Number(salesData[0]?.salesCount || 0) + Number(deliveriesData[0]?.deliveryCount || 0);
       
       return {
