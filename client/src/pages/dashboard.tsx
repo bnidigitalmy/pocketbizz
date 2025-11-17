@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuickActionsFab } from "@/components/quick-actions-fab";
 import { DashboardChart } from "@/components/dashboard-chart";
-import { LowStockAlertWidget } from "@/components/low-stock-alert-widget";
 import { WeeklyProfitWidget } from "@/components/weekly-profit-widget";
 import { DailyTaskWidget } from "@/components/daily-task-widget";
 import { ProductPerformanceWidget } from "@/components/product-performance-widget";
@@ -498,9 +497,6 @@ export default function Dashboard() {
 
       {/* Performance Leaderboard (Vendors & Agents) */}
       <LeaderboardWidget />
-
-      {/* Low Stock Alerts */}
-      <LowStockAlertWidget />
 
       {/* Finished Goods Inventory */}
       {stats && stats.totalReadyStock > 0 && (
