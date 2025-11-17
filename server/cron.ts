@@ -12,8 +12,8 @@
 import { enforceGracePeriod } from "./archiving";
 import { processBCLWebhook, testBCLWebhook } from "./bcl-webhook";
 import { storage } from "./storage";
-import { db } from "@db";
-import { bookings, stockItems } from "@shared/schema";
+import { db } from "./db";
+import { bookings, stockItems } from "../shared/schema";
 import { eq, and, lte, gte, sql } from "drizzle-orm";
 
 /**
