@@ -102,8 +102,14 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
     ? bookings.filter((b: any) => b.status === 'pending' || b.status === 'confirmed').length 
     : 0;
 
-  // TODO: Get unread notifications count
-  const notificationCount = 0; // Placeholder for now
+  // Get unread notifications count
+  const { data: unreadData } = useQuery({
+    queryKey: ['/api/notifications/unread-count'],
+    staleTime: 30 * 1000, // Refresh every 30s
+    refetchInterval: 30 * 1000, // Auto-refetch every 30s
+  });
+
+  const notificationCount = unreadData?.count || 0;
 
   const navItems: NavItem[] = [
     {

@@ -90,6 +90,8 @@ export const bookingDeliveryTypeEnum = pgEnum("booking_delivery_type", ["pickup"
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "received", "cancelled"]);
 export const claimStatusEnum = pgEnum("claim_status", ["pending", "approved", "rejected"]);
 export const storeThemeEnum = pgEnum("store_theme", ["light", "dark", "custom"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["order", "payment", "stock", "reminder", "delivery", "booking", "system"]);
+export const notificationPriorityEnum = pgEnum("notification_priority", ["low", "medium", "high", "urgent"]);
 
 // Stock Items Table (Warehouse Inventory for Raw Materials)
 export const stockItems = pgTable("stock_items", {
@@ -967,6 +969,27 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Notifications Table (Real-time user notifications)
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: notificationTypeEnum("type").notNull(), // order, payment, stock, reminder, delivery, booking, system
+  priority: notificationPriorityEnum("priority").notNull().default("medium"), // low, medium, high, urgent
+  title: text("title").notNull(), // Short notification title
+  message: text("message").notNull(), // Full notification message
+  read: integer("read").notNull().default(0), // 0 = unread, 1 = read
+  actionUrl: text("action_url"), // Optional URL to navigate to (e.g., /bookings/123)
+  metadata: text("metadata"), // JSON for additional data (orderId, bookingId, etc.)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  readAt: timestamp("read_at"), // When the notification was marked as read
+}, (table) => {
+  return {
+    userIdIdx: index("notifications_user_id_idx").on(table.userId),
+    readIdx: index("notifications_read_idx").on(table.read),
+    createdAtIdx: index("notifications_created_at_idx").on(table.createdAt),
+  };
+});
+
 // Subscription Plans Table (Duration-based pricing for ToyyibPay)
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1154,6 +1177,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
 });
 
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({

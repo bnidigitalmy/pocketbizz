@@ -2352,6 +2352,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { expectedVersion, ...data } = req.body;
       const parsedData = insertStockItemSchema.partial().parse(data);
       const item = await storage.updateStockItem(req.user!.id, id, parsedData, expectedVersion);
+      
+      // Check if stock is now low and create notification
+      if (item && parseFloat(item.currentQuantity) <= parseFloat(item.lowStockThreshold)) {
+        // Check if we already have a recent notification for this stock item
+        const recentNotifications = await storage.getUserNotifications(req.user!.id, 10);
+        const hasRecentStockAlert = recentNotifications.some((n: any) => {
+          const metadata = n.metadata ? JSON.parse(n.metadata) : {};
+          return metadata.stockItemId === item.id && 
+                 new Date(n.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000; // Within 24 hours
+        });
+        
+        if (!hasRecentStockAlert) {
+          await storage.createNotification({
+            userId: req.user!.id,
+            type: 'stock',
+            priority: 'urgent',
+            title: 'Stok Rendah',
+            message: `${item.name} tinggal ${item.currentQuantity}${item.unit} (min: ${item.lowStockThreshold}${item.unit})`,
+            actionUrl: `/stock`,
+            metadata: { stockItemId: item.id },
+          });
+        }
+      }
+      
       res.json(item);
     } catch (error: any) {
       if (error.message?.includes('modified by another user')) {
@@ -2932,6 +2956,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
+      
+      // Create notification for successful payment
+      const totalAmount = parseFloat(validated.sale.totalAmount || "0");
+      const paymentMethodText = validated.sale.paymentMethod === 'tunai' ? 'Tunai' : 
+                                validated.sale.paymentMethod === 'online' ? 'Online Transfer' : 'QR Code';
+      
+      await storage.createNotification({
+        userId: req.user!.id,
+        type: 'payment',
+        priority: 'medium',
+        title: 'Pembayaran Diterima',
+        message: `Jualan #${sale.receiptNumber} - ${paymentMethodText}: RM${totalAmount.toFixed(2)}`,
+        actionUrl: `/sales`,
+        metadata: { saleId: sale.id, amount: totalAmount },
+      });
       
       res.json(sale);
     } catch (error: any) {
@@ -5759,6 +5798,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { items, ...booking } = req.body;
       const newBooking = await storage.createBooking(req.user!.id, booking, items || []);
+      
+      // Create notification for new booking
+      await storage.createNotification({
+        userId: req.user!.id,
+        type: 'booking',
+        priority: 'high',
+        title: 'Tempahan Baru',
+        message: `${booking.customerName} - ${booking.deliveryType === 'pickup' ? 'Self Pickup' : 'Delivery'} pada ${new Date(booking.pickupDate).toLocaleDateString('ms-MY')}`,
+        actionUrl: `/bookings/${newBooking.id}`,
+        metadata: { bookingId: newBooking.id },
+      });
+      
       res.json(newBooking);
     } catch (error) {
       console.error("Create booking error:", error);
@@ -5802,7 +5853,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/bookings/:id", requireAuth, blockExpiredTrial, async (req, res) => {
     try {
+      const oldBooking = await storage.getBookingById(req.user!.id, req.params.id);
       const booking = await storage.updateBooking(req.user!.id, req.params.id, req.body);
+      
+      // Create notification if status changed to ready or completed
+      if (oldBooking && req.body.status && oldBooking.status !== req.body.status) {
+        if (req.body.status === 'ready') {
+          await storage.createNotification({
+            userId: req.user!.id,
+            type: 'booking',
+            priority: 'high',
+            title: 'Tempahan Siap',
+            message: `Tempahan ${booking.customerName} telah siap untuk ${booking.deliveryType === 'pickup' ? 'diambil' : 'dihantar'}`,
+            actionUrl: `/bookings/${booking.id}`,
+            metadata: { bookingId: booking.id },
+          });
+        } else if (req.body.status === 'completed') {
+          await storage.createNotification({
+            userId: req.user!.id,
+            type: 'booking',
+            priority: 'medium',
+            title: 'Tempahan Selesai',
+            message: `Tempahan ${booking.customerName} telah diselesaikan`,
+            actionUrl: `/bookings/${booking.id}`,
+            metadata: { bookingId: booking.id },
+          });
+        }
+      }
+      
       res.json(booking);
     } catch (error) {
       console.error("Update booking error:", error);
@@ -6303,6 +6381,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Track store analytics error:", error);
       res.status(500).json({ error: "Failed to track event" });
+    }
+  });
+
+  // ===================================================================
+  // NOTIFICATIONS
+  // ===================================================================
+
+  // Get user notifications
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const notifications = await storage.getUserNotifications(req.user!.id, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ error: "Failed to get notifications" });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.user!.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ error: "Failed to get unread count" });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/notifications/:id/mark-read", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.user!.id, req.params.id);
+      res.json(notification);
+    } catch (error) {
+      console.error("Mark notification as read error:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark all notifications as read error:", error);
+      res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Delete notification
+  app.delete("/api/notifications/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteNotification(req.user!.id, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete notification error:", error);
+      res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
+  // Create notification (for testing or manual creation)
+  app.post("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.createNotification({
+        userId: req.user!.id,
+        ...req.body,
+      });
+      res.json(notification);
+    } catch (error) {
+      console.error("Create notification error:", error);
+      res.status(500).json({ error: "Failed to create notification" });
     }
   });
 
