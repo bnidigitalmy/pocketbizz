@@ -6459,6 +6459,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===================================================================
+  // NOTIFICATIONS ENDPOINTS
+  // ===================================================================
+  
+  // Get user notifications
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const notifications = await storage.getUserNotifications(req.user!.id, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ error: "Failed to get notifications" });
+    }
+  });
+
+  // Get unread count
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.user!.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ error: "Failed to get unread count" });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/notifications/:id/mark-read", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.user!.id, req.params.id);
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Mark notification as read error:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark all as read error:", error);
+      res.status(500).json({ error: "Failed to mark all as read" });
+    }
+  });
+
+  // Delete notification
+  app.delete("/api/notifications/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteNotification(req.user!.id, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete notification error:", error);
+      res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
+  // Delete all read notifications
+  app.delete("/api/notifications/clear-read", requireAuth, async (req, res) => {
+    try {
+      await db.delete(notifications)
+        .where(and(
+          eq(notifications.userId, req.user!.id),
+          eq(notifications.read, 1)
+        ));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Clear read notifications error:", error);
+      res.status(500).json({ error: "Failed to clear read notifications" });
+    }
+  });
+
+  // Create notification (internal use)
+  app.post("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.createNotification({
+        userId: req.user!.id,
+        ...req.body,
+      });
+      res.json(notification);
+    } catch (error) {
+      console.error("Create notification error:", error);
+      res.status(500).json({ error: "Failed to create notification" });
+    }
+  });
+
+  // ===================================================================
   // CRON JOB ENDPOINTS
   // ===================================================================
   

@@ -1,4 +1,4 @@
-import { Bell, CheckCircle, AlertCircle, Info, Package, DollarSign, ShoppingCart, Truck } from "lucide-react";
+import { Bell, CheckCircle, AlertCircle, Info, Package, DollarSign, ShoppingCart, Truck, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
 import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
+import { requestNotificationPermission, subscribeToPushNotifications, showTestNotification } from "@/lib/push-notifications";
 
 interface Notification {
   id: string;
@@ -24,6 +26,31 @@ interface Notification {
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  // Check if push notifications are enabled
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPushEnabled(Notification.permission === 'granted');
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushLoading(true);
+    try {
+      const permission = await requestNotificationPermission();
+      if (permission === 'granted') {
+        await subscribeToPushNotifications();
+        await showTestNotification();
+        setPushEnabled(true);
+      }
+    } catch (error) {
+      console.error('Failed to enable push:', error);
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   // Fetch notifications
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
@@ -55,7 +82,31 @@ export default function NotificationsPage() {
     },
   });
 
+  // Delete notification mutation
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const response = await apiRequest("DELETE", `/api/notifications/${notificationId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    },
+  });
+
+  // Clear all read notifications
+  const clearReadMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/notifications/clear-read", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    },
+  });
+
   const unreadCount = notifications.filter(n => n.read === 0).length;
+  const readCount = notifications.filter(n => n.read === 1).length;
 
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read
@@ -121,17 +172,60 @@ export default function NotificationsPage() {
             {isLoading ? 'Memuatkan...' : unreadCount > 0 ? `${unreadCount} notifikasi belum dibaca` : 'Semua notifikasi telah dibaca'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => markAllAsReadMutation.mutate()}
-            disabled={markAllAsReadMutation.isPending}
-          >
-            Tandakan Semua Dibaca
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {readCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                if (confirm(`Padam ${readCount} notifikasi yang sudah dibaca?`)) {
+                  clearReadMutation.mutate();
+                }
+              }}
+              disabled={clearReadMutation.isPending}
+              className="text-gray-600"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Padam Yang Dibaca
+            </Button>
+          )}
+          {unreadCount > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => markAllAsReadMutation.mutate()}
+              disabled={markAllAsReadMutation.isPending}
+            >
+              Tandakan Semua Dibaca
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Push Notification Settings */}
+      {!pushEnabled && 'Notification' in window && (
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-semibold text-sm text-gray-800">Aktifkan Push Notifications</h3>
+                  <p className="text-xs text-gray-600">Terima notifikasi walaupun app tidak dibuka</p>
+                </div>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={handleEnablePush}
+                disabled={pushLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {pushLoading ? 'Memuatkan...' : 'Aktifkan'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <Card className="text-center py-12">
