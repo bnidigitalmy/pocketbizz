@@ -5,6 +5,7 @@ dotenv.config();
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import session from "express-session";
 import { RedisStore } from "connect-redis";
 import ConnectPgSimple from "connect-pg-simple";
@@ -89,6 +90,63 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Security Headers (Helmet)
+app.use(helmet({
+  // Strict-Transport-Security: Force HTTPS (only in production)
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  
+  // Content-Security-Policy: Prevent XSS attacks
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for React dev
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://api.pocketbizz.my", "https://app.pocketbizz.my"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === "production" ? [] : null,
+    },
+  },
+  
+  // X-Frame-Options: Prevent clickjacking
+  frameguard: {
+    action: 'deny',
+  },
+  
+  // X-Content-Type-Options: Prevent MIME sniffing
+  noSniff: true,
+  
+  // Referrer-Policy: Control referrer information
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+  
+  // Permissions-Policy: Control browser features
+  permittedCrossDomainPolicies: {
+    permittedPolicies: 'none',
+  },
+}));
+
+// Additional security headers
+app.use((_req, res, next) => {
+  // Permissions-Policy (newer replacement for Feature-Policy)
+  res.setHeader('Permissions-Policy', 
+    'camera=(), microphone=(), geolocation=(), payment=()');
+  
+  // X-XSS-Protection (legacy but still useful)
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  next();
+});
+
+log('✓ Security headers configured (Helmet + custom policies)');
 
 // Trust proxy for Replit deployment (required for secure cookies behind proxy)
 app.set('trust proxy', 1);
