@@ -83,8 +83,8 @@ export async function runDailyReminders() {
         .from(bookings)
         .where(and(
           eq(bookings.userId, user.id),
-          gte(bookings.pickupDate, tomorrow),
-          lte(bookings.pickupDate, dayAfterTomorrow)
+          gte(bookings.pickupDate, tomorrow.toISOString()),
+          lte(bookings.pickupDate, dayAfterTomorrow.toISOString())
         ));
 
       if (upcomingBookings.length > 0) {
@@ -133,8 +133,8 @@ export async function runDailyReminders() {
         .from(bookings)
         .where(and(
           eq(bookings.userId, user.id),
-          gte(bookings.pickupDate, today),
-          lte(bookings.pickupDate, endOfToday),
+          gte(bookings.pickupDate, today.toISOString()),
+          lte(bookings.pickupDate, endOfToday.toISOString()),
           eq(bookings.status, 'pending' as any)
         ));
 
