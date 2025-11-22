@@ -228,18 +228,19 @@ app.use((req, res, next) => {
 
 if (process.env.NODE_ENV !== 'test') {
   (async () => {
-    // Validate env and connectivity before registering routes
-    await validateEnvironment();
-    const server = await registerRoutes(app);
+    try {
+      // Validate env and connectivity before registering routes
+      await validateEnvironment();
+      const server = await registerRoutes(app);
 
-  // Error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+      // Error handler
+      app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+        const status = err.status || err.statusCode || 500;
+        const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
+        res.status(status).json({ message });
+        throw err;
+      });
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
@@ -262,5 +263,10 @@ if (process.env.NODE_ENV !== 'test') {
   }, () => {
     log(`serving on port ${port}`);
   });
+    } catch (error: any) {
+      console.error('❌ Fatal startup error:', error.message);
+      console.error(error.stack);
+      process.exit(1);
+    }
   })();
 }

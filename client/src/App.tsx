@@ -35,7 +35,6 @@ import ShoppingList from "@/pages/shopping-list";
 import PurchaseOrders from "@/pages/purchase-orders";
 import Suppliers from "@/pages/suppliers";
 import Vendors from "@/pages/vendors";
-import Deliveries from "@/pages/deliveries";
 import Sales from "@/pages/sales";
 import POSPage from "@/pages/pos";
 import Expenses from "@/pages/expenses";
@@ -103,7 +102,6 @@ function AppRouter() {
           <Route path="/purchase-orders" component={PurchaseOrders} />
           <Route path="/suppliers" component={Suppliers} />
           <Route path="/vendors" component={Vendors} />
-          <Route path="/deliveries" component={Deliveries} />
           <Route path="/sales" component={Sales} />
           <Route path="/pos" component={POSPage} />
           <Route path="/customers" component={ComingSoon} />
@@ -238,8 +236,8 @@ function AppContent() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <Header />
           <TrialBanner />
-          {/* Mobile needs extra padding for bottom nav (h-16) + FAB elevation (~24px) = ~100px total */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 lg:pb-6">
+          {/* Mobile needs extra padding for bottom nav (h-16=64px) + elevated button space (top-6=24px) + safety margin = 100px total */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-[100px] lg:pb-6">
             <AppRouter />
           </main>
           
