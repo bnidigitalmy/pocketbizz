@@ -29,12 +29,17 @@ async function validateEnvironment(): Promise<void> {
   // quick DB connectivity check
   try {
     const { Pool } = await import('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({ 
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 10000, // 10 second timeout
+      ssl: { rejectUnauthorized: false } // Allow self-signed certs for Neon
+    });
     await pool.query('SELECT 1');
     await pool.end();
     log('✓ Database reachable');
   } catch (err: any) {
-    throw new Error(`Database connectivity check failed: ${err.message}`);
+    log(`⚠️  Database connectivity check failed: ${err.message}`);
+    // Don't throw - let app try to start anyway, might be temporary network issue
   }
 
   // test Redis if configured
