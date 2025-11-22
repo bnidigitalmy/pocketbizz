@@ -866,7 +866,16 @@ export class DatabaseStorage implements IStorage {
         });
         
         const netAmount = grossAmount - rejectedAmount;
-        const commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
+        
+        // Calculate commission with error handling
+        let commission = 0;
+        try {
+          commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
+        } catch (error) {
+          console.error(`Failed to calculate commission for delivery ${delivery.id}:`, error);
+          // Continue with 0 commission if calculation fails
+        }
+        
         const claimableAmount = netAmount - commission;
         
         // Calculate per-item commission and claimable amounts
@@ -935,7 +944,16 @@ export class DatabaseStorage implements IStorage {
     });
     
     const netAmount = grossAmount - rejectedAmount;
-    const commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
+    
+    // Calculate commission with error handling
+    let commission = 0;
+    try {
+      commission = await this.calculateCommission(userId, delivery.vendorId, netAmount);
+    } catch (error) {
+      console.error(`Failed to calculate commission for delivery ${delivery.id}:`, error);
+      // Continue with 0 commission if calculation fails
+    }
+    
     const claimableAmount = netAmount - commission;
     
     // Calculate per-item commission and claimable amounts
