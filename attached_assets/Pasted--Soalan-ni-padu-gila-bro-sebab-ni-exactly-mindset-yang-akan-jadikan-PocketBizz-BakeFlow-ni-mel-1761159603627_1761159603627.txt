@@ -1,0 +1,197 @@
+🔥 Soalan ni padu gila bro — sebab ni exactly mindset yang akan jadikan PocketBizz / BakeFlow ni meletup.
+
+Aku jawab bukan sebagai AI, tapi macam aku sendiri owner bakery kecil yang buat semua benda sendiri dengan isteri — dari bancuh, bakar, packing, hantar ke vendor, layan ejen, sampai collect payment.
+Biar aku bagi full jawapan realistic & emotional, sebab ni yang user sebenar rasa dan cari.
+
+⸻
+
+🧁 Kalau Aku Owner Bakery Kecil (Rumah / Kedai / Vendor / Ejen / Tempahan)
+
+Aku nak 1 app yang boleh ganti semua buku nota, kalkulator, dan WhatsApp aku.
+Aku nak buka pagi-pagi — terus nampak “hari ni aku kena buat apa, hantar mana, claim mana, dan berapa untung aku hari ni.”
+
+⸻
+
+🎯 1️⃣ Dashboard “Bisnes Harian” (Buka je terus nampak semua)
+
+Aku nak nampak:
+	•	✅ Produk siap hari ni
+	•	💰 Jualan hari ni
+	•	🧾 Claim belum bayar
+	•	📦 Vendor mana dah hantar
+	•	🧍‍♀️ Ejen mana belum ambil stok
+	•	📊 Untung bersih minggu ni
+	•	📆 Reminder penghantaran esok
+
+“Rasa macam ada assistant virtual jaga aku.”
+
+⸻
+
+🧑‍🍳 2️⃣ Modul Produksi (Resepi & Batch Auto Costing)
+
+Masalah biasa: tak tahu kos sebenar sebab bahan beli timbang kilo, guna sikit-sikit.
+Aku nak:
+	•	Simpan resepi siap bahan gram/ml
+	•	Kira automatik kos bahan per pek
+	•	Tambah kos packaging
+	•	Auto kira harga jual cadangan ×2.5
+	•	Simpan “Batch hari ini” → terus masuk stok siap
+
+“Sekali isi resepi → sistem auto bagitau harga modal & untung.”
+
+⸻
+
+📦 3️⃣ Stok Siap & Stok Bahan (Smart Inventory)
+
+Aku nak dua jenis stok:
+	•	Stok Bahan Mentah (Tepung, gula, butter) → alert kalau nak habis
+	•	Stok Produk Siap (Brownies 20 bekas, Tiramisu 15 jar)
+	•	Bila produk siap → auto tolak bahan mentah
+	•	Bila hantar ke vendor → tolak stok siap
+
+“Aku tak payah semak buku nota dah — semua auto update.”
+
+⸻
+
+🚚 4️⃣ Penghantaran Vendor (Delivery Log)
+
+Ni paling pening setiap hari.
+Aku nak:
+	•	Pilih vendor
+	•	Pilih produk & kuantiti hantar
+	•	Auto tolak dari stok siap
+	•	Auto kira jumlah nilai (RM)
+	•	Cetak / WhatsApp delivery note
+
+“Aku tekan 1 kali — terus keluar slip untuk vendor dan claim minggu depan.”
+
+⸻
+
+🧾 5️⃣ Jualan Vendor (Log Harian Vendor)
+
+Bila aku collect jualan:
+	•	Aku isi berapa jual, berapa reject, berapa balance
+	•	Auto kira total jualan
+	•	Auto kira komisen vendor
+	•	Simpan status “Pending Claim”
+
+“Semua vendor aku boleh track dalam satu skrin.”
+
+⸻
+
+💸 6️⃣ Tuntutan / Invois (Claim Automation)
+
+Setiap minggu aku nak claim dengan vendor:
+	•	Pilih vendor
+	•	Auto kumpul semua penghantaran belum claim
+	•	Tekan satu butang “Jana Invois”
+	•	Sistem terus buat PDF invois
+	•	Ada butang WhatsApp “Hantar ke Vendor”
+
+“Aku jimat masa sejam sehari sebab invois semua auto.”
+
+⸻
+
+🏦 7️⃣ Rekod Bayaran & Laporan Tunai
+
+Bila vendor bayar:
+	•	Aku rekod bayaran (tunai / transfer / belum bayar)
+	•	Auto mark invois “Selesai”
+	•	Dashboard tunjuk “Tunai Masuk Hari Ini RM350”
+	•	Auto update “Untung Bersih Minggu Ini”
+
+“Aku tak perlu kira manual dah — sistem buat semua.”
+
+⸻
+
+👩‍🦰 8️⃣ Ejen & Stok Ejen
+
+Kalau aku ada ejen / dropship:
+	•	Aku nak boleh tambah ejen (nama, no WhatsApp, rate komisen)
+	•	Bila ejen ambil stok → sistem tolak stok & tambah “Stok Ejen”
+	•	Ejen jual → aku update jualan ejen
+	•	Auto kira komisen ejen
+	•	Boleh tengok “Prestasi Ejen Bulan Ini”
+
+“Macam aku ada sistem agent management Shopee tapi versi bakery.”
+
+⸻
+
+💰 9️⃣ Jualan Terus (Tempahan Customer)
+
+Kadang-kadang ada customer DM / WhatsApp order terus.
+Aku nak:
+	•	Klik “Tempahan Baru”
+	•	Masukkan nama customer, item, jumlah, harga
+	•	Auto tambah ke “Jualan Harian”
+	•	Boleh cetak resit atau WhatsApp terus
+
+“Satu sistem, boleh guna untuk vendor, ejen, dan customer direct.”
+
+⸻
+
+📈 🔟 Laporan & Analitik
+
+Aku nak boleh tengok:
+	•	Untung / rugi harian, mingguan, bulanan
+	•	Produk paling untung
+	•	Vendor paling cepat bayar
+	•	Item paling banyak reject
+	•	Graf naik turun jualan
+
+“Sistem bagi aku nampak trend bisnes aku tanpa aku kena kira.”
+
+⸻
+
+🧠 11️⃣ Reminder & Automation (AI Assistant)
+
+Aku suka kalau sistem boleh:
+	•	Ingatkan aku: “Vendor A belum bayar minggu ni.”
+	•	Bagitau aku: “Butter tinggal 2kg.”
+	•	Hantar WhatsApp automatik ke vendor bila invois siap.
+	•	Bagi insight: “Brownies paling laju jual minggu ni (+35%).”
+
+“Rasa macam ada pekerja maya yang tengok bisnes aku 24 jam.”
+
+⸻
+
+💾 12️⃣ Backup & Cloud Sync (Paling Penting)
+
+Aku nak semua data auto simpan online (Supabase):
+	•	Kalau tukar telefon / hilang — semua data selamat
+	•	Boleh buka dari laptop bila nak print invois
+
+“Tenang hati sebab semua benda backup, tak takut hilang data.”
+
+⸻
+
+🎨 13️⃣ UI/UX Yang Aku Nak
+	•	Warna pastel lembut (pink, cream, gold)
+	•	Semua ikon & tulisan besar, senang baca (bila tangan kotor pun nampak)
+	•	Satu butang “Tambah” besar di bawah kanan (macam WhatsApp message)
+	•	Tak perlu banyak menu — semua shortcut ada kat dashboard
+	•	Boleh install ke phone tanpa PlayStore (PWA)
+
+“App rasa ringan, senang, mesra orang bukan tech-savvy.”
+
+⸻
+
+💡 14️⃣ Bonus Features Yang Akan Buat Aku Teruja
+	•	🧾 Auto generate report PDF & share via WhatsApp
+	•	📦 Auto reminder restock bahan mentah
+	•	💬 Chat WhatsApp integration
+	•	📊 AI insight mingguan: “Untung naik 12% minggu ni!”
+	•	🎯 RM Tracker (macam “RM1K Goal”) untuk motivate aku setiap bulan
+
+⸻
+
+💬 Kesimpulan (dari perspektif user sebenar):
+
+Kalau aku ada app macam ni, aku tak perlu pening lagi dengan buku nota, kalkulator, WhatsApp, invoice template, dan Excel.
+Aku cuma buka satu app — nampak semua, tahu apa nak buat hari ni, dan tahu berapa aku untung minggu ni.
+
+Itulah impian sebenar peniaga kecil — dan PocketBizz / BakeFlow boleh realisasikan benda tu 🔥
+
+⸻
+
+Bro nak aku bantu sekarang untuk convert semua function ni jadi “User Flow Map” supaya kau boleh bagi terus pada Replit Agent (macam blueprint — dengan 5 utama: Vendor, Ejen, Tempahan, Produksi, Laporan)?

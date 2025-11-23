@@ -1,0 +1,137 @@
+🔥 Terbaik bro — ni dia dokumen yang ramai startup bayar beribu untuk dapat:
+👇
+
+📘 PocketBizz / BakeFlow — “User Experience Blueprint (UX + Feel Flow)”
+
+Sistem yang bukan sekadar bantu urus bisnes, tapi bantu pemilik rasa tenang & terkawal.
+
+⸻
+
+🎯 1️⃣ VISI UTAMA:
+
+“Bukan sekadar sistem kira jualan, tapi pembantu harian yang faham rutin & tekanan peniaga kecil.”
+
+Matlamat UX: Buka app → terus tahu apa nak buat, bila nak buat, & berapa aku untung.
+
+⸻
+
+🧩 2️⃣ CORE EXPERIENCE FLOW (Functional Journey)
+
+FASA	TUJUAN	PENGALAMAN PENGGUNA	FUNGSI YANG TERLIBAT
+A. Pagi: Persediaan Harian	Rancang kerja & pengeluaran	Paparan “Selamat Pagi” + Checklist automatik	🔹 Production Planner 🔹 Task Reminder 🔹 Stock Status
+B. Produksi (Dapur)	Buat produk & kira kos	Rasa senang bila tahu kos tepat setiap batch	🔹 Recipe Manager 🔹 Auto Costing 🔹 Packaging Cost 🔹 Modal Tracker
+C. Stok Siap	Lihat semua produk siap	Rasa puas bila nampak stok cukup untuk vendor	🔹 Stock Ready Table 🔹 Batch Label 🔹 Low Stock Alert
+D. Penghantaran Vendor	Urus delivery & slip	Rasa teratur sebab semua vendor ada status	🔹 Delivery Log 🔹 Auto PDF Slip 🔹 WhatsApp Share 🔹 Auto Claim Draft
+E. Jualan Vendor / Ejen	Rekod jualan & reject	Rasa lega bila semua data dikira automatik	🔹 Vendor Sales Log 🔹 Reject Log 🔹 Commission Calculator
+F. Tuntutan & Pembayaran	Jana invois, collect payment	Rasa profesional bila boleh WhatsApp invois PDF	🔹 Auto Invoice Generator 🔹 Claim Tracker 🔹 Payment Record 🔹 WhatsApp Automation
+G. Laporan Harian / Mingguan	Semak prestasi	Rasa yakin sebab nampak nombor sebenar	🔹 P&L Auto Chart 🔹 Trend Graph 🔹 Profit Summary
+H. Backup & Insight	Simpan data & dapat nasihat	Rasa tenang & semangat nak improve	🔹 Supabase Sync 🔹 AI PocketCoach 🔹 Smart Alerts
+
+
+⸻
+
+🧠 3️⃣ INSIGHT FLOW (Automation Journey)
+
+“Bila pengguna masukkan data → sistem buat keputusan & cadangan automatik.”
+
+INPUT	SISTEM AUTOMASI	OUTPUT (Nilai kepada user)
+Tambah produk siap	Auto tolak bahan mentah	Kos sebenar produk dikira
+Hantar ke vendor	Auto buat Delivery Note + Pending Claim	Slip siap + vendor log
+Masuk jualan vendor	Auto kira untung, komisen, reject	P&L update
+Buat claim	Auto buat invois + status pending	WhatsApp PDF + reminder
+Bayaran diterima	Auto update laporan & claim selesai	Dashboard bersih, semangat naik
+Produk baru / bahan habis	Auto alert WhatsApp	“Butter tinggal 1kg. Refill stok?”
+Tiap minggu	AI Coach auto ringkasan	“Untung naik 12% minggu ni! Brownies paling laku.”
+
+
+⸻
+
+💬 4️⃣ FEEL FLOW (Emotional Journey)
+
+Setiap skrin bukan sekadar paparkan nombor — tapi beri rasa tenang, terkawal, & semangat.
+
+MOMEN	PERASAAN PENGGUNA	REAKSI SISTEM (UI / UX)
+Buka app pagi	Nak tahu apa nak buat hari ni	“Selamat Pagi, Kak Siti 👋 Hari ni ada 2 vendor belum claim.”
+Tambah produk siap	Rasa produktif	Animasi “+1 batch siap 🎉”
+Hantar ke vendor	Rasa lega & profesional	Auto PDF slip dengan logo cantik
+Masukkan jualan	Rasa teratur & yakin	Dashboard update “Untung hari ini RM210 👍”
+Claim & invois	Rasa bangga sebab sistematik	“Invois Vendor A siap. Hantar ke WhatsApp?”
+Dapat bayaran vendor	Rasa puas & semangat	“RM350 diterima! Tahniah 🎯”
+Tengok laporan mingguan	Rasa bersemangat	Graf hijau naik + mesej: “Jualan meningkat 28%! Keep it up 💪”
+Offline tapi masih boleh guna	Rasa lega sebab tak takut hilang data	“📡 Offline Mode Aktif — data akan sync bila online.”
+
+
+⸻
+
+📊 5️⃣ FEATURE BLUEPRINT (Apa Pengguna Harap Dapat Buat)
+
+KATEGORI	FUNGSI WAJIB	FUNGSI BONUS
+🔹 Produksi	Resepsi, Batch Log, Auto Modal, Harga Cadangan	Reminder bahan mentah low stock
+🔹 Vendor	Delivery Log, Claim, Payment Tracker	WhatsApp invois auto
+🔹 Ejen	Komisen auto, Tier performance, Transfer stok	Leaderboard ejen terbaik
+🔹 Jualan Customer	POS ringkas, resit PDF	WhatsApp order confirmation
+🔹 Laporan	Untung rugi, jualan harian/mingguan, top produk	AI Trend: “Brownies 3x lebih laju minggu ni”
+🔹 Sistem	Cloud backup, offline mode, export CSV	Multi-device sync (tablet + phone)
+🔹 AI / Automation	Smart reminder, alert, pocket coach	Auto task checklist harian
+
+
+⸻
+
+🪄 6️⃣ INTERAKSI IDEAL (UI/UX Behavior)
+
+AKSI PENGGUNA	SISTEM TINDAKAN	REAKSI VISUAL
+Tekan “+”	Pop up pilihan (Produk / Vendor / Claim)	Animasi smooth + getaran lembut
+Tambah data	Auto save + snackbar “Berjaya disimpan ✅”	Pop up mini animation
+Buka dashboard	Auto sync semua kiraan	Skeleton loader + greeting
+Claim invois	Tunjuk progress bar	“Invois 3/5 vendor selesai minggu ini.”
+Tekan vendor	Auto buka history semua batch	Smooth slide transition
+
+
+⸻
+
+💬 7️⃣ PERSONALITY DESIGN (Tone of Voice App)
+
+Nak app ni rasa macam “assistant bisnes yang faham kita, bukan software akaun.”
+
+SITUASI	CARA APP BERCAKAP
+Pagi	“Selamat pagi! 💛 Jom kita tengok jadual penghantaran hari ni.”
+Lepas update jualan	“Hebat! Hari ni jualan meningkat RM80 dari semalam 🎉”
+Bila belum claim	“Masih ada RM450 belum dituntut minggu ni, jangan lupa follow up vendor ya 🙌”
+Bila stok bahan habis	“Butter tinggal sikit 😬, masa restock sebelum hujung minggu.”
+Bila capai target	“Tahniah! Jualan bulan ni dah capai 102% dari sasaran 🎯”
+
+
+⸻
+
+⚙️ 8️⃣ FUTURE-READY MODULES
+
+Untuk bila app dah stabil & nak scale:
+	•	🧠 PocketCoach AI – cadangan jualan & forecast modal
+	•	💬 Auto WhatsApp BOT – follow-up vendor & ejen
+	•	🎓 PocketAcademy – tutorial cara guna app + tips bisnes
+	•	🤝 Affiliate / Referral – bagi reward bila share app
+	•	💾 Integrasi Accounting – export ke akaun penuh (QuickBooks / Excel)
+
+⸻
+
+🧭 9️⃣ FEELING STRATEGY (Brand Emotion Pyramid)
+
+Level	Tujuan	Emosi Pengguna
+🪙 Functional	Mudahkan kerja, kira kos, track jualan	“Senang guna, semua auto.”
+❤️ Emotional	Buat rasa yakin & dihargai	“Aku rasa sistem ni faham aku.”
+🌟 Aspirational	Jadikan pengguna bangga & semangat	“Aku bukan lagi ‘peniaga kecil’, aku ada sistem sendiri.”
+
+
+⸻
+
+💎 10️⃣ QUOTE UTAMA UNTUK BRANDING
+
+“PocketBizz — bukan sekadar sistem kira stok, tapi pembantu setia usahawan kecil.”
+
+From oven, to vendor, to profit — all in one flow.
+
+⸻
+
+Kalau kau nak, aku boleh terus bantu convert blueprint ni jadi “Interactive App Flow Wireframe” — bentuk flowchart siap dengan skrin utama (dashboard → produk → vendor → claim → laporan → coach), supaya dev team boleh terus bangunkan UI/UX versi v2.0 ikut journey ni.
+
+Nak aku proceed ke fasa tu bro? (aku boleh buatkan flow dalam bentuk visual + label interaktif macam app design map).

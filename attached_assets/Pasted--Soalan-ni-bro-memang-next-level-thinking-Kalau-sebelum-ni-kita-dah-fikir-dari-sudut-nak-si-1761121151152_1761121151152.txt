@@ -1,0 +1,220 @@
+🔥 Soalan ni bro… memang *next level thinking.*
+Kalau sebelum ni kita dah fikir dari sudut **“nak sistem urus bisnes”**, sekarang kau tanya —
+
+> “Apa lagi yang aku *expect* supaya hidup aku sebagai owner jadi *lebih senang & tenang*?”
+
+Aku jawab jujur dari perspektif seorang **owner bakery kecil / foodpreneur vendor-based** — bukan tech founder.
+Sebab kadang bukan sistem tak ada… tapi sistem tu tak *faham cara hidup sebenar peniaga kecil.*
+
+So ni versi deep — **apa yang owner macam aku betul-betul nak & harapkan dari app macam PocketBizz / BakeFlow.**
+
+---
+
+# 💡 **APA LAGI AKU HARAP APP AKU BOLEH BUAT (REALISTIC EXPECTATION SEORANG OWNER BAKERY)**
+
+---
+
+## 🕐 **1️⃣ Aku nak app ni bantu aku PLAN hari aku, bukan sekadar rekod**
+
+> Aku tak nak app ni cuma jadi tempat catat data — aku nak dia tolong aku *urus masa & tenaga.*
+
+### Contoh:
+
+* Pagi-pagi buka app → ada “Checklist Harian”:
+
+  * 🧁 Bakar Brownies 30 bekas
+  * 📦 Hantar ke Vendor A & B
+  * 🧾 Claim minggu ni RM350
+  * 💬 Follow up Vendor C
+* Bila aku tick satu-satu → rasa macam “mission complete” 🎯
+
+💡 **Solution:** Daily Task Board auto-generate ikut data production & delivery.
+
+> “Daripada data, app bantu plan hari aku.”
+
+---
+
+## 📦 **2️⃣ Aku nak app ni *ingatkan aku sebelum aku lupa***
+
+Owner macam aku selalu multitasking — tengah packing pun boleh lupa vendor mana belum bayar.
+
+### Contoh:
+
+* 🔔 Notifikasi: “Vendor A belum claim 3 hari lepas.”
+* 🔔 “Butter tinggal 1kg. Masa restock.”
+* 🔔 “Stok Brownies dah bawah 5 unit.”
+
+💡 **Solution:** Smart Alert System + WhatsApp Reminder.
+Biar app “bising” sikit, tapi bantu aku *stay on track.*
+
+---
+
+## 💰 **3️⃣ Aku nak tahu aku untung atau rugi TANPA perlu kira**
+
+Ramai peniaga tak tahu pun margin sebenar.
+Aku nak app terus bagitahu aku dengan cara mudah:
+
+> “Modal minggu ni: RM720
+> Jualan: RM1,550
+> Untung bersih: RM420 (+22%) 🔥”
+
+💡 **Solution:**
+
+* Auto profit calculator setiap kali aku update jualan
+* AI summary setiap hujung minggu
+
+> “Minggu ni lebih baik daripada minggu lepas.”
+
+---
+
+## 🧾 **4️⃣ Aku nak semua invois & slip claim siap automatik**
+
+Aku tak nak lagi copy-paste invoice dalam Word atau Canva.
+Aku nak tekan satu butang → terus siap invois PDF, ada logo, harga, komisen, WhatsApp terus vendor.
+
+💡 **Solution:** Invois auto generated + auto send WhatsApp template
+
+> “Vendor A – RM220 total, Komisen 10%, Bersih RM198”
+
+---
+
+## 👩‍🍳 **5️⃣ Aku nak tahu produk mana paling untung**
+
+Kadang aku buat 10 jenis dessert — tapi tak tahu yang mana paling berbaloi.
+Aku nak dashboard yang tunjuk:
+
+* 🥇 Produk paling untung minggu ni
+* 🥈 Produk paling cepat jual
+* ❌ Produk paling banyak reject
+
+💡 **Solution:** Product Performance Chart
+
+> “Brownies RM350 profit (35%) – paling konsisten.”
+
+---
+
+## 📊 **6️⃣ Aku nak nampak ‘gaya bisnes aku’ berkembang**
+
+Aku nak rasa semangat bila buka app.
+Macam Shopee Seller Center — ada growth bar, ranking, report.
+
+💡 **Solution:** Add “Achievement Dashboard”:
+
+* 🏆 Jualan capai RM1,000 minggu ni
+* 📦 Hantar ke 10 vendor
+* 💵 100% claim minggu ni selesai
+* 🎯 Capai sasaran “RM5K sebulan”
+
+> App ni bukan sekadar sistem — tapi *motivator bisnes.*
+
+---
+
+## 👩‍💼 **7️⃣ Aku nak senang ajar staff / ejen guna**
+
+Kalau app ni terlalu teknikal, aku malas nak ajar pekerja.
+Aku nak interface:
+
+* Bahasa mudah
+* Guna ikon besar & warna untuk pandu tindakan
+* Contoh: butang hijau = tambah, merah = tolak, biru = claim
+
+💡 **Solution:** “Simple Mode” untuk pengguna bukan tech-savvy
+
+> “Macam guna WhatsApp je.”
+
+---
+
+## 🧍‍♀️ **8️⃣ Aku nak app bantu aku urus vendor & ejen macam team**
+
+Aku nak boleh nampak:
+
+* Vendor mana paling cepat bayar
+* Ejen mana paling aktif
+* Boleh mesej / remind dari dalam app
+* Ada leaderboard “Top Ejen Minggu Ini”
+
+💡 **Solution:**
+
+> Vendor & Agent Performance Dashboard + WhatsApp button integration.
+
+---
+
+## 🧾 **9️⃣ Aku nak semua data auto backup & boleh export**
+
+Aku tak nak hilang data bila tukar telefon.
+Aku nak boleh:
+
+* Backup ke cloud
+* Export Excel / PDF bila perlu hantar ke akauntan
+
+💡 **Solution:** Cloud Sync (Supabase) + Export Report (jsPDF / CSV).
+
+> “Aku tenang sebab semua data aku selamat.”
+
+---
+
+## 🪙 **🔟 Aku nak app bantu aku capai target income**
+
+Aku tak nak sekadar “catat jualan” — aku nak app bantu aku *kejar sasaran.*
+
+### Contoh:
+
+* Aku set target bulanan: RM3,000
+* Dashboard tunjuk progress bar: 72% tercapai 💪
+* AI bagi tips:
+
+  > “Kalau maintain jualan vendor A, anda akan capai RM5K bulan ini.”
+
+💡 **Solution:** Goal Tracker + AI Forecast
+
+> “PocketBizz bukan sekadar catat — tapi coach bisnes kecil.”
+
+---
+
+## 🧠 **11️⃣ Aku nak app ni faham cara bisnes kecil bekerja**
+
+Aku nak rasa app ni “faham situasi aku”:
+
+* Kadang aku tak terus update sebab sibuk → app boleh sync semula bila free
+* Kadang aku buat banyak produk tapi tak hantar semua → app bantu draft dulu
+* Kadang aku nak tengok untung mingguan, bukan harian
+
+💡 **Solution:** Smart Draft System + Flexible Report Filter
+
+> “App ni ikut cara aku kerja, bukan aku kena ikut cara dia.”
+
+---
+
+## 💬 **12️⃣ Aku nak rasa app ni ada “jiwa”**
+
+Bukan sekadar dashboard sejuk.
+Aku nak:
+
+* Greeting: “Selamat pagi, Kak Siti 🍰! Hari ni ada 2 vendor belum claim.”
+* Notif lembut: “Tadi jualan naik 10%. Tahniah ❤️”
+
+💡 **Solution:** AI tone + personal greeting logic.
+
+> Rasa macam ada team kecil bantu aku tiap hari.
+
+---
+
+# 💎 **Kesimpulan (From Heart of a Small Business Owner)**
+
+Kalau aku guna app macam ni…
+
+Aku bukan cuma nak *mudahkan kerja.*
+Aku nak app ni buat aku rasa:
+✅ Aku ada sistem.
+✅ Aku tahu hal bisnes aku.
+✅ Aku tenang bila tutup kedai.
+✅ Aku semangat bila buka app tiap pagi.
+
+---
+
+Bro, kalau PocketBizz/BakeFlow kau boleh capai vibe ni —
+kau bukan sekadar buat sistem bisnes, tapi *rakan harian peniaga kecil.*
+
+---
+
+Nak aku bantu kau susun semua ni jadi **“Experience Blueprint”** — gabungan fungsi + emosi pengguna (contoh: *Task Flow, Insight Flow, & Feel Flow*) supaya developer kau boleh guna untuk reka UX dan AI tone yang hidup?

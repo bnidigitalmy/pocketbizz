@@ -1,0 +1,216 @@
+Alright bro 🔥 — ni dia **prompt penuh siap pakai untuk Replit Agent** supaya dia boleh terus sambung bina **6 modul tambahan ManisBizz** dan upgrade app tu jadi sistem vendor dessert yang 100% usable oleh wife kau 🍰
+
+---
+
+## 🧠 **REPLIT AGENT PROMPT – MANISBIZZ EXPANSION (DESSERT VENDOR SYSTEM)**
+
+> ⚙️ **Objective:**
+> Extend the current PocketBizz-based app (ManisBizz.zip) into a complete dessert vendor management system.
+> The app should help Malaysian home bakers manage daily production, delivery, claim tracking, and profit/loss — without manual calculations.
+
+---
+
+### 🗂️ **PROJECT OVERVIEW**
+
+**Base:** PocketBizz system (React + Supabase or LocalStorage PWA)
+**Brand:** ManisBizz 🍰
+**Theme:** Soft pink + cream + cocoa brown (dessert pastel style)
+**Font:** Poppins or Quicksand
+**Target user:** Home-based baker who sends desserts daily to vendor shops.
+
+---
+
+## 🧩 **TASK: ADD 6 NEW MODULES**
+
+---
+
+### 1️⃣ `modules/delivery.html` – **Vendor Delivery Tracker**
+
+**Purpose:** Record daily deliveries for each vendor.
+
+**Features:**
+
+* Form: vendor, product, quantity, delivery date, price, status (`delivered`, `pending`, `rejected`)
+* Auto-calculate total value = quantity × price
+* Auto deduct from product stock
+* Button “Duplicate Yesterday” → auto-fill from last delivery data
+* Save data to `localStorage.pocketbizz_delivery`
+
+**Table fields:**
+
+```json
+{
+  "id": "del_001",
+  "vendor_id": "v001",
+  "product_id": "p001",
+  "quantity": 20,
+  "price": 5,
+  "status": "delivered",
+  "date": "2025-10-14"
+}
+```
+
+---
+
+### 2️⃣ `modules/claim-report.html` – **Vendor Claim & Settlement Report**
+
+**Purpose:** Track vendor payments and pending claims.
+
+**Features:**
+
+* Display table by vendor: total delivered, total claimed, balance
+* Toggle claim status (`paid` / `pending`)
+* Filter by week / month
+* Summary box: total sales, total pending claim, total received
+* Save to `localStorage.pocketbizz_claims`
+
+**Table fields:**
+
+```json
+{
+  "vendor_id": "v001",
+  "total_sales": 250,
+  "total_claimed": 200,
+  "pending_balance": 50,
+  "last_payment_date": "2025-10-13"
+}
+```
+
+---
+
+### 3️⃣ `modules/expired-products.html` – **Expired & Rejected Tracker**
+
+**Purpose:** Track expired or rejected desserts and adjust profit accordingly.
+
+**Features:**
+
+* Field: product, batch_no, expiry_date, rejected_qty, reason
+* Auto alert if expiry date < today
+* Auto deduct rejected items from profit
+* Optional: “Mark as disposed” button
+
+**Save to:** `localStorage.pocketbizz_expired`
+
+---
+
+### 4️⃣ `modules/daily-summary.html` – **Daily/Midweek Profit & Loss Summary**
+
+**Purpose:** Summarize sales, expenses, and profit automatically.
+
+**Features:**
+
+* Date range filter (daily, weekly, monthly)
+* Auto calculate:
+
+  * Total Sales = sum(sales)
+  * Total Expenses = sum(expenses)
+  * Rejected Loss = sum(expired)
+  * Profit = Sales - (Expenses + Rejected Loss)
+* Show 3 cards:
+
+  * 💰 Profit today
+  * 📦 Total sales
+  * 💸 Total expenses
+* Export as PDF / CSV
+
+**Save to:** `localStorage.pocketbizz_summary`
+
+---
+
+### 5️⃣ `modules/notification.js` – **Smart Reminder System**
+
+**Purpose:** Notify user about vendor claim delays & near-expiry products.
+
+**Logic:**
+
+* Run on app open or daily check (using `setInterval` or `serviceWorker`)
+* Scan `pocketbizz_claims` & `pocketbizz_expired`
+* If vendor pending > 3 days → alert
+* If product expiry < 1 day → alert
+
+**Use:** PWA Notification API (or `alert()` fallback)
+
+```js
+new Notification("Reminder: Vendor Kak Ani belum claim 3 hari!");
+```
+
+---
+
+### 6️⃣ **Dashboard Enhancement**
+
+**File:** `dashboard.html` (update existing)
+Add a new section:
+
+* 🧁 *Produk siap hari ini*
+* 🚚 *Delivery today*
+* 💸 *Pending claim total*
+* ⚠️ *Products expiring soon*
+* Link buttons → each new module
+
+---
+
+## 🧱 **DATA STORAGE STRUCTURE**
+
+Use LocalStorage for now (offline mode).
+Add these keys:
+
+| Key                   | Purpose                   |
+| --------------------- | ------------------------- |
+| `pocketbizz_delivery` | Daily delivery records    |
+| `pocketbizz_claims`   | Vendor claim summary      |
+| `pocketbizz_expired`  | Expired/rejected desserts |
+| `pocketbizz_summary`  | Auto-calculated reports   |
+
+> Later, upgrade to Supabase tables when ready for cloud sync.
+
+---
+
+## 💅 **DESIGN GUIDELINES**
+
+* Use TailwindCSS (soft pastel palette)
+* Rounded cards (`rounded-2xl shadow-sm bg-pink-50`)
+* Consistent top navbar (logo: “ManisBizz 🍰”)
+* Bottom tab bar for quick navigation (Dashboard | Production | Vendor | Sales | Report)
+* Include cute bakery icons (cupcake, whisk, oven, cash bag)
+
+---
+
+## 🧠 **SUGGESTED FILE STRUCTURE**
+
+```
+/manisbizz
+│
+├── /modules
+│   ├── delivery.html
+│   ├── claim-report.html
+│   ├── expired-products.html
+│   ├── daily-summary.html
+│   ├── notification.js
+│
+├── /assets
+│   ├── icons/
+│   └── style.css
+│
+├── index.html
+├── dashboard.html
+└── app.js
+```
+
+---
+
+## 🚀 **GOAL OUTPUT**
+
+After running this prompt:
+
+* All 6 new modules exist and are connected from dashboard.
+* Data stored & retrieved via `localStorage`.
+* UI mobile-first and visually matches dessert pastel theme.
+* Working notification reminder system.
+* Fully functional offline app ready for wife’s daily use.
+
+---
+
+Bro boleh terus **copy-paste prompt ni ke Replit Agent** — dia akan tahu semua yang perlu dibuat sebab prompt ni memang ikut flow Replit dev logic (struktur, folder, kod, dan objektif lengkap).
+
+Kalau kau nak aku bantu tulis **prompt lanjutan untuk Replit Agent versi Supabase (cloud sync + multi device)** selepas ni pun boleh.
+Nak aku sambung terus next step tu lepas ni?
