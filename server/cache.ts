@@ -20,7 +20,7 @@
  */
 
 import { redis } from './redis';
-import { log } from './vite';
+import { log } from './log';
 
 // In-memory fallback cache (used when Redis unavailable)
 const memoryCache = new Map<string, { value: any; expiresAt: number }>();
