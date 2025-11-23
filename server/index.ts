@@ -64,6 +64,7 @@ async function validateEnvironment(): Promise<void> {
 
 function serveStatic(app: express.Express) {
   const distPath = path.resolve(__dirname, "public");
+  log(`Serving static files from: ${distPath}`);
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -265,9 +266,11 @@ app.use((req, res, next) => {
 if (process.env.NODE_ENV !== 'test') {
   (async () => {
     try {
+      log('Starting server initialization...');
       // Validate env and connectivity before registering routes
       await validateEnvironment();
       const server = await registerRoutes(app);
+      log('Routes registered successfully');
 
       // Error handler
       app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -293,11 +296,9 @@ if (process.env.NODE_ENV !== 'test') {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  // Windows environments may not support the non-standard reusePort option; remove for compatibility
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
+  
+  log(`Attempting to bind to port ${port}`);
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
     } catch (error: any) {
