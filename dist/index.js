@@ -3023,8 +3023,8 @@ var init_storage = __esm({
         }
       }
       // Google Drive Sync
-      async logGoogleDriveSync(userId, log3) {
-        const [syncLog] = await db.insert(googleDriveSyncLog).values({ ...log3, userId }).returning();
+      async logGoogleDriveSync(userId, log2) {
+        const [syncLog] = await db.insert(googleDriveSyncLog).values({ ...log2, userId }).returning();
         return syncLog;
       }
       async getGoogleDriveSyncLogs(userId) {
@@ -6037,144 +6037,12 @@ var init_cron = __esm({
   }
 });
 
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "url";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-var __filename, __dirname, vite_config_default;
-var init_vite_config = __esm({
-  async "vite.config.ts"() {
-    __filename = fileURLToPath(import.meta.url);
-    __dirname = path.dirname(__filename);
-    vite_config_default = defineConfig({
-      plugins: [
-        react(),
-        runtimeErrorOverlay(),
-        ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-          await import("@replit/vite-plugin-cartographer").then(
-            (m) => m.cartographer()
-          ),
-          await import("@replit/vite-plugin-dev-banner").then(
-            (m) => m.devBanner()
-          )
-        ] : []
-      ],
-      resolve: {
-        alias: {
-          "@": path.resolve(__dirname, "client", "src"),
-          "@shared": path.resolve(__dirname, "shared"),
-          "@assets": path.resolve(__dirname, "attached_assets")
-        }
-      },
-      root: path.resolve(__dirname, "client"),
-      build: {
-        outDir: path.resolve(__dirname, "dist/public"),
-        emptyOutDir: true
-      },
-      server: {
-        fs: {
-          strict: true,
-          deny: ["**/.*"]
-        }
-      }
-    });
-  }
-});
-
-// server/vite.ts
-var vite_exports = {};
-__export(vite_exports, {
-  log: () => log2,
-  serveStatic: () => serveStatic,
-  setupVite: () => setupVite
-});
-import express from "express";
-import fs from "fs";
-import path2 from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-import { createServer as createViteServer, createLogger } from "vite";
-import { nanoid } from "nanoid";
-function log2(message, source = "express") {
-  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
-async function setupVite(app2, server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true
-  };
-  const vite = await createViteServer({
-    ...vite_config_default,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      }
-    },
-    server: serverOptions,
-    appType: "custom"
-  });
-  app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const clientTemplate = path2.resolve(
-        __dirname2,
-        "..",
-        "client",
-        "index.html"
-      );
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
-}
-function serveStatic(app2) {
-  const distPath = path2.resolve(__dirname2, "public");
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
-    );
-  }
-  app2.use(express.static(distPath));
-  app2.use("*", (_req, res) => {
-    res.sendFile(path2.resolve(distPath, "index.html"));
-  });
-}
-var __filename2, __dirname2, viteLogger;
-var init_vite = __esm({
-  async "server/vite.ts"() {
-    await init_vite_config();
-    __filename2 = fileURLToPath2(import.meta.url);
-    __dirname2 = path2.dirname(__filename2);
-    viteLogger = createLogger();
-  }
-});
-
 // server/index.ts
 init_redis();
 import dotenv2 from "dotenv";
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
-import express2 from "express";
+import express from "express";
 import helmet from "helmet";
 import session from "express-session";
 import { RedisStore } from "connect-redis";
@@ -11481,13 +11349,13 @@ async function registerRoutes(app2) {
 }
 
 // server/index.ts
-import fs2 from "fs";
-import path3 from "path";
-import { fileURLToPath as fileURLToPath3 } from "url";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 dotenv2.config();
-var __filename3 = fileURLToPath3(import.meta.url);
-var __dirname3 = path3.dirname(__filename3);
-var app = express2();
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path.dirname(__filename);
+var app = express();
 async function validateEnvironment() {
   const missing = [];
   if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
@@ -11522,16 +11390,16 @@ async function validateEnvironment() {
     }
   }
 }
-function serveStatic2(app2) {
-  const distPath = path3.resolve(__dirname3, "public");
-  if (!fs2.existsSync(distPath)) {
+function serveStatic(app2) {
+  const distPath = path.resolve(__dirname, "public");
+  if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  app2.use(express2.static(distPath));
+  app2.use(express.static(distPath));
   app2.use("*", (_req, res) => {
-    res.sendFile(path3.resolve(distPath, "index.html"));
+    res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
 if (process.env.SENTRY_DSN) {
@@ -11558,7 +11426,7 @@ async function setupTestApp() {
   await registerRoutes(app);
   return app;
 }
-app.use(express2.json({
+app.use(express.json({
   verify: (req, _res, buf) => {
     try {
       req.rawBody = buf.toString("utf8");
@@ -11566,7 +11434,7 @@ app.use(express2.json({
     }
   }
 }));
-app.use(express2.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false }));
 app.use(helmet({
   // Strict-Transport-Security: Force HTTPS (only in production)
   hsts: {
@@ -11662,7 +11530,7 @@ app.use(
 );
 app.use((req, res, next) => {
   const start = Date.now();
-  const path4 = req.path;
+  const path2 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -11671,8 +11539,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path4.startsWith("/api")) {
-      let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
+    if (path2.startsWith("/api")) {
+      let logLine = `${req.method} ${path2} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -11696,10 +11564,10 @@ if (process.env.NODE_ENV !== "test") {
         throw err;
       });
       if (app.get("env") === "development") {
-        const { setupVite: setupVite2 } = await init_vite().then(() => vite_exports);
-        await setupVite2(app, server);
+        const { setupVite } = await import("./vite");
+        await setupVite(app, server);
       } else {
-        serveStatic2(app);
+        serveStatic(app);
       }
       const port = parseInt(process.env.PORT || "5000", 10);
       server.listen({
