@@ -29,7 +29,7 @@ export function UpgradePrompt() {
   const user = data?.user;
 
   // Get user's subscriptions to check for active paid subscription
-  const { data: subscriptions } = useQuery<UserSubscription[]>({
+  const { data: subscriptions, isLoading: isLoadingSubscriptions } = useQuery<UserSubscription[]>({
     queryKey: ["/api/user-subscriptions"],
     enabled: !!user,
     retry: false,
@@ -38,8 +38,11 @@ export function UpgradePrompt() {
   useEffect(() => {
     if (!user) return;
 
+    // Wait for subscriptions to load to avoid false positives
+    if (isLoadingSubscriptions || subscriptions === undefined) return;
+
     // Check if user has an active paid subscription
-    const hasActiveSubscription = subscriptions?.some(sub => 
+    const hasActiveSubscription = subscriptions.some(sub => 
       sub.status === 'active' && 
       sub.subscriptionEndsAt && 
       new Date(sub.subscriptionEndsAt) > new Date()
@@ -77,7 +80,8 @@ export function UpgradePrompt() {
 
   if (!user || !showPrompt) return null;
 
-  const isTrialExpired = user.isOnTrial === 0 && user.trialEndsAt && new Date(user.trialEndsAt) < new Date();
+  // Check if trial is expired (regardless of isOnTrial flag status)
+  const isTrialExpired = user.trialEndsAt && new Date(user.trialEndsAt) < new Date();
   const daysLeft = user.trialEndsAt ? Math.ceil((new Date(user.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
   return (
