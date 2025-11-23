@@ -11447,12 +11447,22 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      // Needed for React dev
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"],
+      // Added blob: for workers
+      workerSrc: ["'self'", "blob:"],
+      // Added worker-src
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://api.pocketbizz.my", "https://app.pocketbizz.my"],
+      connectSrc: [
+        "'self'",
+        "https://api.pocketbizz.my",
+        "https://app.pocketbizz.my",
+        "https://fonts.googleapis.com",
+        "https://fonts.gstatic.com",
+        "https://*.ingest.us.sentry.io"
+        // Allow Sentry
+      ],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: process.env.NODE_ENV === "production" ? [] : null
