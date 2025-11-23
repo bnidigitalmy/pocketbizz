@@ -1,0 +1,1047 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Plus, Calculator, Trash2, TrendingUp, Package, Edit, X } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+import type { Product, Category } from "@shared/schema";
+import { UNIT_CONVERSIONS, convertUnit } from "@shared/schema";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useKeyboardShortcuts } from "@/components/keyboard-shortcuts";
+
+const productFormSchema = z.object({
+  name: z.string().min(1, "Nama produk diperlukan"),
+  category: z.string().min(1, "Kategori diperlukan"),
+  imageUrl: z.string().optional(),
+  unitsPerBatch: z.string().min(1, "Unit per batch diperlukan"),
+  labourCost: z.string().min(0, "Kos buruh diperlukan"),
+  otherCosts: z.string().min(0, "Kos lain diperlukan"),
+  packagingCost: z.string().min(0, "Kos packaging diperlukan"),
+  sellingPrice: z.string().min(1, "Harga jualan diperlukan"),
+  recipeItems: z.array(z.object({
+    stockItemId: z.string().min(1, "Pilih bahan"),
+    quantityNeeded: z.string().min(1, "Kuantiti diperlukan"),
+    usageUnit: z.string().min(1, "Unit diperlukan"),
+  })).min(1, "Sila tambah sekurang-kurangnya satu bahan"),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
+interface StockItem {
+  id: string;
+  name: string;
+  unit: string;
+  packageSize: string;
+  currentQuantity: string;
+  purchasePrice: string;
+}
+
+interface RecipeItem {
+  id?: string;
+  stockItemId: string;
+  quantityNeeded: string;
+  usageUnit: string;
+  costPerRecipe?: string;
+}
+
+// Helper function to get compatible units for a stock item unit
+function getCompatibleUnits(stockUnit: string): string[] {
+  const unit = stockUnit.toLowerCase().trim();
+  if (UNIT_CONVERSIONS[unit]) {
+    return Object.keys(UNIT_CONVERSIONS[unit]);
+  }
+  // If no conversions found, return the stock unit itself
+  return [stockUnit];
+}
+
+export default function Products() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const { toast } = useToast();
+
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: stockItems = [] } = useQuery<StockItem[]>({
+    queryKey: ["/api/stock"],
+  });
+
+  // Fetch categories for category selector
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  // Category combobox state
+  const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      imageUrl: "",
+      unitsPerBatch: "1",
+      labourCost: "0",
+      otherCosts: "0",
+      packagingCost: "0",
+      sellingPrice: "0",
+      recipeItems: [{ stockItemId: "", quantityNeeded: "", usageUnit: "" }],
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: ProductFormValues) => {
+      const res = await apiRequest("POST", "/api/products", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Berjaya!",
+        description: "Produk & resepi telah ditambah.",
+      });
+      setDialogOpen(false);
+      setEditingProduct(null);
+      form.reset();
+    },
+    onError: (error: any) => {
+      const message = error?.message || error?.data?.message || "Gagal menambah produk.";
+      toast({
+        title: "Ralat",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ProductFormValues }) => {
+      const res = await apiRequest("PUT", `/api/products/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Berjaya!",
+        description: "Produk telah dikemaskini.",
+      });
+      setDialogOpen(false);
+      setEditingProduct(null);
+      form.reset();
+    },
+    onError: (error: any) => {
+      const message = error?.message || error?.data?.message || "Gagal mengemaskini produk.";
+      toast({
+        title: "Ralat",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/products/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Berjaya!",
+        description: "Produk telah dipadam.",
+      });
+      setProductToDelete(null);
+    },
+    onError: (error: any) => {
+      console.error("Delete product error:", error);
+      const message = error?.message || error?.data?.message || "Gagal memadam produk.";
+      toast({
+        title: "Ralat",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch recipe items when editing
+  const { data: editRecipeItems } = useQuery<RecipeItem[]>({
+    queryKey: ["/api/recipe-items", editingProduct?.id],
+    queryFn: async () => {
+      if (!editingProduct?.id) return [];
+      const response = await fetch(`/api/recipe-items/${editingProduct.id}`);
+      if (!response.ok) throw new Error("Failed to fetch recipe items");
+      return response.json();
+    },
+    enabled: !!editingProduct,
+  });
+
+  // Populate form when editing product
+  useEffect(() => {
+    if (editingProduct && editRecipeItems) {
+      form.reset({
+        name: editingProduct.name,
+        category: editingProduct.category,
+        imageUrl: editingProduct.imageUrl || "",
+        unitsPerBatch: String(editingProduct.unitsPerBatch || 1),
+        labourCost: editingProduct.labourCost || "0",
+        otherCosts: editingProduct.otherCosts || "0",
+        packagingCost: editingProduct.packagingCost || "0",
+        sellingPrice: editingProduct.sellingPrice || "0",
+        recipeItems: editRecipeItems.length > 0 
+          ? editRecipeItems.map(item => ({
+              stockItemId: item.stockItemId,
+              quantityNeeded: String(item.quantityNeeded),
+              usageUnit: item.usageUnit || "pcs",
+            }))
+          : [{ stockItemId: "", quantityNeeded: "", usageUnit: "" }],
+      });
+    }
+  }, [editingProduct, editRecipeItems, form]);
+
+  const handleOpenDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product);
+    } else {
+      setEditingProduct(null);
+      form.reset();
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (data: ProductFormValues) => {
+    try {
+      // Trim and normalize category name
+      const categoryName = data.category.trim();
+      
+      if (!categoryName) {
+        toast({
+          title: "Ralat",
+          description: "Nama kategori diperlukan",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Force fetch fresh category data (not cached) before checking
+      const freshCategories = await queryClient.fetchQuery<Category[]>({
+        queryKey: ["/api/categories"],
+        queryFn: async () => {
+          const response = await fetch("/api/categories");
+          if (!response.ok) throw new Error("Failed to fetch categories");
+          return response.json();
+        },
+      });
+
+      // Check if category exists (case-insensitive)
+      const categoryExists = freshCategories.some(
+        cat => cat.name.toLowerCase() === categoryName.toLowerCase()
+      );
+      
+      if (!categoryExists) {
+        try {
+          // Create new category
+          await apiRequest("POST", "/api/categories", { name: categoryName });
+          // Invalidate categories cache to refresh list
+          queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        } catch (error: any) {
+          // If category already exists (409/422/400 with unique constraint), continue anyway
+          const status = error?.status || error?.response?.status;
+          if (status === 409 || status === 422 || status === 400) {
+            // Category already exists, that's fine
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // Submit product with normalized category name
+      const productData = { ...data, category: categoryName };
+      
+      if (editingProduct) {
+        updateMutation.mutate({ id: editingProduct.id, data: productData });
+      } else {
+        createMutation.mutate(productData);
+      }
+    } catch (error: any) {
+      const message = error?.message || error?.data?.message || "Gagal menyimpan produk";
+      toast({
+        title: "Ralat",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addRecipeItem = () => {
+    const current = form.getValues("recipeItems") || [];
+    form.setValue("recipeItems", [...current, { stockItemId: "", quantityNeeded: "", usageUnit: "" }]);
+  };
+
+  const removeRecipeItem = (index: number) => {
+    const current = form.getValues("recipeItems") || [];
+    if (current.length > 1) {
+      form.setValue("recipeItems", current.filter((_, i) => i !== index));
+    }
+  };
+
+  // Calculate costs for display (read-only, no form updates)
+  const calculateCosts = () => {
+    const recipeItems = form.watch("recipeItems") || [];
+    const labourCost = parseFloat(form.watch("labourCost")) || 0;
+    const otherCosts = parseFloat(form.watch("otherCosts")) || 0;
+    const packagingCost = parseFloat(form.watch("packagingCost")) || 0;
+    const unitsPerBatch = parseInt(form.watch("unitsPerBatch")) || 1;
+
+    // Calculate materials cost from recipe items (with unit conversion)
+    let materialsCost = 0;
+    recipeItems.forEach(item => {
+      if (item.stockItemId && item.quantityNeeded) {
+        const stockItem = stockItems.find(s => s.id === item.stockItemId);
+        if (stockItem) {
+          const quantity = parseFloat(item.quantityNeeded) || 0;
+          const packagePrice = parseFloat(stockItem.purchasePrice) || 0;
+          const packageSize = parseFloat(stockItem.packageSize) || 1;
+          const usageUnit = item.usageUnit || stockItem.unit;
+          
+          // Calculate unit price (price per single unit, e.g., RM0.0438 per gram for RM21.90/500gram)
+          const unitPrice = packagePrice / packageSize;
+          
+          // Convert quantity from usage unit to stock's purchase unit
+          const convertedQuantity = convertUnit(quantity, usageUnit, stockItem.unit);
+          
+          // Calculate cost: converted quantity × unit price
+          materialsCost += convertedQuantity * unitPrice;
+        }
+      }
+    });
+
+    // Total packaging cost = packaging cost per unit × units per batch
+    const totalPackagingCost = packagingCost * unitsPerBatch;
+    
+    // Total cost per batch = materials + labour + other costs + packaging
+    const totalCostPerBatch = materialsCost + labourCost + otherCosts + totalPackagingCost;
+    
+    // Cost per unit = total cost per batch / units per batch
+    const costPerUnit = unitsPerBatch > 0 ? totalCostPerBatch / unitsPerBatch : 0;
+
+    // Suggest profit margin (30-50% based on cost)
+    let suggestedMarginPercent = 30;
+    if (costPerUnit < 1) suggestedMarginPercent = 50;
+    else if (costPerUnit < 3) suggestedMarginPercent = 40;
+    else if (costPerUnit < 5) suggestedMarginPercent = 35;
+    
+    const suggestedSellingPrice = costPerUnit * (1 + suggestedMarginPercent / 100);
+
+    return {
+      materialsCost: materialsCost.toFixed(2),
+      packagingCost: packagingCost.toFixed(2),
+      totalPackagingCost: totalPackagingCost.toFixed(2),
+      totalCostPerBatch: totalCostPerBatch.toFixed(2),
+      costPerUnit: costPerUnit.toFixed(2),
+      suggestedMarginPercent,
+      suggestedSellingPrice: suggestedSellingPrice.toFixed(2),
+    };
+  };
+
+  // Auto-suggest selling price button
+  const applySuggestedPrice = () => {
+    const costs = calculateCosts();
+    form.setValue("sellingPrice", costs.suggestedSellingPrice);
+  };
+
+  const costs = calculateCosts();
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onNew: () => {
+      form.reset();
+      setEditingProduct(null);
+      setDialogOpen(true);
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Memuat produk...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold md:text-3xl">Produk & Resepi</h1>
+          <p className="text-sm text-muted-foreground mt-1">Urus produk dan resepi dengan auto-kira kos</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-product" onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Tambah Produk
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingProduct ? "Edit Produk & Resepi" : "Tambah Produk & Resepi Baru"}
+              </DialogTitle>
+              <DialogDescription>
+                Pilih bahan dari stok gudang, sistem akan auto-kira kos & cadangkan harga jualan
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                {/* Product Details */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Maklumat Produk</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Produk</FormLabel>
+                          <FormControl>
+                            <Input placeholder="cth: Cream Puff" {...field} data-testid="input-product-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Kategori</FormLabel>
+                          <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={categoryOpen}
+                                  className="justify-between"
+                                  data-testid="button-category-select"
+                                >
+                                  {field.value || "Pilih atau taip kategori..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput 
+                                  placeholder="Cari atau taip kategori baru..." 
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>Tiada kategori ditemui. Taip untuk tambah baru.</CommandEmpty>
+                                  <CommandGroup>
+                                    {categories.map((category) => (
+                                      <CommandItem
+                                        key={category.id}
+                                        value={category.name}
+                                        onSelect={(currentValue) => {
+                                          field.onChange(currentValue);
+                                          setCategoryOpen(false);
+                                        }}
+                                        data-testid={`option-category-${category.name}`}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 ${
+                                            field.value === category.name ? "opacity-100" : "opacity-0"
+                                          }`}
+                                        />
+                                        {category.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL Gambar Produk (Opsional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://example.com/image.jpg" 
+                              {...field} 
+                              data-testid="input-image-url" 
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Link gambar produk untuk paparan POS
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  {/* Image Preview */}
+                  {form.watch("imageUrl") && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Preview Gambar:</p>
+                      <div className="relative w-32 h-32 border-2 border-border rounded-lg overflow-hidden bg-muted">
+                        <img 
+                          src={form.watch("imageUrl")} 
+                          alt="Product preview" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (errorDiv) errorDiv.style.display = 'flex';
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden items-center justify-center bg-muted" style={{ display: 'none' }}>
+                          <p className="text-xs text-muted-foreground text-center p-2">
+                            Gambar tidak dapat dimuatkan
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recipe Items (from Stock) */}
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 className="font-medium">Resepi (Bahan dari Stok)</h3>
+                      <p className="text-sm text-muted-foreground">Pilih bahan dari stok gudang</p>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addRecipeItem}
+                      data-testid="button-add-recipe-item"
+                      className="w-full sm:w-auto"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Tambah Bahan
+                    </Button>
+                  </div>
+                  
+                  {form.watch("recipeItems")?.map((_, index) => (
+                    <div key={index} className="flex flex-col md:flex-row gap-3 items-start p-3 bg-muted/50 rounded-lg">
+                      <FormField
+                        control={form.control}
+                        name={`recipeItems.${index}.stockItemId`}
+                        render={({ field }) => {
+                          const selectedStock = stockItems.find(s => s.id === field.value);
+                          const unitPrice = selectedStock 
+                            ? parseFloat(selectedStock.purchasePrice) / parseFloat(selectedStock.packageSize)
+                            : 0;
+                          
+                          return (
+                            <FormItem className="flex-1">
+                              <FormLabel className="text-xs">Bahan</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-stock-item-${index}`}>
+                                    <SelectValue placeholder="Pilih bahan" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {stockItems.map((item) => {
+                                    const pricePerUnit = parseFloat(item.purchasePrice) / parseFloat(item.packageSize);
+                                    return (
+                                      <SelectItem key={item.id} value={item.id}>
+                                        {item.name} - {item.packageSize}{item.unit} @ RM{parseFloat(item.purchasePrice).toFixed(2)}
+                                        <span className="text-xs text-muted-foreground ml-1">
+                                          (RM{pricePerUnit.toFixed(4)}/{item.unit})
+                                        </span>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              {selectedStock && (
+                                <FormDescription className="text-xs">
+                                  Pakej: {selectedStock.packageSize}{selectedStock.unit} @ RM{parseFloat(selectedStock.purchasePrice).toFixed(2)}
+                                  {' '}<span className="font-medium text-primary">(RM{unitPrice.toFixed(4)}/{selectedStock.unit})</span>
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`recipeItems.${index}.usageUnit`}
+                        render={({ field }) => {
+                          const selectedStockId = form.watch(`recipeItems.${index}.stockItemId`);
+                          const selectedStock = stockItems.find(s => s.id === selectedStockId);
+                          const compatibleUnits = selectedStock ? getCompatibleUnits(selectedStock.unit) : [];
+                          
+                          return (
+                            <FormItem className="w-28">
+                              <FormLabel className="text-xs">Unit</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value}
+                                disabled={!selectedStock}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-usage-unit-${index}`}>
+                                    <SelectValue placeholder="Unit" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {compatibleUnits.map((unit) => (
+                                    <SelectItem key={unit} value={unit}>
+                                      {unit}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`recipeItems.${index}.quantityNeeded`}
+                        render={({ field }) => {
+                          const selectedStockId = form.watch(`recipeItems.${index}.stockItemId`);
+                          const selectedStock = stockItems.find(s => s.id === selectedStockId);
+                          const usageUnit = form.watch(`recipeItems.${index}.usageUnit`) || selectedStock?.unit;
+                          const quantityNeeded = parseFloat(field.value || "0");
+                          
+                          let cost = 0;
+                          let convertedQty = 0;
+                          let showConversion = false;
+                          
+                          if (selectedStock && quantityNeeded > 0) {
+                            const packagePrice = parseFloat(selectedStock.purchasePrice);
+                            const packageSize = parseFloat(selectedStock.packageSize);
+                            const unitPrice = packagePrice / packageSize;
+                            convertedQty = convertUnit(quantityNeeded, usageUnit || selectedStock.unit, selectedStock.unit);
+                            cost = convertedQty * unitPrice;
+                            
+                            // Show conversion if usage unit differs from stock unit
+                            showConversion = usageUnit && usageUnit.toLowerCase() !== selectedStock.unit.toLowerCase();
+                          }
+                          
+                          return (
+                            <FormItem className="w-32">
+                              <FormLabel className="text-xs">Kuantiti</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01"
+                                  placeholder="0" 
+                                  {...field} 
+                                  data-testid={`input-quantity-${index}`}
+                                />
+                              </FormControl>
+                              {cost > 0 && (
+                                <FormDescription className="text-xs space-y-0.5">
+                                  {showConversion && selectedStock && (
+                                    <div className="text-muted-foreground">
+                                      = {convertedQty.toFixed(2)} {selectedStock.unit}
+                                    </div>
+                                  )}
+                                  <div className="font-medium text-primary">
+                                    ≈ RM{cost.toFixed(4)}
+                                  </div>
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      {form.watch("recipeItems")?.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="mt-6"
+                          onClick={() => removeRecipeItem(index)}
+                          data-testid={`button-remove-recipe-${index}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Production Costs */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Kos Pengeluaran</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="unitsPerBatch"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit Per Batch</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              min="1"
+                              placeholder="1" 
+                              {...field} 
+                              data-testid="input-units-per-batch"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Berapa unit dihasilkan dari 1 resepi
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="packagingCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kos Packaging Per Unit (RM)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.001"
+                              placeholder="0" 
+                              {...field} 
+                              data-testid="input-packaging-cost"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Contoh: 50 pcs @ RM11.90 = RM0.238 per unit
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="labourCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kos Buruh (RM)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="0" 
+                              {...field} 
+                              data-testid="input-labour-cost"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Upah per batch
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="otherCosts"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kos Lain (RM)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="0" 
+                              {...field} 
+                              data-testid="input-other-costs"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Gas, elektrik, etc per batch
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Cost Summary & Pricing */}
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      Ringkasan Kos & Cadangan Harga
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Kos Bahan Mentah</p>
+                        <p className="font-semibold">RM {costs.materialsCost}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Kos Packaging</p>
+                        <p className="font-semibold">RM {costs.totalPackagingCost}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Jumlah Kos/Batch</p>
+                        <p className="font-semibold">RM {costs.totalCostPerBatch}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Kos Per Unit</p>
+                        <p className="font-semibold text-lg">RM {costs.costPerUnit}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-muted-foreground mb-1">Cadangan Harga (markup):</p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 2).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            2x = RM {(parseFloat(costs.costPerUnit) * 2).toFixed(2)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 2.5).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            2.5x = RM {(parseFloat(costs.costPerUnit) * 2.5).toFixed(2)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const price = (parseFloat(costs.costPerUnit) * 3).toFixed(2);
+                              form.setValue("sellingPrice", price);
+                            }}
+                            className="text-xs"
+                          >
+                            3x = RM {(parseFloat(costs.costPerUnit) * 3).toFixed(2)}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="sellingPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" />
+                            Harga Jualan Per Unit (RM)
+                          </FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder={costs.suggestedSellingPrice}
+                                {...field} 
+                                data-testid="input-selling-price"
+                                className="text-lg font-semibold"
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={applySuggestedPrice}
+                              data-testid="button-apply-suggested-price"
+                            >
+                              Guna Cadangan
+                            </Button>
+                          </div>
+                          <FormDescription>
+                            Cadangan: RM {costs.suggestedSellingPrice} 
+                            ({costs.suggestedMarginPercent}% margin keuntungan)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    data-testid="button-save-product"
+                  >
+                    {editingProduct 
+                      ? (updateMutation.isPending ? "Mengemaskini..." : "Kemaskini Produk")
+                      : (createMutation.isPending ? "Menyimpan..." : "Simpan Produk")
+                    }
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {!products || products.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Package className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Tiada Produk Lagi</h3>
+            <p className="text-sm text-muted-foreground mb-4">Tambah produk pertama anda</p>
+            <Button onClick={() => setDialogOpen(true)} variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Tambah Produk
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {products.map((product: any) => (
+            <Card key={product.id} className="hover-elevate" data-testid={`card-product-${product.id}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{product.name}</CardTitle>
+                    <Badge variant="secondary" className="mt-2">{product.category}</Badge>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleOpenDialog(product)}
+                      data-testid={`button-edit-${product.id}`}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setProductToDelete(product)}
+                      data-testid={`button-delete-${product.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Kos/Unit:</span>
+                    <span className="font-medium">RM {product.costPerUnit}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Harga Jualan:</span>
+                    <span className="font-semibold text-primary">RM {product.sellingPrice || product.suggestedPrice}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Padam Produk?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adakah anda pasti ingin memadam produk "{productToDelete?.name}"? 
+              Tindakan ini tidak boleh dibatalkan dan akan memadam semua resepi yang berkaitan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => productToDelete && deleteMutation.mutate(productToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Mempadam..." : "Padam"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

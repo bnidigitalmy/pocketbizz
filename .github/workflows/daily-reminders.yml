@@ -1,0 +1,23 @@
+name: Daily Reminder Notifications
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC (5 PM Malaysia Time - UTC+8)
+    # Adjust to 1 AM UTC for 9 AM Malaysia Time
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Reminders
+        run: |
+          curl -X POST https://app.pocketbizz.my/api/cron/daily-reminders \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -v
+        
+      - name: Check Response
+        if: failure()
+        run: echo "❌ Daily reminders failed!"
