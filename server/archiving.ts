@@ -12,7 +12,7 @@ import {
   resellers,
   customers,
   stockItems
-} from "@shared/schema";
+} from "../shared/schema";
 import { eq, and, desc, lt, isNotNull, inArray } from "drizzle-orm";
 import { getUserPlan } from "./feature-gating";
 import { storage } from "./storage";

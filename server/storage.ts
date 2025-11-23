@@ -152,7 +152,7 @@ import {
   type InsertStoreSettings,
   type StoreAnalytics,
   type InsertStoreAnalytics,
-} from "@shared/schema";
+} from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, gt, asc, sql, inArray, like } from "drizzle-orm";
 

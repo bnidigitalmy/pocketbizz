@@ -1,7 +1,7 @@
 // BCL.my Webhook Integration for Payment Processing
 import type { Request, Response } from "express";
 import { db } from "./db";
-import { users, userSubscriptions, subscriptionPlans } from "@shared/schema";
+import { users, userSubscriptions, subscriptionPlans } from "../shared/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 import { 

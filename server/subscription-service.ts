@@ -16,7 +16,7 @@ import {
   type SubscriptionPlan,
   type InsertUserSubscription,
   type InsertBillingHistory,
-} from "@shared/schema";
+} from "../shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 export interface ActivateSubscriptionParams {

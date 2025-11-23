@@ -19,7 +19,7 @@ import {
   requirePublicStore,
   getUserPlan,
 } from "./feature-gating";
-import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens, adminActivityLogs } from "@shared/schema";
+import { deliveryItems, earlyBirdTracking, billingHistory, customers, users, passwordResetTokens, adminActivityLogs } from "../shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { 
   insertProductSchema,
@@ -42,7 +42,7 @@ import {
   insertPricingTierSchema,
   insertResellerSchema,
   insertResellerTransferSchema,
-} from "@shared/schema";
+} from "../shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { uploadPDFToGoogleDrive, listManisBizzFiles } from "./google-drive";
@@ -1945,7 +1945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const quantityNeeded = parseFloat(item.quantityNeeded) * quantity;
         
         // Convert to stock item's unit for comparison
-        const { convertUnit } = await import("@shared/schema");
+        const { convertUnit } = await import("../shared/schema");
         const convertedQuantity = convertUnit(
           quantityNeeded, 
           item.usageUnit.toLowerCase(), 
@@ -2009,7 +2009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify stock availability again before deduction
       const recipeItems = await storage.getRecipeItems(productId);
-      const { convertUnit } = await import("@shared/schema");
+      const { convertUnit } = await import("../shared/schema");
 
       for (const item of recipeItems) {
         const stockItem = await storage.getStockItem(req.user!.id, item.stockItemId);
@@ -3653,7 +3653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user subscriptions
   app.get("/api/user/subscriptions", requireAuth, async (req, res) => {
     try {
-      const { userSubscriptions } = await import("@shared/schema");
+      const { userSubscriptions } = await import("../shared/schema");
       const { eq, desc } = await import("drizzle-orm");
       
       const subscriptions = await db
@@ -3672,7 +3672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user plan limits and usage
   app.get("/api/user/plan-limits", requireAuth, async (req, res) => {
     try {
-      const { products: productsTable, stockItems, sales } = await import("@shared/schema");
+      const { products: productsTable, stockItems, sales } = await import("../shared/schema");
       const { eq, count } = await import("drizzle-orm");
       
       // Get current usage
@@ -4165,7 +4165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Shopping Cart Routes
   app.post("/api/shopping-cart", requireAuth, async (req, res) => {
     try {
-      const { insertShoppingCartSchema } = await import("@shared/schema");
+      const { insertShoppingCartSchema } = await import("../shared/schema");
       const data = insertShoppingCartSchema.parse(req.body);
       const item = await storage.addToShoppingCart(req.user!.id, data);
       res.json(item);
@@ -6239,7 +6239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create store settings
   app.post("/api/store-settings", requireAuth, requirePublicStore, async (req, res) => {
     try {
-      const { insertStoreSettingsSchema } = await import("@shared/schema");
+      const { insertStoreSettingsSchema } = await import("../shared/schema");
       const validatedData = insertStoreSettingsSchema.parse(req.body);
       
       const settings = await storage.createStoreSettings(req.user!.id, validatedData);
