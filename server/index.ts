@@ -34,7 +34,6 @@ async function validateEnvironment(): Promise<void> {
 
   // quick DB connectivity check
   try {
-    const { Pool } = await import('pg');
     const pool = new Pool({ 
       connectionString: process.env.DATABASE_URL,
       connectionTimeoutMillis: 10000, // 10 second timeout
@@ -51,7 +50,6 @@ async function validateEnvironment(): Promise<void> {
   // test Redis if configured
   if (process.env.REDIS_URL) {
     try {
-      const { redis } = await import('./redis');
       if (redis) {
         await redis.ping();
         log('✓ Redis reachable');
