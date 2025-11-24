@@ -22,6 +22,17 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Global error handlers to catch startup crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
 // Validate environment and connectivity checks before starting the server
 async function validateEnvironment(): Promise<void> {
   const missing: string[] = [];
