@@ -142,8 +142,12 @@ app.use(helmet({
         "https://app.pocketbizz.my", 
         "https://fonts.googleapis.com", 
         "https://fonts.gstatic.com",
-        "https://*.ingest.us.sentry.io" // Allow Sentry
+        "https://*.ingest.us.sentry.io", // Allow Sentry
+        "https://*.sentry.io",
+        "wss://*.kaspersky-labs.com", // Allow Kaspersky (optional, reduces noise)
+        "https://*.kaspersky-labs.com"
       ],
+      childSrc: ["'self'", "blob:"], // Fallback for worker-src in some browsers
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: process.env.NODE_ENV === "production" ? [] : null,
