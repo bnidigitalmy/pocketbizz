@@ -11,7 +11,7 @@ import { RedisStore } from "connect-redis";
 import ConnectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import { redis } from "./redis";
-import { registerRoutes } from "./routes";
+// import { registerRoutes } from "./routes"; // Moved to dynamic import
 import { log } from "./log";
 import fs from "fs";
 import path from "path";
@@ -21,6 +21,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+console.log("Server process starting...");
 
 // Global error handlers to catch startup crashes
 process.on('uncaughtException', (error) => {
@@ -282,6 +284,9 @@ if (process.env.NODE_ENV !== 'test') {
       log('Starting server initialization...');
       // Validate env and connectivity before registering routes
       await validateEnvironment();
+      
+      // Dynamic import to prevent top-level errors in dependencies from crashing the app before logging
+      const { registerRoutes } = await import("./routes");
       const server = await registerRoutes(app);
       log('Routes registered successfully');
 
