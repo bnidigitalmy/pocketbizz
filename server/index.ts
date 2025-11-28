@@ -342,10 +342,12 @@ if (process.env.NODE_ENV !== 'test') {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
+  // Railway/Render provide PORT env var dynamically
   const port = parseInt(process.env.PORT || '5000', 10);
+  
+  console.log(`🔍 Port Configuration:`);
+  console.log(`  - PORT env var: ${process.env.PORT}`);
+  console.log(`  - Using port: ${port}`);
   
   log(`Attempting to bind to port ${port}`);
   server.listen(port, "0.0.0.0", () => {
