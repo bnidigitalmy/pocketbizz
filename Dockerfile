@@ -32,6 +32,9 @@ COPY --from=builder /app/dist ./dist
 # Copy shared schema (needed at runtime)
 COPY --from=builder /app/shared ./shared
 
+# Copy startup wrapper (needed for diagnostics)
+COPY --from=builder /app/start.js ./start.js
+
 # Expose port (Fly.io uses PORT env var)
 EXPOSE 8080
 
