@@ -263,6 +263,16 @@ app.use(
   })
 );
 
+// Health check endpoint (before any middleware)
+app.get('/health', (_req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV 
+  });
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -296,6 +306,13 @@ app.use((req, res, next) => {
 if (process.env.NODE_ENV !== 'test') {
   (async () => {
     try {
+      console.log('======================================');
+      console.log('🚀 PocketBizz Server Starting...');
+      console.log('Node Version:', process.version);
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('Current Directory:', process.cwd());
+      console.log('======================================');
+      
       log('Starting server initialization...');
       // Validate env and connectivity before registering routes
       await validateEnvironment();
@@ -332,7 +349,20 @@ if (process.env.NODE_ENV !== 'test') {
   
   log(`Attempting to bind to port ${port}`);
   server.listen(port, "0.0.0.0", () => {
+    console.log('======================================');
+    console.log('✅ SERVER READY!');
+    console.log(`🌐 Listening on http://0.0.0.0:${port}`);
+    console.log('======================================');
     log(`serving on port ${port}`);
+  });
+  
+  // Log if server fails to start
+  server.on('error', (error: any) => {
+    console.error('======================================');
+    console.error('❌ SERVER ERROR:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('======================================');
+    process.exit(1);
   });
     } catch (error: any) {
       console.error('❌ Fatal startup error:', error.message);
