@@ -393,7 +393,7 @@ export default function POSPage() {
 
   // Generate PDF receipt
   const generatePDF = () => {
-    if (!lastReceipt || !saleDetails) return;
+    if (!lastReceipt || !lastReceipt.items) return;
 
     const doc = new jsPDF();
     
@@ -424,7 +424,7 @@ export default function POSPage() {
     doc.text(`Bayaran: ${lastReceipt.paymentMethod.toUpperCase()}`, 20, 70);
     
     // Items Table
-    const tableData = (saleDetails.items || []).map((item: any) => [
+    const tableData = (lastReceipt.items || []).map((item: any) => [
       item.productName,
       item.quantity,
       `RM ${parseFloat(item.unitPrice).toFixed(2)}`,
@@ -493,9 +493,9 @@ export default function POSPage() {
 
   // Download Thermal Receipt (80mm)
   const handleDownloadThermal = () => {
-    if (!lastReceipt || !saleDetails) return;
+    if (!lastReceipt || !lastReceipt.items) return;
 
-    const doc = generateThermalReceipt80mm(lastReceipt, saleDetails.items, businessProfile);
+    const doc = generateThermalReceipt80mm(lastReceipt, lastReceipt.items, businessProfile);
 
     if (doc) {
       const filename = `resit-${lastReceipt.receiptNumber}-thermal.pdf`;

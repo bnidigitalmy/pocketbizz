@@ -35,6 +35,7 @@ import ShoppingList from "@/pages/shopping-list";
 import PurchaseOrders from "@/pages/purchase-orders";
 import Suppliers from "@/pages/suppliers";
 import Vendors from "@/pages/vendors";
+import Deliveries from "@/pages/deliveries";
 import Sales from "@/pages/sales";
 import POSPage from "@/pages/pos";
 import Expenses from "@/pages/expenses";
@@ -102,6 +103,7 @@ function AppRouter() {
           <Route path="/purchase-orders" component={PurchaseOrders} />
           <Route path="/suppliers" component={Suppliers} />
           <Route path="/vendors" component={Vendors} />
+          <Route path="/deliveries" component={Deliveries} />
           <Route path="/sales" component={Sales} />
           <Route path="/pos" component={POSPage} />
           <Route path="/customers" component={ComingSoon} />
