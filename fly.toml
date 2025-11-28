@@ -24,10 +24,13 @@ primary_region = "sin" # Singapore
 
   [[http_service.checks]]
     interval = "30s"
-    timeout = "5s"
-    grace_period = "10s"
+    timeout = "10s"
+    grace_period = "20s"
     method = "GET"
     path = "/health"
+    
+    [http_service.checks.headers]
+      User-Agent = "Fly-Health-Check"
 
 [[vm]]
   memory = '256mb'
