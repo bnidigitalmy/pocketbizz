@@ -76,10 +76,25 @@ async function validateEnvironment(): Promise<void> {
 function serveStatic(app: express.Express) {
   const distPath = path.resolve(__dirname, "public");
   log(`Serving static files from: ${distPath}`);
+  log(`Current __dirname: ${__dirname}`);
+  log(`Current working directory: ${process.cwd()}`);
 
   if (!fs.existsSync(distPath)) {
+    // Try alternative path for Railway/production deployment
+    const altPath = path.resolve(process.cwd(), "dist", "public");
+    log(`Primary dist path not found, trying alternative: ${altPath}`);
+    
+    if (fs.existsSync(altPath)) {
+      log(`✓ Using alternative dist path: ${altPath}`);
+      app.use(express.static(altPath));
+      app.use("*", (_req, res) => {
+        res.sendFile(path.resolve(altPath, "index.html"));
+      });
+      return;
+    }
+    
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory: ${distPath} or ${altPath}, make sure to build the client first`,
     );
   }
 

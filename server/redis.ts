@@ -13,13 +13,14 @@ if (!REDIS_URL) {
 export const redis = REDIS_URL ? createClient({
   url: REDIS_URL,
   socket: {
+    connectTimeout: 5000, // 5 second connection timeout
     reconnectStrategy: (retries) => {
       // Retry connection with exponential backoff
-      if (retries > 10) {
+      if (retries > 5) {
         console.error('Redis: Max reconnection attempts reached');
-        return new Error('Redis reconnection failed');
+        return false; // Stop reconnecting
       }
-      const delay = Math.min(retries * 100, 3000);
+      const delay = Math.min(retries * 100, 2000);
       console.log(`Redis: Reconnecting in ${delay}ms (attempt ${retries})`);
       return delay;
     },
@@ -45,7 +46,7 @@ if (redis) {
     console.log('✓ Redis client ready');
   });
 
-  // Connect to Redis on module load
+  // Connect to Redis on module load (non-blocking)
   (async () => {
     try {
       await redis.connect();
@@ -53,7 +54,10 @@ if (redis) {
       console.error('Failed to connect to Redis:', error);
       console.error('Application will continue without Redis (using PostgreSQL for sessions)');
     }
-  })();
+  })().catch(() => {
+    // Silently catch to prevent unhandled rejection
+    // App will work without Redis using PostgreSQL sessions
+  });
 
   // Graceful shutdown
   process.on('SIGINT', async () => {
