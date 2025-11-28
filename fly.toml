@@ -27,7 +27,7 @@ primary_region = "sin" # Singapore
     timeout = "5s"
     grace_period = "10s"
     method = "GET"
-    path = "/api/session"
+    path = "/health"
 
 [[vm]]
   memory = '256mb'
