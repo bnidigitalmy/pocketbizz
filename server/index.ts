@@ -22,6 +22,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+const cookieDomain =
+  process.env.COOKIE_DOMAIN ||
+  (process.env.NODE_ENV === "production" ? ".pocketbizz.my" : undefined);
+console.log("Cookie domain:", cookieDomain ?? "(default host)");
+
 console.log("Server process starting...");
 
 // Global error handlers to catch startup crashes
@@ -256,7 +261,7 @@ app.use(
       sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (reduced from 30 for better security)
       path: '/', // Explicitly set cookie path
-      domain: process.env.NODE_ENV === "production" ? '.pocketbizz.my' : undefined, // Allow subdomains in production
+      domain: cookieDomain, // Allow custom domain via env
     },
     proxy: true, // Trust the reverse proxy for secure cookie handling
     name: 'pocketbizz.sid', // Custom session cookie name to avoid conflicts
